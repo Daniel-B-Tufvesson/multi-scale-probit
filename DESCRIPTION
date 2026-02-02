@@ -1,0 +1,13 @@
+Package: masteruppsatsr
+Type: Package
+Title: Master Thesis R Package
+Version: 0.1.0
+Author: Daniel Tufvesson
+Maintainer: Daniel Tufvesson <your.email@example.com>
+Description: Tools and models for master thesis experiments.
+License: GPL-2
+Encoding: UTF-8
+LazyData: true
+LinkingTo: Rcpp, RcppArmadillo
+Imports: Rcpp, RcppArmadillo
+SystemRequirements: GNU Scientific Library (GSL)

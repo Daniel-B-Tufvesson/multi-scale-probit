@@ -1,0 +1,2 @@
+useDynLib(masteruppsatsr, .registration = TRUE)
+import(Rcpp)

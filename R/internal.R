@@ -1,0 +1,173 @@
+
+# Constructor for creating a new multi-scale probit model (MSPM).
+# 
+# Arguments: 
+# data: An MSPM data structure holding the data used for fitting.
+# beta: An MCMC object for the beta (the coefficients) parameters.
+# gammas: A list of MCMC gammas (the thresholds) of each target dataset.
+# meanPrior: Prior mean for regression coefficients.
+# precPrior: Prior precision for regression coefficients.
+# seed: The random seed used for reproducibility.
+# call: The original function call used to create the model.
+new_mspm <- function(
+    data,
+    beta,
+    gammas,
+    meanPrior,
+    precPrior,
+    seed,
+    call
+) {
+    structure(
+        list(
+            data = data,
+            beta = beta,
+            gammas = gammas,
+            meanPrior = meanPrior,
+            precPrior = precPrior,
+            call = call,
+            seed = seed,
+            nobs = nrow(beta), # Why is nobs the number of rows in beta? Shouldn't this be ndraws?
+            ndraws = nrow(beta)
+            
+            # diagnostics = list(
+            #     rhat = rhat,
+            #     ess = ess,
+            #     divergences = divergences
+            # ),
+        ),
+        class = "mspm"
+    )
+}
+
+# Constructor for creating a new multi-scale probit model data structure.
+#
+# Arguments:
+# predictorNames: A vector of predictor variable names.
+# responseNames: A vector of response variable names corresponding to each dataset.
+# Xlist: A list of design matrices for each dataset.
+# ylist: A list of response vectors for each dataset.
+# levelNames: A list of vectors containing the names of levels for each response variable.
+# nlevels: A vector indicating the number of levels for each response variable.
+# ntargets: The number of target datasets.
+# seed: An optional random seed for reproducibility. Only used if data is synthetic.
+# call: The original function call used to create the data structure.
+new_mspm_data <- function(
+    predictorNames,
+    responseNames,
+    Xlist,
+    ylist,
+    levelNames,
+    nlevels,
+    ntargets,
+    seed,
+    call
+) {
+    structure(
+        list(
+            predictorNames = predictorNames,
+            responseNames = responseNames,
+            Xlist = Xlist,
+            ylist = ylist,
+            levelNames = levelNames,
+            nlevels = nlevels,
+            ntargets = ntargets,
+            seed = seed,
+            call = call
+        ),
+        class = "mspm_data"
+    )
+}
+
+# Constructor for creating a new multi-scale probit model latent prediction object.
+# 
+# Arguments:
+# data: The mspm_data object containing the data used for predicting.
+# fit: The fitted mspm object that was used for predicting.
+# ystars: A data frame of latent variable samples for each observation and each draw.
+# call: The original function call used to create the prediction.
+new_mspm_latent_prediction <- function(
+    data,
+    fit,
+    ystars,
+    call
+) {
+    structure(
+        list(
+            data = data,
+            fit = fit,
+            ystars = ystars,
+            call = call
+        ),
+        class = "mspm_latent_prediction"
+    )
+}
+
+# Constructor for creating a new multi-scale probit model labeled prediction object.
+# 
+# Arguments:
+# data: The mspm_data object containing the data used for predicting.
+# fit: The fitted mspm object that was used for predicting.
+# ylabels: A list of data frames of observed categorical labels for each observation and 
+#          each draw. There is one data frame for each scale.
+# ylabelIndexes: A list of matrices indicating the indexes of predicted labels for each
+#                observation and each draw. There is one matrix for each scale.
+# latentPredictions: The mspm_latent_prediction object containing latent variable samples.
+# call: The original function call used to create the prediction.
+new_mspm_labeled_prediction <- function(
+    data,
+    fit,
+    ylabels,
+    ylabelIndexes,
+    latentPredictions,
+    call
+) {
+    structure(
+        list(
+            data = data,
+            fit = fit,
+            ylabels = ylabels,
+            ylabelIndexes = ylabelIndexes,
+            latentPredictions = latentPredictions,
+            call = call
+        ),
+        class = "mspm_labeled_prediction"
+    )
+}
+
+# Constructor for creating a new multi-scale probit model labeled evaluation object.
+# 
+# Arguments:
+# prediction: The mspm_labeled_prediction object containing predicted labels.
+# metrics: A character vector specifying which evaluation metrics were computed.
+# drawResults: A list containing the computed evaluation results. Each element corresponds 
+#              to a metric and contains a matrix of results with rows for draws and columns 
+#              for targets (and possibly harmonic mean as the last column).
+# targetMeans: A list containing the mean evaluation results for each target (and possibly 
+#              harmonic mean) across all draws.
+# metricMeans: A matrix containing the mean over each metric for each draw and target (and 
+#              possibly harmonic mean).
+# drawMeans: A list containing the mean evaluation results for each draw across all targets.
+# call: The original function call used to create the evaluation.
+new_mspm_labeled_evaluation <- function(
+    prediction,
+    metrics,
+    drawResults,
+    targetMeans,
+    drawMeans,
+    metricMeans,
+    call
+) {
+    structure(
+        list(
+            prediction = prediction,
+            metrics = metrics,
+            drawResults = drawResults,
+            targetMeans = targetMeans,
+            drawMeans = drawMeans,
+            metricMeans = metricMeans,
+            call = call
+        ),
+        class = "mspm_labeled_evaluation"
+    )
+}

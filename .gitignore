@@ -1,0 +1,21 @@
+
+# R environemnt data.
+.RData
+.RHistory
+*.RDataTmp
+*.RData
+
+# Data.
+*.RDS
+!data/**/*.RDS
+mydata
+
+# cpp compiled files.
+*.o
+*.so
+
+# IDE.
+.vscode
+
+# Logs.
+*log.txt
