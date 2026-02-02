@@ -58,3 +58,8 @@ train.eval <- eval_mspm_prediction_draws(
     predictions = mspm.labels.train
 )
 train.eval
+
+# Plot performance metrics for training data.
+plot_eval_draws(
+    eval = train.eval
+)

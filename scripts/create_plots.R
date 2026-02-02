@@ -30,72 +30,49 @@ plot_stats_gg <- function(separate,
                         monochrome = FALSE) {
   # Set colors
   if (is.null(custom.palette)) {
-    if (model.type == "Binary") {
-      active.palette <- cbbPalette2
-    } else {
-      active.palette <- cbbPalette1
-    }
+    active.palette <- if (model.type == "Binary") cbbPalette2 else cbbPalette1
   } else {
     active.palette <- custom.palette
   }
-  # Organize data
-  #print("1")
+  # Prepare data
   dat <- data.frame(combined, separate)
-  #print("1.5")
-  #print(str(dat))
   colnames(dat) <- c("Multi-Scale Probit", paste(model.type, "Probit"))
-  #means <- data.frame(apply(dat, 2, function(col) {
-  #  return(mean(col[col>0]))
-  #}))
-  #means <- data.frame(model = as.factor(colnames(dat)), grp.mean = means)
-  #colnames(means) <- c("model", "grp.mean")
-  #print(str(means))
-  #print("2")
   dat <- melt(dat)
   colnames(dat) <- c("model", "draw")
-  #print("3")
-  means <- ddply(dat[which(dat[, 2] >= 0 & dat[, 2] <= 1), ], "model", summarise, grp.mean=mean(draw, na.rm = TRUE))
-  # print(str(dat))
-  # print(means)
-  # Base plot with densities
+  means <- ddply(dat[dat$draw >= 0 & dat$draw <= 1, ], "model", summarise, grp.mean=mean(draw, na.rm = TRUE))
+  # Plot
   if (monochrome) {
     gg <- ggplot(dat, aes(x=draw, linetype=model)) +
-      scale_linetype_manual(values = c("solid", "dashed", "dotted"))
-    # Add mean lines
-    gg <- gg + geom_vline(data=means, aes(xintercept=grp.mean, linetype=model))
+      scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
+      geom_vline(data=means, aes(xintercept=grp.mean, linetype=model))
   } else {
-    gg <- ggplot(dat, aes(x=draw, fill=model))
-    # Add mean lines
-    gg <- gg + geom_vline(data=means, aes(xintercept=grp.mean, color=model))
-    gg <- gg + scale_fill_manual(values=active.palette) # color settings
-    gg <- gg + scale_color_manual(values=active.palette) # color settings
+    gg <- ggplot(dat, aes(x=draw, fill=model)) +
+      geom_vline(data=means, aes(xintercept=grp.mean, color=model)) +
+      scale_fill_manual(values=active.palette) +
+      scale_color_manual(values=active.palette)
   }
-  gg <- gg + theme(panel.background = element_rect(fill="white", color="white"))
-  gg <- gg + coord_cartesian(xlim=xlim) + 
+  # Finalize plot
+  gg <- gg + theme(panel.background = element_rect(fill="white", color="white")) +
+    coord_cartesian(xlim=xlim) +
     geom_density(bw=bw, alpha=.5) +
-    xlim(xlim)
-  #print("5")
-  # Set grids, axis, and axis texts
-  gg <- gg + theme(panel.grid.major = element_blank(),
-                   panel.grid.minor = element_blank(),
-                   #panel.border = element_blank(),
-                   axis.title = element_blank(),
-                   axis.text.y = element_blank(),
-                   axis.ticks.y = element_blank(),
-                   axis.text.x = element_text(size=30))
-  # Add legend
-  gg <- gg  + theme(legend.title = element_blank(),
-                    legend.text=element_text(size=30),
-                    legend.justification=c(0, 1),
-                    legend.position.inside=c(0, 1),
-                    legend.background = element_blank(),
-                    legend.key.size = unit(2, 'lines')) #+
-    #guides(shape = guide_legend(override.aes = list(size = 5)))
+    xlim(xlim) +
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          axis.title = element_blank(),
+          axis.text.y = element_blank(),
+          axis.ticks.y = element_blank(),
+          axis.text.x = element_text(size=30),
+          legend.title = element_blank(),
+          legend.text=element_text(size=30),
+          legend.justification=c(0, 1),
+          legend.position.inside=c(0, 1),
+          legend.background = element_blank(),
+          legend.key.size = unit(2, 'lines'))
   plot(gg)
-  if (!is.null(filename)) {
-    # Comment out this for now.
-    # dev.copy2pdf(file=filename, out.type = "pdf")
-  }
+  # Uncomment to save plot as PDF
+  # if (!is.null(filename)) {
+  #   dev.copy2pdf(file=filename, out.type = "pdf")
+  # }
 }
 
 # combined_sim = readRDS("eval_sim_48_all_2018-09-18.RDS")

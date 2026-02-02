@@ -128,3 +128,51 @@ plot_posterior_gammas <- function(
         dev.copy2pdf(file=paste0(filename, ".pdf"), out.type = "pdf")
     }
 }
+
+# Plot evaluation results for each draw. Creates a density plot of the evaluation metric
+# values across all draws.
+#
+# Arguments:
+# eval  : The mspm_labeled_evaluation object containing evaluation results.
+# metrics: The evaluation metric to plot (default: NULL, which plots all the metrics).
+plot_eval_draws <- function(
+    eval,
+    ...,
+    metrics = NULL,
+    plotMean = TRUE,
+    plotMedian = TRUE
+) {
+    if (is.null(metrics)) {
+        metrics <- eval$metrics
+    }
+
+    # Draw the mean over the targets.
+    for (metric in metrics) {
+        drawMeans = eval$drawMeans[[metric]]
+        dat <- data.frame(drawMeans)
+
+        gg <- ggplot(dat, aes(x=drawMeans)) +
+            geom_density(fill="blue", alpha=.6) + # Density plot with fill
+            labs(x = paste0(metric, " score")) + # X-axis label
+            theme(panel.grid.major = element_blank(),
+                panel.grid.minor = element_blank(),
+                panel.background = element_rect(fill="white", color="white"),
+                axis.title.x = element_text(size = 30),
+                axis.title.y = element_blank(),
+                axis.text.y = element_blank(),
+                axis.ticks.y = element_blank(),
+                legend.position = "none",
+                axis.text.x = element_text(size=30))
+
+        if (plotMedian) {
+            median <- median(drawMeans)
+            gg <- gg + geom_vline(xintercept = median, color="black", linetype="dashed", size=0.5)
+        }
+        if (plotMean) {
+            mean <- mean(drawMeans)
+            gg <- gg + geom_vline(xintercept = mean, color="black", linetype="solid", size=0.5)
+        }
+        
+        plot(gg) # Display the plot.
+    }
+}
