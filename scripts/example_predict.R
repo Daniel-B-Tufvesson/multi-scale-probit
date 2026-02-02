@@ -29,7 +29,7 @@ thin <- 10
 verbose <- 0
 
 # Fit using the training data.
-mspm.fit = mspm.fit <- fit_mspm(
+mspm.fit <- fit_mspm(
     data = mspm.train,
     ndraws = ndraws,
     burnin = burnin,
@@ -38,28 +38,36 @@ mspm.fit = mspm.fit <- fit_mspm(
     seed = 1234,
     verbose = verbose
 )
-mspm.fit
 
 # Predict latent ystar values for training data.
 mspm.latent.train <- predict_mspm(
     fit = mspm.fit,
     latentOnly = TRUE
 )
-mspm.latent.train
 
 # Predict labels for training data.
 mspm.labels.train <- predict_mspm(
     fit = mspm.fit
 )
-mspm.labels.train
+
+# Predict labels for test data.
+mspm.labels.test <- predict_mspm(
+  fit = mspm.fit,
+  newdata = mspm.test
+)
+
 
 # Evaluate predictions.
 train.eval <- eval_mspm_prediction_draws(
     predictions = mspm.labels.train
 )
-train.eval
+
+test.eval <- eval_mspm_prediction_draws(
+    predictions = mspm.labels.test
+)
 
 # Plot performance metrics for training data.
 plot_eval_draws(
-    eval = train.eval
+    eval = list(train.eval, test.eval),
+    plotMean = TRUE
 )

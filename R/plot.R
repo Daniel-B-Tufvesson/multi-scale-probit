@@ -133,46 +133,99 @@ plot_posterior_gammas <- function(
 # values across all draws.
 #
 # Arguments:
-# eval  : The mspm_labeled_evaluation object containing evaluation results.
+# evals  : Either a single mspm_labeled_evaluation object or a list of such objects.
 # metrics: The evaluation metric to plot (default: NULL, which plots all the metrics).
+# plotMean: Whether to plot the mean of the metric distribution (default: FALSE).
+# plotMedian: Whether to plot the median of the metric distribution (default: FALSE).
 plot_eval_draws <- function(
-    eval,
+    evals,
     ...,
     metrics = NULL,
-    plotMean = TRUE,
-    plotMedian = TRUE
+    plotMean = FALSE,
+    plotMedian = FALSE,
+    xlim = c(0,1)
 ) {
-    if (is.null(metrics)) {
-        metrics <- eval$metrics
+    # Package single eval object as a list.
+    if (class(evals) == "mspm_labeled_evaluation") {
+        evals <- list(evals)
     }
 
-    # Draw the mean over the targets.
-    for (metric in metrics) {
-        drawMeans = eval$drawMeans[[metric]]
-        dat <- data.frame(drawMeans)
+    if (is.null(metrics)) {
+        .validateMetricsForEvalObjects2(evals)
+        metrics <- evals[[1]]$metrics
+    }
+    else {
+        .validateMetricsForEvalObjects1(evals, metrics)
+    }
 
-        gg <- ggplot(dat, aes(x=drawMeans)) +
-            geom_density(fill="blue", alpha=.6) + # Density plot with fill
-            labs(x = paste0(metric, " score")) + # X-axis label
+    # For each metric, collect drawMeans from all evals and plot together
+    for (metric in metrics) {
+        # Collect drawMeans for this metric from all evals
+        dat_list <- lapply(seq_along(evals), function(i) {
+            data.frame(drawMeans = evals[[i]]$drawMeans[[metric]],
+                       eval = factor(paste0("Eval ", i)))
+        })
+        dat <- do.call(rbind, dat_list)
+
+        gg <- ggplot(dat, aes(x=drawMeans, fill=eval, color=eval)) +
+            geom_density(alpha=.6) +
+            labs(x = paste0(metric, " score")) +
             theme(panel.grid.major = element_blank(),
-                panel.grid.minor = element_blank(),
-                panel.background = element_rect(fill="white", color="white"),
-                axis.title.x = element_text(size = 30),
-                axis.title.y = element_blank(),
-                axis.text.y = element_blank(),
-                axis.ticks.y = element_blank(),
-                legend.position = "none",
-                axis.text.x = element_text(size=30))
+                  panel.grid.minor = element_blank(),
+                  panel.background = element_rect(fill="white", color="white"),
+                  axis.title.x = element_text(size = 15),
+                  axis.title.y = element_blank(),
+                  axis.text.y = element_blank(),
+                  axis.ticks.y = element_blank(),
+                  legend.title = element_blank(),
+                  legend.text = element_text(size=12),
+                  axis.text.x = element_text(size=15))
+
+        if (!is.null(xlim)) {
+            gg <- gg + xlim(xlim)
+        }
 
         if (plotMedian) {
-            median <- median(drawMeans)
-            gg <- gg + geom_vline(xintercept = median, color="black", linetype="dashed", size=0.5)
+            medians <- tapply(dat$drawMeans, dat$eval, median)
+            for (i in seq_along(medians)) {
+                gg <- gg + geom_vline(xintercept = medians[i], color=scales::hue_pal()(length(medians))[i], linetype="dashed", size=0.5)
+            }
         }
         if (plotMean) {
-            mean <- mean(drawMeans)
-            gg <- gg + geom_vline(xintercept = mean, color="black", linetype="solid", size=0.5)
+            means <- tapply(dat$drawMeans, dat$eval, mean)
+            for (i in seq_along(means)) {
+                gg <- gg + geom_vline(xintercept = means[i], color=scales::hue_pal()(length(means))[i], linetype="solid", size=0.5)
+            }
         }
-        
+
         plot(gg) # Display the plot.
+    }
+}
+
+# Verify that the eval objects contain at least all the provided metrics.
+#
+# Arguments:
+# evals  : A list of mspm_labeled_evaluation objects.
+# metrics: A character vector of metric names to check for.
+.validateMetricsForEvalObjects1 <- function(evals, metrics) {
+    for (eval in evals) {
+        for (metric in metrics) {
+            if (!(metric %in% eval$metrics)) {
+                stop(paste("Evaluation object is missing metric:", metric))
+            }
+        }
+    }
+}
+
+# Verify that the all eval objects contain the same metrics.
+#
+# Arguments:
+# evals  : A list of mspm_labeled_evaluation objects.
+.validateMetricsForEvalObjects2 <- function(evals) {
+    base_metrics <- evals[[1]]$metrics
+    for (eval in evals) {
+        if (!identical(sort(base_metrics), sort(eval$metrics))) {
+            stop("Evaluation objects contain different metrics.")
+        }
     }
 }
