@@ -61,7 +61,8 @@ plot_posteriors_beta <- function(
 
         # If a filename is provided, save the plot to a PDF file
         if (!is.null(filename)) {
-            dev.copy2pdf(file=paste0(filename, "_", val, "_", gsub("\\.", "dot", colnames(values)[i]), ".pdf"), out.type = "pdf")
+            dev.copy2pdf(file=paste0(filename, "_", val, "_", gsub("\\.", "dot", 
+                         colnames(values)[i]), ".pdf"), out.type = "pdf")
         }
     }
 }
@@ -104,7 +105,8 @@ plot_posterior_gammas <- function(
     }
 
     # Plot all densities in one ggplot call, grouped and colored by group and gamma
-    gg <- ggplot(gamma_long, aes(x = value, color = group, fill = group, group = interaction(group, gamma))) +
+    gg <- ggplot(gamma_long, aes(x = value, color = group, fill = group, 
+                 group = interaction(group, gamma))) +
         geom_density(alpha = 0.2) +
         xlab(expression(paste('x'^'T',beta))) + 
         theme(panel.grid.major = element_blank(),
@@ -145,11 +147,14 @@ plot_eval_draws <- function(
     plotMedian = FALSE,
     xlim = c(0,1)
 ) {
+    # Todo: add option for plotting each target instead of just the mean over them.
+
     # Package single eval object as a list.
     if (class(evals) == "mspm_labeled_evaluation") {
         evals <- list(evals)
     }
 
+    # Validate metrics.
     if (is.null(metrics)) {
         .validateMetricsForEvalObjects2(evals)
         metrics <- evals[[1]]$metrics
@@ -167,6 +172,7 @@ plot_eval_draws <- function(
         })
         dat <- do.call(rbind, dat_list)
 
+        # Plot the density of drawMeans for this metric
         gg <- ggplot(dat, aes(x=drawMeans, fill=eval, color=eval)) +
             geom_density(alpha=.6) +
             labs(x = paste0(metric, " score")) +
@@ -185,16 +191,22 @@ plot_eval_draws <- function(
             gg <- gg + xlim(xlim)
         }
 
+        # Plot median lines.
         if (plotMedian) {
             medians <- tapply(dat$drawMeans, dat$eval, median)
             for (i in seq_along(medians)) {
-                gg <- gg + geom_vline(xintercept = medians[i], color=scales::hue_pal()(length(medians))[i], linetype="dashed", size=0.5)
+                gg <- gg + geom_vline(xintercept = medians[i], 
+                                      color=scales::hue_pal()(length(medians))[i], 
+                                      linetype="dashed", size=0.5)
             }
         }
+        # Plot mean lines.
         if (plotMean) {
             means <- tapply(dat$drawMeans, dat$eval, mean)
             for (i in seq_along(means)) {
-                gg <- gg + geom_vline(xintercept = means[i], color=scales::hue_pal()(length(means))[i], linetype="solid", size=0.5)
+                gg <- gg + geom_vline(xintercept = means[i], 
+                                      color=scales::hue_pal()(length(means))[i], 
+                                      linetype="solid", size=0.5)
             }
         }
 
@@ -227,5 +239,95 @@ plot_eval_draws <- function(
         if (!identical(sort(base_metrics), sort(eval$metrics))) {
             stop("Evaluation objects contain different metrics.")
         }
+    }
+}
+
+
+# Plot the distribution of differences between two evaluations over multiple draws. 
+#
+# Arguments:
+# eval1  : The first mspm_labeled_evaluation object.
+# eval2  : The second mspm_labeled_evaluation object.
+# metrics: The evaluation metric to plot (default: NULL, which plots all the metrics).
+# label1 : Label for the first evaluation in the legend (default: "1").
+# label2 : Label for the second evaluation in the legend (default: "2").
+plot_eval_draws_diff <- function(
+    eval1,
+    eval2,
+    ...,
+    metrics = NULL,
+    label1 = "1",
+    label2 = "2"
+) {
+    # Todo: add option for plotting each target instead of just the mean over them.
+    
+    # Validate eval objects.
+    if (class(eval1) != "mspm_labeled_evaluation" || 
+        class(eval2) != "mspm_labeled_evaluation") {
+        stop("Both eval1 and eval2 must be mspm_labeled_evaluation objects.")
+    }
+
+    # Validate metrics.
+    if (is.null(metrics)) {
+        .validateMetricsForEvalObjects2(list(eval1, eval2))
+        metrics <- eval1$metrics
+    }
+    else {
+        .validateMetricsForEvalObjects1(list(eval1, eval2), metrics)
+    }
+
+    # For each metric, compute differences and plot
+    for (metric in metrics) {
+        diffs <- eval1$drawMeans[[metric]] - eval2$drawMeans[[metric]]
+        dat <- data.frame(differences = diffs)
+
+        # Plot the density of differences for this metric
+        # Compute density manually to split left/right of zero
+        dens <- density(dat$differences, na.rm = TRUE)
+        dens_df <- data.frame(x = dens$x, y = dens$y)
+        dens_df$side <- factor(ifelse(dens_df$x < 0, "left", "right"), levels = c("left", "right"))
+
+        # Calculate area under the density curve for each side
+        total_area <- sum(dens_df$y)
+        left_area <- sum(dens_df$y[dens_df$side == "left"]) / total_area
+        right_area <- sum(dens_df$y[dens_df$side == "right"]) / total_area
+
+        # Format as percentages
+        left_pct <- sprintf("%.1f%%", 100 * left_area)
+        right_pct <- sprintf("%.1f%%", 100 * right_area)
+
+        # Add labels for legend with percentages
+        side_labels <- c(
+            left = paste0(label1, " (", left_pct, ")"),
+            right = paste0(label2, " (", right_pct, ")")
+        )
+
+        # Create the plot
+        gg <- ggplot(dens_df, aes(x = x, y = y, fill = side)) +
+            geom_area(alpha = .6) +
+            scale_fill_manual(
+                name = "",
+                values = c(left = "#D55E00", right = "#009E73"),
+                labels = side_labels
+            ) +
+            geom_line(color = "black", inherit.aes = FALSE, data = dens_df, aes(x = x, y = y)) +
+            geom_vline(xintercept = 0, linetype = "solid", color = "black") +
+            labs(x = paste0("Difference in ", metric, " score")) +
+            theme(panel.grid.major = element_blank(),
+                  panel.grid.minor = element_blank(),
+                  panel.background = element_rect(fill="white", color="white"),
+                  axis.title.x = element_text(size = 15),
+                  axis.title.y = element_blank(),
+                  axis.text.y = element_blank(),
+                  axis.ticks.y = element_blank(),
+                  axis.text.x = element_text(size=15),
+                  legend.title = element_blank(),
+                  legend.text = element_text(size=12),
+                  legend.position = c(0.02, 0.98),
+                  legend.justification = c(0, 1),
+                  legend.background = element_blank(),
+                  legend.key.size = unit(1.5, 'lines'))
+
+        plot(gg) # Display the plot
     }
 }
