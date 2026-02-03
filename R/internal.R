@@ -1,3 +1,47 @@
+source("R/generics.R")
+
+# Constructor for creating a new multi-scale probit model data structure.
+#
+# Arguments:
+# predictorNames: A vector of predictor variable names.
+# responseNames: A vector of response variable names corresponding to each dataset.
+# Xlist: A list of design matrices for each dataset.
+# ylist: A list of response vectors for each dataset.
+# levelNames: A list of vectors containing the names of levels for each response variable.
+# nlevels: A vector indicating the number of levels for each response variable.
+# ntargets: The number of target datasets.
+# seed: An optional random seed for reproducibility. Only used if data is synthetic.
+# call: The original function call used to create the data structure.
+new_mspm_data <- function(
+    predictorNames,
+    responseNames,
+    Xlist,
+    ylist,
+    levelNames,
+    nlevels,
+    ntargets,
+    seed,
+    call
+) {
+    structure(
+        list(
+            predictorNames = predictorNames,
+            responseNames = responseNames,
+            Xlist = Xlist,
+            ylist = ylist,
+            levelNames = levelNames,
+            nlevels = nlevels,
+            ntargets = ntargets,
+            seed = seed,
+            call = call
+        ),
+        class = "mspm_data"
+    )
+}
+
+ntargets.mspm_data <- function(object, ...) {
+    object$ntargets
+}
 
 # Constructor for creating a new multi-scale probit model (MSPM).
 # 
@@ -40,43 +84,8 @@ new_mspm <- function(
     )
 }
 
-# Constructor for creating a new multi-scale probit model data structure.
-#
-# Arguments:
-# predictorNames: A vector of predictor variable names.
-# responseNames: A vector of response variable names corresponding to each dataset.
-# Xlist: A list of design matrices for each dataset.
-# ylist: A list of response vectors for each dataset.
-# levelNames: A list of vectors containing the names of levels for each response variable.
-# nlevels: A vector indicating the number of levels for each response variable.
-# ntargets: The number of target datasets.
-# seed: An optional random seed for reproducibility. Only used if data is synthetic.
-# call: The original function call used to create the data structure.
-new_mspm_data <- function(
-    predictorNames,
-    responseNames,
-    Xlist,
-    ylist,
-    levelNames,
-    nlevels,
-    ntargets,
-    seed,
-    call
-) {
-    structure(
-        list(
-            predictorNames = predictorNames,
-            responseNames = responseNames,
-            Xlist = Xlist,
-            ylist = ylist,
-            levelNames = levelNames,
-            nlevels = nlevels,
-            ntargets = ntargets,
-            seed = seed,
-            call = call
-        ),
-        class = "mspm_data"
-    )
+ntargets.mspm <- function(object, ...) {
+    object$data$ntargets
 }
 
 # Constructor for creating a new multi-scale probit model latent prediction object.
@@ -101,6 +110,10 @@ new_mspm_latent_prediction <- function(
         ),
         class = "mspm_latent_prediction"
     )
+}
+
+ntargets.mspm_latent_prediction <- function(object, ...) {
+    object$fit$data$ntargets
 }
 
 # Constructor for creating a new multi-scale probit model labeled prediction object.
@@ -133,6 +146,10 @@ new_mspm_labeled_prediction <- function(
         ),
         class = "mspm_labeled_prediction"
     )
+}
+
+ntargets.mspm_labeled_prediction <- function(object, ...) {
+    object$fit$data$ntargets
 }
 
 # Constructor for creating a new multi-scale probit model labeled evaluation object.
@@ -170,4 +187,8 @@ new_mspm_labeled_evaluation <- function(
         ),
         class = "mspm_labeled_evaluation"
     )
+}
+
+ntargets.mspm_labeled_evaluation <- function(object, ...) {
+    object$prediction$fit$data$ntargets
 }

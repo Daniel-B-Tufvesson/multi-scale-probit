@@ -30,72 +30,49 @@ plot_stats_gg <- function(separate,
                         monochrome = FALSE) {
   # Set colors
   if (is.null(custom.palette)) {
-    if (model.type == "Binary") {
-      active.palette <- cbbPalette2
-    } else {
-      active.palette <- cbbPalette1
-    }
+    active.palette <- if (model.type == "Binary") cbbPalette2 else cbbPalette1
   } else {
     active.palette <- custom.palette
   }
-  # Organize data
-  #print("1")
+  # Prepare data
   dat <- data.frame(combined, separate)
-  #print("1.5")
-  #print(str(dat))
   colnames(dat) <- c("Multi-Scale Probit", paste(model.type, "Probit"))
-  #means <- data.frame(apply(dat, 2, function(col) {
-  #  return(mean(col[col>0]))
-  #}))
-  #means <- data.frame(model = as.factor(colnames(dat)), grp.mean = means)
-  #colnames(means) <- c("model", "grp.mean")
-  #print(str(means))
-  #print("2")
   dat <- melt(dat)
   colnames(dat) <- c("model", "draw")
-  #print("3")
-  means <- ddply(dat[which(dat[, 2] >= 0 & dat[, 2] <= 1), ], "model", summarise, grp.mean=mean(draw, na.rm = TRUE))
-  # print(str(dat))
-  # print(means)
-  # Base plot with densities
+  means <- ddply(dat[dat$draw >= 0 & dat$draw <= 1, ], "model", summarise, grp.mean=mean(draw, na.rm = TRUE))
+  # Plot
   if (monochrome) {
     gg <- ggplot(dat, aes(x=draw, linetype=model)) +
-      scale_linetype_manual(values = c("solid", "dashed", "dotted"))
-    # Add mean lines
-    gg <- gg + geom_vline(data=means, aes(xintercept=grp.mean, linetype=model))
+      scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
+      geom_vline(data=means, aes(xintercept=grp.mean, linetype=model))
   } else {
-    gg <- ggplot(dat, aes(x=draw, fill=model))
-    # Add mean lines
-    gg <- gg + geom_vline(data=means, aes(xintercept=grp.mean, color=model))
-    gg <- gg + scale_fill_manual(values=active.palette) # color settings
-    gg <- gg + scale_color_manual(values=active.palette) # color settings
+    gg <- ggplot(dat, aes(x=draw, fill=model)) +
+      geom_vline(data=means, aes(xintercept=grp.mean, color=model)) +
+      scale_fill_manual(values=active.palette) +
+      scale_color_manual(values=active.palette)
   }
-  gg <- gg + theme(panel.background = element_rect(fill="white", color="white"))
-  gg <- gg + coord_cartesian(xlim=xlim) + 
+  # Finalize plot
+  gg <- gg + theme(panel.background = element_rect(fill="white", color="white")) +
+    coord_cartesian(xlim=xlim) +
     geom_density(bw=bw, alpha=.5) +
-    xlim(xlim)
-  #print("5")
-  # Set grids, axis, and axis texts
-  gg <- gg + theme(panel.grid.major = element_blank(),
-                   panel.grid.minor = element_blank(),
-                   #panel.border = element_blank(),
-                   axis.title = element_blank(),
-                   axis.text.y = element_blank(),
-                   axis.ticks.y = element_blank(),
-                   axis.text.x = element_text(size=30))
-  # Add legend
-  gg <- gg  + theme(legend.title = element_blank(),
-                    legend.text=element_text(size=30),
-                    legend.justification=c(0, 1),
-                    legend.position.inside=c(0, 1),
-                    legend.background = element_blank(),
-                    legend.key.size = unit(2, 'lines')) #+
-    #guides(shape = guide_legend(override.aes = list(size = 5)))
+    xlim(xlim) +
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          axis.title = element_blank(),
+          axis.text.y = element_blank(),
+          axis.ticks.y = element_blank(),
+          axis.text.x = element_text(size=30),
+          legend.title = element_blank(),
+          legend.text=element_text(size=30),
+          legend.justification=c(0, 1),
+          legend.position.inside=c(0, 1),
+          legend.background = element_blank(),
+          legend.key.size = unit(2, 'lines'))
   plot(gg)
-  if (!is.null(filename)) {
-    # Comment out this for now.
-    # dev.copy2pdf(file=filename, out.type = "pdf")
-  }
+  # Uncomment to save plot as PDF
+  # if (!is.null(filename)) {
+  #   dev.copy2pdf(file=filename, out.type = "pdf")
+  # }
 }
 
 # combined_sim = readRDS("eval_sim_48_all_2018-09-18.RDS")
@@ -292,7 +269,11 @@ model_means <- lapply(model_means, function(mat) {
 
 
 
-
+# Compute difference between two sets of values.
+#
+# Arguments:
+# set1: First set of values.
+# set2: Second set of values.
 difference <- function(set1, set2) {
   d <- set1 - set2
   xmax <- max(abs(d))
@@ -303,6 +284,11 @@ difference <- function(set1, set2) {
               xlim = c(-xmax, xmax)))
 }
 
+# Compute ratio between two sets of values.
+# 
+# Arguments:
+# set1: First set of values (numerator).
+# set2: Second set of values (denominator).
 ratio <- function(set1, set2) {
   r <- set1 / set2
   xmax <- max(abs(r - 1))
@@ -313,6 +299,17 @@ ratio <- function(set1, set2) {
               xlim = c(-xmax, xmax) + 1))
 }
 
+# Plot the distribution of the difference or ratio between two sets of values.
+#
+# Arguments:
+# separate: Values from the single scale model(s).
+# combined: Values from the multi-scale model.
+# bw: Bandwidth for the density estimate (default: NULL, which uses the default R method).
+# filename: Optional filename to save the plot as a PDF (default: NULL, which does not save).
+# model.type: Type of the single scale model ("Binary" or "Ordered", default: "Binary").
+# compare: Function to compute the comparison (default: difference).
+# custom.palette: Optional custom color palette (default: NULL, which uses default colors).
+# monochrome: Whether to use monochrome colors (default: FALSE).
 plot_comparison_gg <- function(separate, combined,
                                bw = NULL,
                                filename = NULL,
@@ -320,6 +317,7 @@ plot_comparison_gg <- function(separate, combined,
                                compare = difference,
                                custom.palette = NULL,
                                monochrome = FALSE) {
+  # Set color palette based on model type and options
   if (is.null(custom.palette)) {
     if (model.type == "Binary") {
       active.palette <- cbbPalette2[c(2, 1)]
@@ -329,58 +327,74 @@ plot_comparison_gg <- function(separate, combined,
   } else {
     active.palette <- custom.palette
   }
+  # Override palette for monochrome plots
   if (monochrome) {
     active.palette <- c("#CCCCCC", "#000000")
   }
+
+  # Prepare and clean input data
   df <- data.frame(separate, combined)
   df <- df[complete.cases(df), ]
   separate <- df$separate
   combined <- df$combined
+
+  # Compute comparison statistics (difference or ratio)
   comparison <- compare(combined, separate)
+
+  # Estimate density for the comparison metric
   if (is.null(bw)) {
     dat <- with(density(comparison[[1]]), data.frame(x, y))
   } else {
     dat <- with(density(comparison[[1]], bw = bw), data.frame(x, y))
   }
+
+  # Adjust palette if all x values are above cutpoint
   if (all(dat$x > comparison[[4]])) {
     active.palette <- active.palette[c(2, 1)]
   }
+
+  # Annotate which model is better for each region
   dat <- cbind(dat, Better = factor(as.numeric(dat$x>comparison[[4]]), levels = c(0, 1),
                                     labels = c(paste0(model.type, " (", round(100*comparison[[2]], 2), " %)"),
                                                paste0("Multi-Scale (", round(100*comparison[[3]], 2), " %)"))))
+
+  # Create base ggplot object with density line and cutpoint
   gg <- ggplot(data = dat, mapping = aes(x = x, y = y)) +
-    geom_line()+
-    #geom_area(mapping = aes(x = ifelse(x <= 0 , x, 0)), fill = active.palette[[1]], alpha = 0.3) +
-    #geom_area(mapping = aes(x = ifelse(x > 0 , x, 0)), fill = active.palette[[2]], alpha = 0.3) +
+    geom_line() +
     geom_vline(data = data.frame(cutpoints = c(comparison[[4]])), aes(xintercept=cutpoints)) + 
     ylim(c(0, max(dat$y)))
-  # if (monochrome) {
-  #   gg <- gg + geom_area(mapping = aes(linetype = Better), alpha = 0.3) +
-  #     scale_linetype_manual(values = c("solid", "dashed", "dotted"))
-  # } else {
-    gg <- gg +
-      geom_area(mapping = aes(fill = Better, col = Better), alpha = 0.3)
-  # }
+
+  # Add colored area under the density curve to highlight regions
+  gg <- gg +
+    geom_area(mapping = aes(fill = Better, col = Better), alpha = 0.3)
+
+  # Set plot theme and axis formatting
   gg <- gg + theme(panel.grid.major = element_blank(),
                    panel.grid.minor = element_blank(),
-                   #panel.border = element_blank(),
                    panel.background = element_rect(fill="white", color="white"),
                    axis.title.x = element_blank(),
-                   axis.title.y = element_blank(), #element_text(angle = 180, size = 24),
+                   axis.title.y = element_blank(),
                    axis.text.y = element_blank(),
                    axis.ticks.y = element_blank(),
-                   # axis.ticks.x = element_blank(),
                    axis.text.x = element_text(size=30))
+
+  # Configure legend appearance
   gg <- gg  + theme(legend.title = element_blank(),
                     legend.text=element_text(size=30),
                     legend.justification=c(0,1), 
                     legend.position.inside=c(0, 1),
                     legend.background = element_blank(),
                     legend.key.size = unit(2, 'lines'))
-  gg <- gg + scale_fill_manual(values=active.palette) # color settings
+
+  # Set color and x-axis limits
+  gg <- gg + scale_fill_manual(values=active.palette)
   gg <- gg + scale_color_manual(values=active.palette)
   gg <- gg + scale_x_continuous(limits = comparison$xlim)
+
+  # Display the plot
   plot(gg)
+
+  # Optionally save plot as PDF
   if (!is.null(filename)) {
     dev.copy2pdf(file=filename, out.type = "pdf")
   }
