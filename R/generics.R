@@ -37,6 +37,7 @@ nlevels <- function(object, ...) {
 #' \itemize{
 #'   \item An mspm object.
 #'   \item An mspm_data object.
+#'   \item An mspm_latent_prediction object.
 #' }
 #' @param ... Additional arguments (not used).
 #' @return A character vector of predictor variable names.
@@ -44,10 +45,30 @@ predictorNames <- function(object, ...) {
     UseMethod("predictorNames")
 }
 
+#' The names of response variables in a multi-scale probit model object.
+#'
+#' @param object One of:
+#' \itemize{
+#'   \item An mspm object.
+#'   \item An mspm_data object.
+#'   \item An mspm_latent_prediction object.
+#' }
+#' @param ... Additional arguments (not used).
+#' @return A character vector of response variable names.
 responseNames <- function(object, ...) {
     UseMethod("responseNames")
 }
 
+#' The names of levels for each target dataset in a multi-scale probit model object.
+#'
+#' @param object One of:
+#' \itemize{
+#'   \item An mspm object.
+#'   \item An mspm_data object.
+#'   \item An mspm_latent_prediction object.
+#' }
+#' @param ... Additional arguments (not used).
+#' @return A list of character vectors containing level names for each target dataset.
 levelNames <- function(object, ...) {
     UseMethod("levelNames")
 }
@@ -68,6 +89,17 @@ precPrior <- function(object, ...) {
     UseMethod("precPrior")
 }
 
+#' The number of posterior draws in a multi-scale probit model object.
+#'
+#' @param object One of:
+#' \itemize{
+#'   \item An mspm object.
+#'   \item An mspm_latent_prediction object.
+#' }
+#' @param withoutThinning Logical indicating whether to return the number of draws without 
+#' thinning (default TRUE).
+#' @param ... Additional arguments (not used).
+#' @return An integer indicating the number of posterior draws.
 ndraws <- function(object, withoutThinning = TRUE, ...) {
     UseMethod("ndraws")
 }
@@ -80,3 +112,26 @@ thin <- function(object, ...) {
     UseMethod("thin")
 }
 
+#' The underlying model used for fitting or prediction.
+#'
+#' @param object One of:
+#' \itemize{
+#'   \item An mspm_latent_prediction object.
+#' }
+#' @param ... Additional arguments (not used).
+#' @return The underlying model object.
+model <- function(object, ...) {
+    UseMethod("model")
+}
+
+#' The predicted values of latent variable. This is also known as y* (y-star).
+#'
+#' @param object One of:
+#' \itemize{
+#'   \item An mspm_latent_prediction object.
+#' }
+#' @param ... Additional arguments (not used).
+#' @return A list of matrices containing predicted latent variable values for each target dataset.
+latent <- function(object, ...) {
+    UseMethod("latent")
+}

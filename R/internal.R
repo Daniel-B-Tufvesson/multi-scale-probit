@@ -151,7 +151,7 @@ thin.mspm <- function(object, ...) {
 # Constructor for creating a new multi-scale probit model latent prediction object.
 # 
 # Arguments:
-# data: The mspm_data object containing the data used for predicting.
+# data: The mspm_data object containing the data used for predicting (the test data).
 # fit: The fitted mspm object that was used for predicting.
 # ystars: A data frame of latent variable samples for each observation and each draw.
 # call: The original function call used to create the prediction.
@@ -178,6 +178,34 @@ ntargets.mspm_latent_prediction <- function(object, ...) {
 
 nlevels.mspm_latent_prediction <- function(object, ...) {
     object$fit$data$nlevels
+}
+
+predictorNames.mspm_latent_prediction <- function(object, ...) {
+    object$fit$data$predictorNames
+}
+
+responseNames.mspm_latent_prediction <- function(object, ...) {
+    object$fit$data$responseNames
+}
+
+levelNames.mspm_latent_prediction <- function(object, ...) {
+    object$fit$data$levelNames
+}
+
+ndraws.mspm_latent_prediction <- function(object, withoutThinning = TRUE, ...) {
+    if (withoutThinning) {
+        object$fit$ndrawsNoThin
+    } else {
+        object$fit$ndraws
+    }
+}
+
+model.mspm_latent_prediction <- function(object, ...) {
+    object$fit
+}
+
+latent.mspm_latent_prediction <- function(object, ...) {
+    object$ystars
 }
 
 # Constructor for creating a new multi-scale probit model labeled prediction object.

@@ -143,67 +143,67 @@ run_all_probit_tests <-function() {
     )
 
     # Test ntargets accessor.
-    if (ntargets.mspm(fit) != mspm.data$ntargets) {
+    if (ntargets(fit) != mspm.data$ntargets) {
         stop("Test failed: ntargets accessor returned incorrect value.")
     }
 
     # Test nlevels accessor.
-    if (nlevels.mspm(fit) != mspm.data$nlevels) {
+    if (nlevels(fit) != mspm.data$nlevels) {
         stop("Test failed: nlevels accessor returned incorrect value.")
     }
 
     # Test predictorNames accessor.
-    if (!all.equal(predictorNames.mspm(fit), mspm.data$predictorNames)) {
+    if (!all.equal(predictorNames(fit), mspm.data$predictorNames)) {
         stop("Test failed: predictorNames accessor returned incorrect value.")
     }
 
     # Test responseNames accessor.
-    if (!all.equal(responseNames.mspm(fit), mspm.data$responseNames)) {
+    if (!all.equal(responseNames(fit), mspm.data$responseNames)) {
         stop("Test failed: responseNames accessor returned incorrect value.")
     }
 
     # Test levelNames accessor.
-    if (!all.equal(levelNames.mspm(fit), mspm.data$levelNames)) {
+    if (!all.equal(levelNames(fit), mspm.data$levelNames)) {
         stop("Test failed: levelNames accessor returned incorrect value.")
     }
 
     # Test beta accessor.
-    if (!all.equal(beta.mspm(fit), fit$beta)) {
+    if (!all.equal(beta(fit), fit$beta)) {
         stop("Test failed: beta accessor returned incorrect value.")
     }
 
     # Test gammas accessor.
-    if (length(gammas.mspm(fit)) != length(fit$gammas)) {
+    if (length(gammas(fit)) != length(fit$gammas)) {
         stop("Test failed: gammas accessor returned incorrect value.")
     }
 
     # Test meanPrior accessor.
-    if (!all.equal(meanPrior.mspm(fit), fit$meanPrior)) {
+    if (!all.equal(meanPrior(fit), fit$meanPrior)) {
         stop("Test failed: meanPrior accessor returned incorrect value.")
     }
 
     # Test precPrior accessor.
-    if (!all.equal(precPrior.mspm(fit), fit$precPrior)) {
+    if (!all.equal(precPrior(fit), fit$precPrior)) {
         stop("Test failed: precPrior accessor returned incorrect value.")
     }
 
     # Test ndraws accessor.
-    if (ndraws.mspm(fit) != fit$ndrawsNoThin) {
+    if (ndraws(fit) != fit$ndrawsNoThin) {
         stop("Test failed: ndraws accessor returned incorrect value.")
     }
 
     # Test ndraws with thinning accessor.
-    if (ndraws.mspm(fit, withoutThinning = FALSE) != fit$ndraws) {
+    if (ndraws(fit, withoutThinning = FALSE) != fit$ndraws) {
         stop("Test failed: ndraws without thinning accessor returned incorrect value.")
     }
 
     # Test burnin accessor.
-    if (burnin.mspm(fit) != fit$burnin) {
+    if (burnin(fit) != fit$burnin) {
         stop("Test failed: burnin accessor returned incorrect value.")
     }
 
     # Test thin accessor.
-    if (thin.mspm(fit) != fit$thin) {
+    if (thin(fit) != fit$thin) {
         stop("Test failed: thin accessor returned incorrect value.")
     }
 

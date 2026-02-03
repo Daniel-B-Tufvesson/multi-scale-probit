@@ -273,3 +273,80 @@ run_all_prediction_tests <- function() {
 
     cat("Test passed: Prediction works for minimal data (6 obs, 1 covariate).\n")
 }
+
+# Test case 6: Test if the accessor functions work.
+.test_accessors <- function() {
+    # Generate the data.
+    mspm.data <- generate_synthetic_data(
+        nobs = 100,
+        ncov = 5,
+        ngamma = c(2, 3),
+        seed = 42
+    )
+
+    # Fit using all the data.
+    fit = fit_mspm(
+        data = mspm.data,
+        ndraws = 1000,
+        burnin = 500,
+        thin = 2,
+        tune = 0.1,
+        seed = 1234,
+        verbose = 0
+    )
+
+    # Predict latent ystar values.
+    latent <- predict_mspm(
+        fit = fit,
+        latentOnly = TRUE
+    )
+
+    # Test ntargets accessor
+    if (ntargets(latent) != mspm.data$ntargets) {
+        stop("Test failed: ntargets accessor does not return correct value. Got ", 
+             ntargets(latent), " expected ", mspm.data$ntargets, ".")
+    }
+
+    # Test nlevels accessor
+    if (!all(nlevels(latent) == mspm.data$nlevels)) {
+        stop("Test failed: nlevels accessor does not return correct value.")
+    }
+
+    # Test predictorNames accessor.
+    if (!all.equal(predictorNames(latent), mspm.data$predictorNames)) {
+        stop("Test failed: predictorNames accessor returned incorrect value.")
+    }
+
+    # Test responseNames accessor.
+    if (!all.equal(responseNames(latent), mspm.data$responseNames)) {
+        stop("Test failed: responseNames accessor returned incorrect value.")
+    }
+
+    # Test levelNames accessor.
+    if (!all.equal(levelNames(latent), mspm.data$levelNames)) {
+        stop("Test failed: levelNames accessor returned incorrect value.")
+    }
+
+    # Test ndraws accessor.
+    if (ndraws(latent) != fit$ndrawsNoThin) {
+        stop("Test failed: ndraws accessor does not return correct value.")
+    }
+
+    # Test ndraws accessor without thinning.
+    if (ndraws(latent, withoutThinning = FALSE) != fit$ndraws) {
+        stop("Test failed: ndraws accessor with thinning does not return correct value.")
+    }
+
+    # Test model accessor.
+    if (!identical(model(latent), fit)) {
+        stop("Test failed: fit accessor does not return correct model.")
+    }
+
+    # Test latent accessor.
+    if (!identical(latent(latent), latent$ystars)) {
+        stop("Test failed: latent accessor does not return correct latent values.")
+    }
+    
+
+    cat("Test passed: Accessor functions work correctly.\n")
+}

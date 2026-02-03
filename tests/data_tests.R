@@ -162,22 +162,23 @@ run_all_data_tests <- function() {
     )
 
     # Test ntargets accessor.
-    if (ntargets.mspm_data(data) != 3) {
-        stop("Test failed: ntargets accessor returned incorrect value.")
+    if (ntargets(data) != 3) {
+        stop("Test failed: ntargets accessor returned incorrect value. Got: ", 
+             ntargets(data), ", expected: 3")
     }
 
     # Test nlevels accessor.
-    if (!isTRUE(all.equal(nlevels.mspm_data(data), c(3, 4, 2)))) {
+    if (!isTRUE(all.equal(nlevels(data), c(3, 4, 2)))) {
         stop("Test failed: nlevels accessor returned incorrect value.")
     }
 
     # Test predictorNames accessor.
-    if (!isTRUE(all.equal(data$predictorNames, c("X1", "X2")))) {
+    if (!isTRUE(all.equal(predictorNames(data), c("X1", "X2")))) {
         stop("Test failed: predictorNames accessor returned incorrect value.")
     }
 
     # Test responseNames accessor.
-    if (!isTRUE(all.equal(data$responseNames, c("Y1", "Y2", "Y3")))) {
+    if (!isTRUE(all.equal(responseNames(data), c("Y1", "Y2", "Y3")))) {
         stop("Test failed: responseNames accessor returned incorrect value.")
     }
 
@@ -185,7 +186,7 @@ run_all_data_tests <- function() {
     expected_level_names <- list(c("A", "B", "C"),
                                  c("D", "E", "F", "G"),
                                  c("H", "I"))
-    if (!isTRUE(all.equal(data$levelNames, expected_level_names))) {
+    if (!isTRUE(all.equal(levelNames(data), expected_level_names))) {
         stop("Test failed: levelNames accessor returned incorrect value.")
     }
 
