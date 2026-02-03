@@ -251,16 +251,26 @@ plot_eval_draws <- function(
 # metrics: The evaluation metric to plot (default: NULL, which plots all the metrics).
 # label1 : Label for the first evaluation in the legend (default: "1").
 # label2 : Label for the second evaluation in the legend (default: "2").
+# plotData: Which data to plot the differences from. Options are "drawMeans" (default), 
+#             "allDraws", or "metricMeans".
 plot_eval_draws_diff <- function(
     eval1,
     eval2,
     ...,
     metrics = NULL,
     label1 = "1",
-    label2 = "2"
+    label2 = "2",
+    plotData = "drawMeans",
+    addXLabel = TRUE
 ) {
     # Todo: add option for plotting each target instead of just the mean over them.
-    
+
+    # Validate data.
+    supportedData = c("drawMeans", "allDraws", "metricMeans")
+    if (!(plotData %in% supportedData)) {
+        stop(paste("plotData must be one of:", paste(supportedData, collapse=", ")))
+    }
+
     # Validate eval objects.
     if (class(eval1) != "mspm_labeled_evaluation" || 
         class(eval2) != "mspm_labeled_evaluation") {
@@ -276,58 +286,147 @@ plot_eval_draws_diff <- function(
         .validateMetricsForEvalObjects1(list(eval1, eval2), metrics)
     }
 
-    # For each metric, compute differences and plot
-    for (metric in metrics) {
-        diffs <- eval1$drawMeans[[metric]] - eval2$drawMeans[[metric]]
-        dat <- data.frame(differences = diffs)
-
-        # Plot the density of differences for this metric
-        # Compute density manually to split left/right of zero
-        dens <- density(dat$differences, na.rm = TRUE)
-        dens_df <- data.frame(x = dens$x, y = dens$y)
-        dens_df$side <- factor(ifelse(dens_df$x < 0, "left", "right"), levels = c("left", "right"))
-
-        # Calculate area under the density curve for each side
-        total_area <- sum(dens_df$y)
-        left_area <- sum(dens_df$y[dens_df$side == "left"]) / total_area
-        right_area <- sum(dens_df$y[dens_df$side == "right"]) / total_area
-
-        # Format as percentages
-        left_pct <- sprintf("%.1f%%", 100 * left_area)
-        right_pct <- sprintf("%.1f%%", 100 * right_area)
-
-        # Add labels for legend with percentages
-        side_labels <- c(
-            left = paste0(label1, " (", left_pct, ")"),
-            right = paste0(label2, " (", right_pct, ")")
-        )
-
-        # Create the plot
-        gg <- ggplot(dens_df, aes(x = x, y = y, fill = side)) +
-            geom_area(alpha = .6) +
-            scale_fill_manual(
-                name = "",
-                values = c(left = "#D55E00", right = "#009E73"),
-                labels = side_labels
-            ) +
-            geom_line(color = "black", inherit.aes = FALSE, data = dens_df, aes(x = x, y = y)) +
-            geom_vline(xintercept = 0, linetype = "solid", color = "black") +
-            labs(x = paste0("Difference in ", metric, " score")) +
-            theme(panel.grid.major = element_blank(),
-                  panel.grid.minor = element_blank(),
-                  panel.background = element_rect(fill="white", color="white"),
-                  axis.title.x = element_text(size = 15),
-                  axis.title.y = element_blank(),
-                  axis.text.y = element_blank(),
-                  axis.ticks.y = element_blank(),
-                  axis.text.x = element_text(size=15),
-                  legend.title = element_blank(),
-                  legend.text = element_text(size=12),
-                  legend.position = c(0.02, 0.98),
-                  legend.justification = c(0, 1),
-                  legend.background = element_blank(),
-                  legend.key.size = unit(1.5, 'lines'))
-
-        plot(gg) # Display the plot
+    # Plot drawMeans.
+    if (plotData == "drawMeans") {
+        # For each metric, compute differences and plot
+        for (metric in metrics) {
+            xlabel <- ifelse(addXLabel, paste0("Difference in ", metric), "")
+            .plot_dist_diff(
+                eval1$drawMeans[[metric]], 
+                eval2$drawMeans[[metric]],
+                label1,
+                label2,
+                xlabel
+            )
+        }
     }
+    # Plot metricMeans.
+    else if (plotData == "metricMeans") {
+        # For each metric, compute differences and plot
+        ntargets = ntargets(eval1)
+        for (target in 1:ntargets) {
+            xlabel <- ifelse(addXLabel, paste0("Difference in mean over metrics for ", target), "")
+            .plot_dist_diff(
+                eval1$metricMeans[, target], 
+                eval2$metricMeans[, target],
+                label1,
+                label2,
+                xlabel
+            )
+        }
+
+        # Plot mean as well if more than 1 target.
+        if (ntargets > 1) {
+            xlabel <- ifelse(addXLabel, "Difference in mean over metrics (harmonic mean)", "")
+            .plot_dist_diff(
+                eval1$metricMeans[, ntargets + 1], 
+                eval2$metricMeans[, ntargets + 1],
+                label1,
+                label2,
+                xlabel
+            )
+        }
+    }
+    # Plot allDraws.
+    else if (plotData == "allDraws") {
+        # For each metric, compute differences and plot
+        for (metric in metrics) {
+            # Get the results matrices for this metric
+            res1 <- eval1$drawResults[[metric]]
+            res2 <- eval2$drawResults[[metric]]
+
+            # Plot for each target.
+            ntargets <- ntargets(eval1)
+            for (target in 1:ntargets) {
+                xlabel <- ifelse(addXLabel, 
+                                 paste0("Difference in ", metric, " for target ", target), "")
+                .plot_dist_diff(
+                    res1[, target], 
+                    res2[, target],
+                    label1,
+                    label2,
+                    xlabel
+                )
+            }
+
+            # Plot mean as well if more than 1 target.
+            if (ntargets > 1) {
+                xlabel <- ifelse(addXLabel, 
+                                 paste0("Difference in ", metric, " (harmonic mean)"), "")
+                .plot_dist_diff(
+                    res1[, ntargets + 1], 
+                    res2[, ntargets + 1],
+                    label1,
+                    label2,
+                    xlabel
+                )
+            }
+        }
+    }
+    else {
+        stop("Unsupported dataToPlot option.")
+    }
+
+}
+
+
+.plot_dist_diff <- function(
+    values1,
+    values2,
+    label1,
+    label2,
+    xlabel = NULL
+) {
+    diffs <- values1 - values2
+    dat <- data.frame(differences = diffs)
+
+    # Plot the density of differences for this metric
+    # Compute density manually to split left/right of zero
+    dens <- density(dat$differences, na.rm = TRUE)
+    dens_df <- data.frame(x = dens$x, y = dens$y)
+    dens_df$side <- factor(ifelse(dens_df$x < 0, "left", "right"), levels = c("left", "right"))
+
+    # Calculate area under the density curve for each side
+    total_area <- sum(dens_df$y)
+    left_area <- sum(dens_df$y[dens_df$side == "left"]) / total_area
+    right_area <- sum(dens_df$y[dens_df$side == "right"]) / total_area
+
+    # Format as percentages
+    left_pct <- sprintf("%.1f%%", 100 * left_area)
+    right_pct <- sprintf("%.1f%%", 100 * right_area)
+
+    # Add labels for legend with percentages
+    side_labels <- c(
+        left = paste0(label1, " (", left_pct, ")"),
+        right = paste0(label2, " (", right_pct, ")")
+    )
+
+    # Create the plot
+    gg <- ggplot(dens_df, aes(x = x, y = y, fill = side)) +
+        geom_area(alpha = .6) +
+        scale_fill_manual(
+            name = "",
+            values = c(left = "#D55E00", right = "#009E73"),
+            labels = side_labels
+        ) +
+        geom_line(color = "black", inherit.aes = FALSE, data = dens_df, aes(x = x, y = y)) +
+        geom_vline(xintercept = 0, linetype = "solid", color = "black") +
+        theme(panel.grid.major = element_blank(),
+                panel.grid.minor = element_blank(),
+                panel.background = element_rect(fill="white", color="white"),
+                axis.title.x = element_text(size = 15),
+                axis.title.y = element_blank(),
+                axis.text.y = element_blank(),
+                axis.ticks.y = element_blank(),
+                axis.text.x = element_text(size=15),
+                legend.title = element_blank(),
+                legend.text = element_text(size=12),
+                legend.position = c(0.02, 0.98),
+                legend.justification = c(0, 1),
+                legend.background = element_blank(),
+                legend.key.size = unit(1.5, 'lines'))
+    
+    gg <- gg + labs(x = ifelse(is.null(xlabel), "", xlabel))
+
+    plot(gg) # Display the plot
 }

@@ -64,16 +64,11 @@ eval2 <- eval_mspm_prediction_draws(
 )
 
 
-# Plot performance metrics.
-# plot_eval_draws(
-#     eval = list(eval1, eval2),
-#     plotMean = TRUE
-# )
-
 # Plot diff in metrics.
 plot_eval_draws_diff(
     eval1 = eval1,
     eval2 = eval2,
     label1 = "Thinning",
-    label2 = "No thinning"
+    label2 = "No thinning",
+    plotData = "allDraws"
 )
