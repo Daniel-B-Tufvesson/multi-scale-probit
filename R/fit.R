@@ -174,12 +174,16 @@ fit_mspm <- function(
 
     # Return fitted model.
     new_mspm(
-        data,
-        beta,
-        gammas,
-        meanPrior,
-        precPrior,
-        seed,
-        match.call()
+        data = data,
+        beta = beta,
+        gammas = gammas,
+        meanPrior = meanPrior,
+        precPrior = precPrior,
+        seed = seed,
+        ndraws = ndraws,
+        ndrawsNoThin = ndraws / thin,
+        thin = thin,
+        burnin = burnin,
+        call = match.call()
     )  
 }

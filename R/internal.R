@@ -76,6 +76,10 @@ new_mspm <- function(
     meanPrior,
     precPrior,
     seed,
+    ndraws,
+    ndrawsNoThin,
+    thin,
+    burnin,
     call
 ) {
     structure(
@@ -88,7 +92,10 @@ new_mspm <- function(
             call = call,
             seed = seed,
             nobs = nrow(beta), # Why is nobs the number of rows in beta? Shouldn't this be ndraws?
-            ndraws = nrow(beta)
+            ndraws = ndraws,
+            ndrawsNoThin = ndrawsNoThin,
+            thin = thin,
+            burnin = burnin
             
             # diagnostics = list(
             #     rhat = rhat,
@@ -107,6 +114,39 @@ ntargets.mspm <- function(object, ...) {
 nlevels.mspm <- function(object, ...) {
     object$data$nlevels
 }
+
+beta.mspm <- function(object, ...) {
+    object$beta
+}
+
+gammas.mspm <- function(object, ...) {
+    object$gammas
+}
+
+meanPrior.mspm <- function(object, ...) {
+    object$meanPrior
+}
+
+precPrior.mspm <- function(object, ...) {
+    object$precPrior
+}
+
+ndraws.mspm <- function(object, withoutThinning = TRUE, ...) {
+    if (withoutThinning) {
+        object$ndrawsNoThin
+    } else {
+        object$ndraws
+    }
+}
+
+burnin.mspm <- function(object, ...) {
+    object$burnin
+}
+
+thin.mspm <- function(object, ...) {
+    object$thin
+}
+
 
 # Constructor for creating a new multi-scale probit model latent prediction object.
 # 

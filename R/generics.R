@@ -31,6 +31,15 @@ nlevels <- function(object, ...) {
     UseMethod("nlevels")
 }
 
+#' The names of predictor variables in a multi-scale probit model object.
+#'
+#' @param object One of:
+#' \itemize{
+#'   \item An mspm object.
+#'   \item An mspm_data object.
+#' }
+#' @param ... Additional arguments (not used).
+#' @return A character vector of predictor variable names.
 predictorNames <- function(object, ...) {
     UseMethod("predictorNames")
 }
@@ -42,3 +51,32 @@ responseNames <- function(object, ...) {
 levelNames <- function(object, ...) {
     UseMethod("levelNames")
 }
+
+beta <- function(object, ...) {
+    UseMethod("beta")
+}
+
+gammas <- function(object, ...) {
+    UseMethod("gammas")
+}
+
+meanPrior <- function(object, ...) {
+    UseMethod("meanPrior")
+}
+
+precPrior <- function(object, ...) {
+    UseMethod("precPrior")
+}
+
+ndraws <- function(object, withoutThinning = TRUE, ...) {
+    UseMethod("ndraws")
+}
+
+burnin <- function(object, ...) {
+    UseMethod("burnin")
+}
+
+thin <- function(object, ...) {
+    UseMethod("thin")
+}
+
