@@ -43,6 +43,22 @@ ntargets.mspm_data <- function(object, ...) {
     object$ntargets
 }
 
+nlevels.mspm_data <- function(object, ...) {
+    object$nlevels
+}
+
+predictorNames.mspm_data <- function(object, ...) {
+    object$predictorNames
+}
+
+responseNames.mspm_data <- function(object, ...) {
+    object$responseNames
+}
+
+levelNames.mspm_data <- function(object, ...) {
+    object$levelNames
+}
+
 # Constructor for creating a new multi-scale probit model (MSPM).
 # 
 # Arguments: 
@@ -88,6 +104,10 @@ ntargets.mspm <- function(object, ...) {
     object$data$ntargets
 }
 
+nlevels.mspm <- function(object, ...) {
+    object$data$nlevels
+}
+
 # Constructor for creating a new multi-scale probit model latent prediction object.
 # 
 # Arguments:
@@ -114,6 +134,10 @@ new_mspm_latent_prediction <- function(
 
 ntargets.mspm_latent_prediction <- function(object, ...) {
     object$fit$data$ntargets
+}
+
+nlevels.mspm_latent_prediction <- function(object, ...) {
+    object$fit$data$nlevels
 }
 
 # Constructor for creating a new multi-scale probit model labeled prediction object.
@@ -150,6 +174,10 @@ new_mspm_labeled_prediction <- function(
 
 ntargets.mspm_labeled_prediction <- function(object, ...) {
     object$fit$data$ntargets
+}
+
+nlevels.mspm_labeled_prediction <- function(object, ...) {
+    object$fit$data$nlevels
 }
 
 # Constructor for creating a new multi-scale probit model labeled evaluation object.
@@ -191,4 +219,8 @@ new_mspm_labeled_evaluation <- function(
 
 ntargets.mspm_labeled_evaluation <- function(object, ...) {
     object$prediction$fit$data$ntargets
+}
+
+nlevels.mspm_labeled_evaluation <- function(object, ...) {
+    object$prediction$fit$data$nlevels
 }

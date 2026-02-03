@@ -5,6 +5,7 @@ run_all_data_tests <- function() {
     .test_split_data()
     .test_level_names()
     .test_minimal_data()
+    .test_accessors()
 }
 
 
@@ -138,4 +139,55 @@ run_all_data_tests <- function() {
     }
 
     cat("Test passed: Minimal data (2 obs, 1 covariate, 1 gamma) generated correctly.\n")
+}
+
+
+# Test case 5: Test if the accessor functions work.
+.test_accessors <- function() {
+    # Create a mock mspm_data object.
+    data <- new_mspm_data(
+        predictorNames = c("X1", "X2"),
+        responseNames = c("Y1", "Y2", "Y3"),
+        Xlist = list(matrix(rnorm(100), nrow=50, ncol=2)),
+        ylist = list(sample(1:3, 50, replace=TRUE),
+                     sample(1:4, 50, replace=TRUE),
+                     sample(1:2, 50, replace=TRUE)),
+        levelNames = list(c("A", "B", "C"),
+                          c("D", "E", "F", "G"),
+                          c("H", "I")),
+        nlevels = c(3, 4, 2),
+        ntargets = 3,
+        seed = 42,
+        call = match.call()
+    )
+
+    # Test ntargets accessor.
+    if (ntargets.mspm_data(data) != 3) {
+        stop("Test failed: ntargets accessor returned incorrect value.")
+    }
+
+    # Test nlevels accessor.
+    if (!isTRUE(all.equal(nlevels.mspm_data(data), c(3, 4, 2)))) {
+        stop("Test failed: nlevels accessor returned incorrect value.")
+    }
+
+    # Test predictorNames accessor.
+    if (!isTRUE(all.equal(data$predictorNames, c("X1", "X2")))) {
+        stop("Test failed: predictorNames accessor returned incorrect value.")
+    }
+
+    # Test responseNames accessor.
+    if (!isTRUE(all.equal(data$responseNames, c("Y1", "Y2", "Y3")))) {
+        stop("Test failed: responseNames accessor returned incorrect value.")
+    }
+
+    # Test levelNames accessor.
+    expected_level_names <- list(c("A", "B", "C"),
+                                 c("D", "E", "F", "G"),
+                                 c("H", "I"))
+    if (!isTRUE(all.equal(data$levelNames, expected_level_names))) {
+        stop("Test failed: levelNames accessor returned incorrect value.")
+    }
+
+    cat("Test passed: Accessor functions work correctly.\n")
 }
