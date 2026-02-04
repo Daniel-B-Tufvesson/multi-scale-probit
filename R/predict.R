@@ -1,3 +1,4 @@
+source("R/internal.R")
 
 # The main predict method for mspm objects.
 #
@@ -99,8 +100,8 @@ predict_mspm <- function(
     newdata,
     ystars
 ) {
-    ntargets = fit$data$ntargets
-    ndraws = fit$ndraws
+    ntargets <- ntargets(fit)
+    ndraws <- ndraws(fit)
 
     # Label each dataset
     ylabels = list()

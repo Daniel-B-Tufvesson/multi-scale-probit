@@ -188,12 +188,12 @@ run_all_probit_tests <-function() {
     }
 
     # Test ndraws accessor.
-    if (ndraws(fit) != fit$ndrawsNoThin) {
+    if (ndraws(fit) != fit$ndraws) {
         stop("Test failed: ndraws accessor returned incorrect value.")
     }
 
     # Test ndraws with thinning accessor.
-    if (ndraws(fit, withoutThinning = FALSE) != fit$ndraws) {
+    if (ndraws(fit, withoutThinning = TRUE) != fit$ndrawsNoThin) {
         stop("Test failed: ndraws without thinning accessor returned incorrect value.")
     }
 

@@ -180,8 +180,8 @@ fit_mspm <- function(
         meanPrior = meanPrior,
         precPrior = precPrior,
         seed = seed,
-        ndraws = ndraws,
-        ndrawsNoThin = ndraws / thin,
+        ndraws = ndraws / thin,
+        ndrawsNoThin = ndraws,
         thin = thin,
         burnin = burnin,
         call = match.call()

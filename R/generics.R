@@ -38,6 +38,7 @@ nlevels <- function(object, ...) {
 #'   \item An mspm object.
 #'   \item An mspm_data object.
 #'   \item An mspm_latent_prediction object.
+#'   \item An mspm_labeled_prediction object.
 #' }
 #' @param ... Additional arguments (not used).
 #' @return A character vector of predictor variable names.
@@ -52,6 +53,7 @@ predictorNames <- function(object, ...) {
 #'   \item An mspm object.
 #'   \item An mspm_data object.
 #'   \item An mspm_latent_prediction object.
+#'   \item An mspm_labeled_prediction object.
 #' }
 #' @param ... Additional arguments (not used).
 #' @return A character vector of response variable names.
@@ -66,6 +68,7 @@ responseNames <- function(object, ...) {
 #'   \item An mspm object.
 #'   \item An mspm_data object.
 #'   \item An mspm_latent_prediction object.
+#'   \item An mspm_labeled_prediction object.
 #' }
 #' @param ... Additional arguments (not used).
 #' @return A list of character vectors containing level names for each target dataset.
@@ -95,12 +98,13 @@ precPrior <- function(object, ...) {
 #' \itemize{
 #'   \item An mspm object.
 #'   \item An mspm_latent_prediction object.
+#'   \item An mspm_labeled_prediction object.
 #' }
 #' @param withoutThinning Logical indicating whether to return the number of draws without 
-#' thinning (default TRUE).
+#' thinning (default FALSE).
 #' @param ... Additional arguments (not used).
 #' @return An integer indicating the number of posterior draws.
-ndraws <- function(object, withoutThinning = TRUE, ...) {
+ndraws <- function(object, withoutThinning = FALSE, ...) {
     UseMethod("ndraws")
 }
 
@@ -117,6 +121,7 @@ thin <- function(object, ...) {
 #' @param object One of:
 #' \itemize{
 #'   \item An mspm_latent_prediction object.
+#'   \item An mspm_labeled_prediction object.
 #' }
 #' @param ... Additional arguments (not used).
 #' @return The underlying model object.
@@ -129,9 +134,34 @@ model <- function(object, ...) {
 #' @param object One of:
 #' \itemize{
 #'   \item An mspm_latent_prediction object.
+#'   \item An mspm_labeled_prediction object.
 #' }
 #' @param ... Additional arguments (not used).
 #' @return A list of matrices containing predicted latent variable values for each target dataset.
 latent <- function(object, ...) {
     UseMethod("latent")
+}
+
+#' The predicted labels for each target dataset. 
+#'
+#' @param object One of:
+#' \itemize{
+#'   \item An mspm_labeled_prediction object.
+#' }
+#' @param ... Additional arguments (not used).
+#' @return A list of matrices containing predicted labels for each target dataset.
+predictedLabels <- function(object, ...) {
+    UseMethod("predictedLabels")
+}
+
+#' The indexes of predicted labels for each target dataset.
+#'
+#' @param object One of:
+#' \itemize{
+#'   \item An mspm_labeled_prediction object.
+#' }
+#' @param ... Additional arguments (not used).
+#' @return A list of matrices containing indexes of predicted labels for each target dataset.
+predictedLabelIndexes <- function(object, ...) {
+    UseMethod("predictedLabelIndexes")
 }

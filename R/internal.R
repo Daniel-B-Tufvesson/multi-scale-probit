@@ -131,7 +131,7 @@ precPrior.mspm <- function(object, ...) {
     object$precPrior
 }
 
-ndraws.mspm <- function(object, withoutThinning = TRUE, ...) {
+ndraws.mspm <- function(object, withoutThinning = FALSE, ...) {
     if (withoutThinning) {
         object$ndrawsNoThin
     } else {
@@ -192,7 +192,7 @@ levelNames.mspm_latent_prediction <- function(object, ...) {
     object$fit$data$levelNames
 }
 
-ndraws.mspm_latent_prediction <- function(object, withoutThinning = TRUE, ...) {
+ndraws.mspm_latent_prediction <- function(object, withoutThinning = FALSE, ...) {
     if (withoutThinning) {
         object$fit$ndrawsNoThin
     } else {
@@ -246,6 +246,42 @@ ntargets.mspm_labeled_prediction <- function(object, ...) {
 
 nlevels.mspm_labeled_prediction <- function(object, ...) {
     object$fit$data$nlevels
+}
+
+predictorNames.mspm_labeled_prediction <- function(object, ...) {
+    object$fit$data$predictorNames
+}
+
+responseNames.mspm_labeled_prediction <- function(object, ...) {
+    object$fit$data$responseNames
+}
+
+levelNames.mspm_labeled_prediction <- function(object, ...) {
+    object$fit$data$levelNames
+}
+
+ndraws.mspm_labeled_prediction <- function(object, withoutThinning = FALSE, ...) {
+    if (withoutThinning) {
+        object$fit$ndrawsNoThin
+    } else {
+        object$fit$ndraws
+    }
+}
+
+model.mspm_labeled_prediction <- function(object, ...) {
+    object$fit
+}
+
+predictedLabels.mspm_labeled_prediction <- function(object, ...) {
+    object$ylabels
+}
+
+predictedLabelIndexes.mspm_labeled_prediction <- function(object, ...) {
+    object$ylabelIndexes
+}
+
+latentPredictions.mspm_labeled_prediction <- function(object, ...) {
+    object$latentPredictions
 }
 
 # Constructor for creating a new multi-scale probit model labeled evaluation object.
