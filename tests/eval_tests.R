@@ -9,6 +9,7 @@ run_all_eval_tests <- function() {
     .test_only_kendall()
     .test_no_metric()
     .test_unsupported_metric()
+    .test_accessors()
 }
 
 
@@ -380,4 +381,114 @@ run_all_eval_tests <- function() {
     }
 
     cat("Test passed: Error correctly thrown when unsupported metric is specified for evaluation.\n")
+}
+
+.test_accessors <- function() {
+    # Generate the data.
+    mspm.data <- generate_synthetic_data(
+        nobs = 100,
+        ncov = 48,
+        ngamma = c(1, 3, 3),
+        seed = 1234
+    )
+
+    # Fit model.
+    mspm.fit = fit_mspm(
+        data = mspm.data,
+        ndraws = 500,
+        burnin = 500,
+        thin = 1,
+        tune = 0.1,
+        seed = 1234,
+        verbose = 0
+    )
+
+    # Predict labels.
+    mspm.pred <- predict_mspm(
+        fit = mspm.fit
+    )
+
+    # Evaluate predictions.
+    metrics = c("f1", "kendall")
+    mspm.eval <- eval_mspm_prediction_draws(
+        predictions = mspm.pred,
+        metrics = metrics
+    )
+
+    # Test ndraws accessor.
+    if (ndraws(mspm.eval) != mspm.fit$ndraws) {
+        stop("Test failed: ndraws accessor returned incorrect value.")
+    }
+
+    # Test ndraws accessor without thinning.
+    if (ndraws(mspm.eval, withoutThinning = TRUE) != mspm.fit$ndrawsNoThin) {
+        stop("Test failed: ndraws accessor without thinning returned incorrect value.")
+    }
+
+    # Test nlevels accessor.
+    if (!all(nlevels(mspm.eval) == mspm.data$nlevels)) {
+        stop("Test failed: nlevels accessor returned incorrect value.")
+    }
+    
+    # Test predictorNames accessor.
+    if (!identical(predictorNames(mspm.eval), mspm.data$predictorNames)) {
+        stop("Test failed: predictorNames accessor returned incorrect value.")
+    }
+
+    # Test responseNames accessor.
+    if (!identical(responseNames(mspm.eval), mspm.data$responseNames)) {
+        stop("Test failed: responseNames accessor returned incorrect value.")
+    }
+
+    # Test levelNames accessor.
+    if (!identical(levelNames(mspm.eval), mspm.data$levelNames)) {
+        stop("Test failed: levelNames accessor returned incorrect value.")
+    }
+
+    # Test model accessor.
+    if (!identical(model(mspm.eval), mspm.fit)) {
+        stop("Test failed: model accessor returned incorrect value.")
+    }
+
+    # Test predictedLabels accessor.
+    if (!identical(predictedLabels(mspm.eval), mspm.pred$ylabels)) {
+        stop("Test failed: predictedLabels accessor returned incorrect value.")
+    }
+
+    # Test latent accessor.
+    if (!identical(latent(mspm.eval), mspm.pred$latentPredictions$ystars)) {
+        stop("Test failed: latent accessor returned incorrect value.")
+    }
+
+    # Test predictedLabelIndexes accessor.
+    if (!identical(predictedLabelIndexes(mspm.eval), mspm.pred$ylabelIndexes)) {
+        stop("Test failed: predictedLabelIndexes accessor returned incorrect value.")
+    }
+
+    # Test evalMetrics accessor.
+    if (!identical(evalMetrics(mspm.eval), metrics)) {
+        stop("Test failed: metrics accessor returned incorrect value.")
+    }
+
+    # Test evalDrawResults accessor.
+    if (!identical(evalDrawResults(mspm.eval), mspm.eval$drawResults)) {
+        stop("Test failed: drawResults accessor returned incorrect value.")
+    }
+
+    # Test evalTargetMeans accessor.
+    if (!identical(evalTargetMeans(mspm.eval), mspm.eval$targetMeans)) {
+        stop("Test failed: targetMeans accessor returned incorrect value.")
+    }
+
+    # Test evalDrawMeans accessor.
+    if (!identical(evalDrawMeans(mspm.eval), mspm.eval$drawMeans)) {
+        stop("Test failed: drawMeans accessor returned incorrect value.")
+    }
+
+    # Test evalMetricMeans accessor.
+    if (!identical(evalMetricMeans(mspm.eval), mspm.eval$metricMeans)) {
+        stop("Test failed: metricMeans accessor returned incorrect value.")
+    }
+
+    cat("Test passed: Accessor functions return correct values.\n")
 }

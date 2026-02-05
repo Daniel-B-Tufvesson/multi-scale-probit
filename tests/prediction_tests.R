@@ -7,6 +7,8 @@ run_all_prediction_tests <- function() {
     .test_predict_on_new_data()
     .test_predict_reproducibility()
     .test_predict_minimal_data()
+    .test_accessors_mspm_latent_prediction()
+    .test_accessors_mspm_labeled_prediction()
 }
 
 # Test case 1: Generate synthetic data, fit a model, and verify latent variable predictions.
@@ -272,4 +274,160 @@ run_all_prediction_tests <- function() {
     }
 
     cat("Test passed: Prediction works for minimal data (6 obs, 1 covariate).\n")
+}
+
+# Test case 6: Test if the accessor functions work for mspm_latent_prediction object.
+.test_accessors_mspm_latent_prediction <- function() {
+    # Generate the data.
+    mspm.data <- generate_synthetic_data(
+        nobs = 100,
+        ncov = 5,
+        ngamma = c(2, 3),
+        seed = 42
+    )
+
+    # Fit using all the data.
+    fit = fit_mspm(
+        data = mspm.data,
+        ndraws = 1000,
+        burnin = 500,
+        thin = 2,
+        tune = 0.1,
+        seed = 1234,
+        verbose = 0
+    )
+
+    # Predict latent ystar values.
+    latent <- predict_mspm(
+        fit = fit,
+        latentOnly = TRUE
+    )
+
+    # Test ntargets accessor
+    if (ntargets(latent) != mspm.data$ntargets) {
+        stop("Test failed: ntargets accessor does not return correct value. Got ", 
+             ntargets(latent), " expected ", mspm.data$ntargets, ".")
+    }
+
+    # Test nlevels accessor
+    if (!all(nlevels(latent) == mspm.data$nlevels)) {
+        stop("Test failed: nlevels accessor does not return correct value.")
+    }
+
+    # Test predictorNames accessor.
+    if (!all.equal(predictorNames(latent), mspm.data$predictorNames)) {
+        stop("Test failed: predictorNames accessor returned incorrect value.")
+    }
+
+    # Test responseNames accessor.
+    if (!all.equal(responseNames(latent), mspm.data$responseNames)) {
+        stop("Test failed: responseNames accessor returned incorrect value.")
+    }
+
+    # Test levelNames accessor.
+    if (!all.equal(levelNames(latent), mspm.data$levelNames)) {
+        stop("Test failed: levelNames accessor returned incorrect value.")
+    }
+
+    # Test ndraws accessor.
+    if (ndraws(latent) != fit$ndraws) {
+        stop("Test failed: ndraws accessor does not return correct value.")
+    }
+
+    # Test ndraws accessor without thinning.
+    if (ndraws(latent, withoutThinning = TRUE) != fit$ndrawsNoThin) {
+        stop("Test failed: ndraws accessor with thinning does not return correct value.")
+    }
+
+    # Test model accessor.
+    if (!identical(model(latent), fit)) {
+        stop("Test failed: fit accessor does not return correct model.")
+    }
+
+    # Test latent accessor.
+    if (!identical(latent(latent), latent$ystars)) {
+        stop("Test failed: latent accessor does not return correct latent values.")
+    }
+    
+    cat("Test passed: Accessor functions for mspm_latent_prediction work correctly.\n")
+}
+
+# Test case 7: Test if accessor functions work for mspm_labeled_prediction object.
+.test_accessors_mspm_labeled_prediction <- function() {
+    # Generate the data.
+    mspm.data <- generate_synthetic_data(
+        nobs = 100,
+        ncov = 5,
+        ngamma = c(2, 3),
+        seed = 42
+    )
+
+    # Fit using all the data.
+    fit = fit_mspm(
+        data = mspm.data,
+        ndraws = 1000,
+        burnin = 500,
+        thin = 2,
+        tune = 0.1,
+        seed = 1234,
+        verbose = 0
+    )
+
+    # Predict labels.
+    labeled <- predict_mspm(
+        fit = fit
+    )
+
+    # Test ntargets accessor
+    if (ntargets(labeled) != mspm.data$ntargets) {
+        stop("Test failed: ntargets accessor does not return correct value. Got ", 
+             ntargets(labeled), " expected ", mspm.data$ntargets, ".")
+    }
+
+    # Test nlevels accessor
+    if (!all(nlevels(labeled) == mspm.data$nlevels)) {
+        stop("Test failed: nlevels accessor does not return correct value.")
+    }
+
+    # Test predictorNames accessor.
+    if (!all.equal(predictorNames(labeled), mspm.data$predictorNames)) {
+        stop("Test failed: predictorNames accessor returned incorrect value.")
+    }
+
+    # Test responseNames accessor.
+    if (!all.equal(responseNames(labeled), mspm.data$responseNames)) {
+        stop("Test failed: responseNames accessor returned incorrect value.")
+    }
+
+    # Test levelNames accessor.
+    if (!all.equal(levelNames(labeled), mspm.data$levelNames)) {
+        stop("Test failed: levelNames accessor returned incorrect value.")
+    }
+
+    # Test ndraws accessor.
+    if (ndraws(labeled) != fit$ndraws) {
+        stop("Test failed: ndraws accessor does not return correct value.")
+    }
+
+    # Test ndraws accessor without thinning.
+    if (ndraws(labeled, withoutThinning = TRUE) != fit$ndrawsNoThin) {
+        stop("Test failed: ndraws accessor with thinning does not return correct value.")
+    }
+
+    # Test model accessor.
+    if (!identical(model(labeled), fit)) {
+        stop("Test failed: fit accessor does not return correct model.")
+    }
+
+    # Test predictedLabels accessor.
+    if (!identical(predictedLabels(labeled), labeled$ylabels)) {
+        stop("Test failed: predictedLabels accessor does not return correct labels.")
+    }
+
+    # Test predictedLabelIndexes accessor.
+    if (!identical(predictedLabelIndexes(labeled), labeled$ylabelIndexes)) {
+        stop("Test failed: predictedLabelIndexes accessor does not return correct label indexes.")
+    }
+
+    cat("Test passed: Accessor functions for mspm_labeled_prediction work correctly.\n")
 }

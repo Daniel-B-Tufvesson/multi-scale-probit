@@ -6,6 +6,7 @@ run_all_probit_tests <-function() {
     .test_generate_data()
     .test_fit()
     .test_fit_compare()
+    .test_accessors()
 }
 
 
@@ -118,4 +119,93 @@ run_all_probit_tests <-function() {
     }
 
     cat("Test passed: Fitted models are identical.\n")
+}
+
+# Test case 3: Test if the accessor functions work.
+.test_accessors <- function() {
+    # Generate the data.
+    mspm.data <- generate_synthetic_data(
+        nobs = 100,
+        ncov = 5,
+        ngamma = c(2, 3),
+        seed = 42
+    )
+
+    # Fit using all the data.
+    fit = fit_mspm(
+        data = mspm.data,
+        ndraws = 500,
+        burnin = 500,
+        thin = 1,
+        tune = 0.1,
+        seed = 1234,
+        verbose = 0
+    )
+
+    # Test ntargets accessor.
+    if (ntargets(fit) != mspm.data$ntargets) {
+        stop("Test failed: ntargets accessor returned incorrect value.")
+    }
+
+    # Test nlevels accessor.
+    if (nlevels(fit) != mspm.data$nlevels) {
+        stop("Test failed: nlevels accessor returned incorrect value.")
+    }
+
+    # Test predictorNames accessor.
+    if (!all.equal(predictorNames(fit), mspm.data$predictorNames)) {
+        stop("Test failed: predictorNames accessor returned incorrect value.")
+    }
+
+    # Test responseNames accessor.
+    if (!all.equal(responseNames(fit), mspm.data$responseNames)) {
+        stop("Test failed: responseNames accessor returned incorrect value.")
+    }
+
+    # Test levelNames accessor.
+    if (!all.equal(levelNames(fit), mspm.data$levelNames)) {
+        stop("Test failed: levelNames accessor returned incorrect value.")
+    }
+
+    # Test beta accessor.
+    if (!all.equal(beta(fit), fit$beta)) {
+        stop("Test failed: beta accessor returned incorrect value.")
+    }
+
+    # Test gammas accessor.
+    if (length(gammas(fit)) != length(fit$gammas)) {
+        stop("Test failed: gammas accessor returned incorrect value.")
+    }
+
+    # Test meanPrior accessor.
+    if (!all.equal(meanPrior(fit), fit$meanPrior)) {
+        stop("Test failed: meanPrior accessor returned incorrect value.")
+    }
+
+    # Test precPrior accessor.
+    if (!all.equal(precPrior(fit), fit$precPrior)) {
+        stop("Test failed: precPrior accessor returned incorrect value.")
+    }
+
+    # Test ndraws accessor.
+    if (ndraws(fit) != fit$ndraws) {
+        stop("Test failed: ndraws accessor returned incorrect value.")
+    }
+
+    # Test ndraws with thinning accessor.
+    if (ndraws(fit, withoutThinning = TRUE) != fit$ndrawsNoThin) {
+        stop("Test failed: ndraws without thinning accessor returned incorrect value.")
+    }
+
+    # Test burnin accessor.
+    if (burnin(fit) != fit$burnin) {
+        stop("Test failed: burnin accessor returned incorrect value.")
+    }
+
+    # Test thin accessor.
+    if (thin(fit) != fit$thin) {
+        stop("Test failed: thin accessor returned incorrect value.")
+    }
+
+    cat("Test passed: Accessor functions work correctly.\n")
 }
