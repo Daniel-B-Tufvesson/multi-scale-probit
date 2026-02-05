@@ -101,6 +101,8 @@ new_mspm <- function(
                 ntargets = ntargets(data),
                 nlevels = nlevels(data),
                 levelNames = levelNames(data),
+                predictorNames = predictorNames(data),
+                responseNames = responseNames(data),
                 seed = data$seed
             )
             
@@ -124,6 +126,14 @@ nlevels.mspm <- function(object, ...) {
 
 levelNames.mspm <- function(object, ...) {
     object$training_data_info$levelNames
+}
+
+predictorNames.mspm <- function(object, ...) {
+    object$training_data_info$predictorNames
+}
+
+responseNames.mspm <- function(object, ...) {
+    object$training_data_info$responseNames
 }
 
 beta.mspm <- function(object, ...) {
@@ -184,23 +194,23 @@ new_mspm_latent_prediction <- function(
 }
 
 ntargets.mspm_latent_prediction <- function(object, ...) {
-    object$fit$data$ntargets
+    ntargets(object$fit)
 }
 
 nlevels.mspm_latent_prediction <- function(object, ...) {
-    object$fit$data$nlevels
+    nlevels(object$fit)
 }
 
 predictorNames.mspm_latent_prediction <- function(object, ...) {
-    object$fit$data$predictorNames
+    predictorNames(object$fit)
 }
 
 responseNames.mspm_latent_prediction <- function(object, ...) {
-    object$fit$data$responseNames
+    responseNames(object$fit)
 }
 
 levelNames.mspm_latent_prediction <- function(object, ...) {
-    object$fit$data$levelNames
+    levelNames(object$fit)
 }
 
 ndraws.mspm_latent_prediction <- function(object, withoutThinning = FALSE, ...) {
@@ -252,23 +262,23 @@ new_mspm_labeled_prediction <- function(
 }
 
 ntargets.mspm_labeled_prediction <- function(object, ...) {
-    object$fit$data$ntargets
+    ntargets(object$fit)
 }
 
 nlevels.mspm_labeled_prediction <- function(object, ...) {
-    object$fit$data$nlevels
+    nlevels((object$fit))
 }
 
 predictorNames.mspm_labeled_prediction <- function(object, ...) {
-    object$fit$data$predictorNames
+    predictorNames(object$fit)
 }
 
 responseNames.mspm_labeled_prediction <- function(object, ...) {
-    object$fit$data$responseNames
+    responseNames(object$fit)
 }
 
 levelNames.mspm_labeled_prediction <- function(object, ...) {
-    object$fit$data$levelNames
+    levelNames(object$fit)
 }
 
 ndraws.mspm_labeled_prediction <- function(object, withoutThinning = FALSE, ...) {
@@ -333,23 +343,23 @@ new_mspm_labeled_evaluation <- function(
 }
 
 ntargets.mspm_labeled_evaluation <- function(object, ...) {
-    object$prediction$fit$data$ntargets
+    ntargets(object$prediction$fit)
 }
 
 nlevels.mspm_labeled_evaluation <- function(object, ...) {
-    object$prediction$fit$data$nlevels
+    nlevels(object$prediction$fit)
 }
 
 predictorNames.mspm_labeled_evaluation <- function(object, ...) {
-    object$prediction$fit$data$predictorNames
+    predictorNames(object$prediction$fit)
 }
 
 responseNames.mspm_labeled_evaluation <- function(object, ...) {
-    object$prediction$fit$data$responseNames
+    responseNames(object$prediction$fit)
 }
 
 levelNames.mspm_labeled_evaluation <- function(object, ...) {
-    object$prediction$fit$data$levelNames
+    levelNames(object$prediction$fit)
 }
 
 ndraws.mspm_labeled_evaluation <- function(object, withoutThinning = FALSE, ...) {

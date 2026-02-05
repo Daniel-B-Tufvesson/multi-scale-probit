@@ -58,6 +58,11 @@ run_all_persistence_tests <- function() {
         stop("Test failed: nlevels are not identical after loading.")
     }
 
+    # Check levelNames.
+    if (!identical(levelNames(fit), levelNames(loaded_fit))) {
+        stop("Test failed: levelNames are not identical after loading.")
+    }
+
     # Check meanPrior.
     if (!identical(meanPrior(fit), meanPrior(loaded_fit))) {
         stop("Test failed: meanPrior are not identical after loading.")
@@ -136,8 +141,6 @@ run_all_persistence_tests <- function() {
 
     # Check predictedLabels.
     if (!identical(predictedLabels(predict1), predictedLabels(predict2))) {
-        cat("diff: ", all.equal(predictedLabels(predict1), predictedLabels(predict2)), "\n")
-        cat("len: ", length(predictedLabels(predict1)), ", ", length(predictedLabels(predict2)), "\n")
         stop("Test failed: predicted labels are not identical after loading.")
     }
 
