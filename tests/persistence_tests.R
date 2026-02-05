@@ -5,13 +5,14 @@ source("R/internal.R")
 
 
 run_all_persistence_tests <- function() {
-    .test_save_and_load()
+    .test_save_and_load_model()
     .test_predict()
+    .test_save_and_load_data()
 }
 
 #' Test case 1: Save a fitted model to disk and load it back, verifying key components are 
 #' identical.
-.test_save_and_load <- function() {
+.test_save_and_load_model <- function() {
     # Generate synthetic data and fit model.
     data <- generate_synthetic_data(
         nobs = 100,
@@ -145,4 +146,29 @@ run_all_persistence_tests <- function() {
     }
 
     cat("Test passed: Predictions from loaded model are consistent with original model.\n")
+}
+
+# Test case 3: save and load data.
+.test_save_and_load_data <- function() {
+    # Generate synthetic data.
+    data <- generate_synthetic_data(
+        nobs = 100,
+        ncov = 5,
+        ngamma = c(2, 3),
+        seed = 42
+    )
+
+    # Save data to temporary file.
+    temp_file <- tempfile(fileext = ".rds")
+    save_data(data, temp_file)
+
+    # Load data from file.
+    loaded_data <- load_data(temp_file)
+
+    # Check that loaded data is identical to original data.
+    if (!identical(data, loaded_data)) {
+        stop("Test failed: Loaded data is not identical to original data.")
+    }
+
+    cat("Test passed: Data saved and loaded successfully.\n")
 }
