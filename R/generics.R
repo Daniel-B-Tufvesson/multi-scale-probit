@@ -39,6 +39,7 @@ nlevels <- function(object, ...) {
 #'   \item An mspm_data object.
 #'   \item An mspm_latent_prediction object.
 #'   \item An mspm_labeled_prediction object.
+#'   \item An mspm_labeled_evaluation object.
 #' }
 #' @param ... Additional arguments (not used).
 #' @return A character vector of predictor variable names.
@@ -54,6 +55,7 @@ predictorNames <- function(object, ...) {
 #'   \item An mspm_data object.
 #'   \item An mspm_latent_prediction object.
 #'   \item An mspm_labeled_prediction object.
+#'   \item An mspm_labeled_evaluation object.
 #' }
 #' @param ... Additional arguments (not used).
 #' @return A character vector of response variable names.
@@ -69,6 +71,7 @@ responseNames <- function(object, ...) {
 #'   \item An mspm_data object.
 #'   \item An mspm_latent_prediction object.
 #'   \item An mspm_labeled_prediction object.
+#'   \item An mspm_labeled_evaluation object.
 #' }
 #' @param ... Additional arguments (not used).
 #' @return A list of character vectors containing level names for each target dataset.
@@ -99,6 +102,7 @@ precPrior <- function(object, ...) {
 #'   \item An mspm object.
 #'   \item An mspm_latent_prediction object.
 #'   \item An mspm_labeled_prediction object.
+#'   \item An mspm_labeled_evaluation object.
 #' }
 #' @param withoutThinning Logical indicating whether to return the number of draws without 
 #' thinning (default FALSE).
@@ -122,6 +126,7 @@ thin <- function(object, ...) {
 #' \itemize{
 #'   \item An mspm_latent_prediction object.
 #'   \item An mspm_labeled_prediction object.
+#'   \item An mspm_labeled_evaluation object.
 #' }
 #' @param ... Additional arguments (not used).
 #' @return The underlying model object.
@@ -135,6 +140,7 @@ model <- function(object, ...) {
 #' \itemize{
 #'   \item An mspm_latent_prediction object.
 #'   \item An mspm_labeled_prediction object.
+#'   \item An mspm_labeled_evaluation object.
 #' }
 #' @param ... Additional arguments (not used).
 #' @return A list of matrices containing predicted latent variable values for each target dataset.
@@ -147,6 +153,7 @@ latent <- function(object, ...) {
 #' @param object One of:
 #' \itemize{
 #'   \item An mspm_labeled_prediction object.
+#'   \item An mspm_labeled_evaluation object.
 #' }
 #' @param ... Additional arguments (not used).
 #' @return A list of matrices containing predicted labels for each target dataset.
@@ -164,4 +171,68 @@ predictedLabels <- function(object, ...) {
 #' @return A list of matrices containing indexes of predicted labels for each target dataset.
 predictedLabelIndexes <- function(object, ...) {
     UseMethod("predictedLabelIndexes")
+}
+
+#' The evaluation metrics for predictions.
+#'
+#' @param object One of:
+#' \itemize{
+#'   \item An mspm_labeled_evaluation object.
+#' }
+#' @param ... Additional arguments (not used).
+#' @return A character vector of evaluation metric names.
+evalMetrics <- function(object, ...) {
+    UseMethod("evalMetrics")
+}
+
+#' The results of evaluation for each posterior draw.
+#'
+#' @param object One of:
+#' \itemize{
+#'   \item An mspm_labeled_evaluation object.
+#' }
+#' @param ... Additional arguments (not used).
+#' @return A list containing the computed evaluation results. Each element corresponds 
+#' to a metric and contains a matrix of results with rows for draws and columns 
+#' for targets (and possibly harmonic mean as the last column).
+evalDrawResults <- function(object, ...) {
+    UseMethod("evalDrawResults")
+}
+
+#' The mean evaluation results for each target across all draws.
+#'
+#' @param object One of:
+#' \itemize{
+#'   \item An mspm_labeled_evaluation object.
+#' }
+#' @param ... Additional arguments (not used).
+#' @return A list containing the mean evaluation results for each target (and possibly 
+#' harmonic mean) across all draws.
+evalTargetMeans <- function(object, ...) {
+    UseMethod("evalTargetMeans")
+}
+
+#' The mean evaluation results for each draw across all targets.
+#'
+#' @param object One of:
+#' \itemize{
+#'   \item An mspm_labeled_evaluation object.
+#' }
+#' @param ... Additional arguments (not used).
+#' @return A list containing the mean evaluation results for each draw across all targets.
+evalDrawMeans <- function(object, ...) {
+    UseMethod("evalDrawMeans")
+}
+
+#' The mean evaluation results for each metric for each draw and target.
+#'
+#' @param object One of:
+#' \itemize{
+#'   \item An mspm_labeled_evaluation object.
+#' }
+#' @param ... Additional arguments (not used).
+#' @return A matrix containing the mean over each metric for each draw and target (and 
+#' possibly harmonic mean).
+evalMetricMeans <- function(object, ...) {
+    UseMethod("evalMetricMeans")
 }

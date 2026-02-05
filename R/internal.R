@@ -281,7 +281,7 @@ predictedLabelIndexes.mspm_labeled_prediction <- function(object, ...) {
 }
 
 latentPredictions.mspm_labeled_prediction <- function(object, ...) {
-    object$latentPredictions
+    object$ystars
 }
 
 # Constructor for creating a new multi-scale probit model labeled evaluation object.
@@ -327,4 +327,60 @@ ntargets.mspm_labeled_evaluation <- function(object, ...) {
 
 nlevels.mspm_labeled_evaluation <- function(object, ...) {
     object$prediction$fit$data$nlevels
+}
+
+predictorNames.mspm_labeled_evaluation <- function(object, ...) {
+    object$prediction$fit$data$predictorNames
+}
+
+responseNames.mspm_labeled_evaluation <- function(object, ...) {
+    object$prediction$fit$data$responseNames
+}
+
+levelNames.mspm_labeled_evaluation <- function(object, ...) {
+    object$prediction$fit$data$levelNames
+}
+
+ndraws.mspm_labeled_evaluation <- function(object, withoutThinning = FALSE, ...) {
+    if (withoutThinning) {
+        object$prediction$fit$ndrawsNoThin
+    } else {
+        object$prediction$fit$ndraws
+    }
+}
+
+model.mspm_labeled_evaluation <- function(object, ...) {
+    object$prediction$fit
+}
+
+latent.mspm_labeled_evaluation <- function(object, ...) {
+    object$prediction$latentPredictions$ystars
+}
+
+predictedLabels.mspm_labeled_evaluation <- function(object, ...) {
+    object$prediction$ylabels
+}
+
+predictedLabelIndexes.mspm_labeled_evaluation <- function(object, ...) {
+    object$prediction$ylabelIndexes
+}
+
+evalMetrics.mspm_labeled_evaluation <- function(object, ...) {
+    object$metrics
+}
+
+evalDrawResults.mspm_labeled_evaluation <- function(object, ...) {
+    object$drawResults
+}
+
+evalTargetMeans.mspm_labeled_evaluation <- function(object, ...) {
+    object$targetMeans
+}
+
+evalDrawMeans.mspm_labeled_evaluation <- function(object, ...) {
+    object$drawMeans
+}
+
+evalMetricMeans.mspm_labeled_evaluation <- function(object, ...) {
+    object$metricMeans
 }
