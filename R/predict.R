@@ -118,7 +118,7 @@ predict_mspm <- function(
         ylabelIndexes[[i]] <- y + 1
         
         # Convert to factor labels using level names.
-        levelNames <- fit$data$levelNames[[i]]
+        levelNames <- levelNames(fit)[[i]]
         labels <- apply(y, c(1,2), function(idx) {
             return(levelNames[idx+1])
         })

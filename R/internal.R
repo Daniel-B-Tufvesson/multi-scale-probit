@@ -95,7 +95,14 @@ new_mspm <- function(
             ndraws = ndraws,
             ndrawsNoThin = ndrawsNoThin,
             thin = thin,
-            burnin = burnin
+            burnin = burnin,
+
+            training_data_info = list(
+                ntargets = ntargets(data),
+                nlevels = nlevels(data),
+                levelNames = levelNames(data),
+                seed = data$seed
+            )
             
             # diagnostics = list(
             #     rhat = rhat,
@@ -108,11 +115,15 @@ new_mspm <- function(
 }
 
 ntargets.mspm <- function(object, ...) {
-    object$data$ntargets
+    object$training_data_info$ntargets
 }
 
 nlevels.mspm <- function(object, ...) {
-    object$data$nlevels
+    object$training_data_info$nlevels
+}
+
+levelNames.mspm <- function(object, ...) {
+    object$training_data_info$levelNames
 }
 
 beta.mspm <- function(object, ...) {
@@ -280,7 +291,7 @@ predictedLabelIndexes.mspm_labeled_prediction <- function(object, ...) {
     object$ylabelIndexes
 }
 
-latentPredictions.mspm_labeled_prediction <- function(object, ...) {
+latent.mspm_labeled_prediction <- function(object, ...) {
     object$ystars
 }
 
