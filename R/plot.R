@@ -2,6 +2,7 @@
 library(ggplot2)
 
 source("R/util.R")
+source("R/internal.R")
 
 # Plot all posterior beta distributions. This creates a separate plot for each beta 
 # parameter.
@@ -429,4 +430,183 @@ plot_eval_draws_diff <- function(
     gg <- gg + labs(x = ifelse(is.null(xlabel), "", xlabel))
 
     plot(gg) # Display the plot
+}
+
+
+#' Plot the MCMC chains for the beta of the fit.
+#'
+#' @param fit An object of class 'mspm' containing the fitted model.
+#' @param title An optional title for the plot (default: "Beta").
+plot_beta_chains <- function(fit, title = "Beta") {
+    chains <- as.matrix(beta(fit))
+    n_iter <- nrow(chains)
+    n_param <- ncol(chains)
+    param_labels <- paste0("beta_", seq_len(n_param))
+    math_labels <- lapply(seq_len(n_param), function(i) bquote(beta[.(i)]))
+    chain_df <- data.frame(
+        Iteration = rep(1:n_iter, times = n_param),
+        Value = as.vector(chains),
+        Parameter = factor(rep(param_labels, each = n_iter), levels = param_labels)
+    )
+
+    # Plot the chains.
+    gg <- ggplot(chain_df, aes(x = Iteration, y = Value, color = Parameter)) +
+        geom_line() +
+        labs(x = "Iteration", y = "", color = "Parameter") +
+        scale_color_manual(
+            values = scales::hue_pal()(n_param),
+            labels = math_labels
+        ) +
+        theme(panel.grid.major = element_blank(),
+                panel.grid.minor = element_blank(),
+                panel.background = element_rect(fill="white", color="white"),
+                axis.title.x = element_text(size = 15),
+                axis.title.y = element_text(size = 15),
+                legend.title = element_blank(),
+                legend.text = element_text(size=12),
+                axis.text.x = element_text(size=15),
+                axis.text.y = element_text(size=15))
+
+    # Plot x-axis.
+    y_min <- min(chain_df$Value, na.rm = TRUE)
+    y_max <- max(chain_df$Value, na.rm = TRUE)
+    if (y_min <= 0 && y_max >= 0) {
+        gg <- gg + geom_hline(yintercept = 0, color = "black", linetype = "dashed")
+    }
+
+    # Add title.
+    if(!is.null(title)) {
+        gg <- gg + ggtitle(title) + theme(plot.title = element_text(size=20))
+    }
+
+    plot(gg)
+}
+
+#' Plot the MCMC chains for all the gammas of the fit. Each gamma is plotted in a separate graph.
+#'
+#' @param fit An object of class 'mspm' containing the fitted model.
+plot_gamma_chains <- function(
+    fit,
+    ...,
+    seperateGraphs = FALSE
+) {
+    gammas <- gammas(fit)
+
+    if (seperateGraphs) {
+        for (i in seq_along(gammas)) {
+            .plot_gamma_chains(gammas[[i]], paste0("Gammas Scale ", i))
+        }
+    }
+    else {
+        .plot_gamma_chains_grouped_by_scale(gammas, title = "All gammas")
+    }
+}
+
+#' Plot the MCMC chains for the gamma of the fit.
+#'
+#' @param gamma An mcmc object containing the gamma samples for one scale.
+#' @param title An optional title for the plot (default: NULL).
+.plot_gamma_chains <- function(gamma, title = NULL) {
+    chains <- as.matrix(gamma)
+    n_iter <- nrow(chains)
+    n_param <- ncol(chains)
+    param_labels <- paste0("gamma_", seq_len(n_param))
+    math_labels <- lapply(seq_len(n_param), function(i) bquote(gamma[.(i)]))
+    chain_df <- data.frame(
+        Iteration = rep(1:n_iter, times = n_param),
+        Value = as.vector(chains),
+        Parameter = factor(rep(param_labels, each = n_iter), levels = param_labels)
+    )
+
+    gg <- ggplot(chain_df, aes(x = Iteration, y = Value, color = Parameter)) +
+        geom_line() +
+        labs(x = "Iteration", y = "", color = "Parameter") +
+        scale_color_manual(
+            values = scales::hue_pal()(n_param),
+            labels = math_labels
+        ) +
+        theme(panel.grid.major = element_blank(),
+                panel.grid.minor = element_blank(),
+                panel.background = element_rect(fill="white", color="white"),
+                axis.title.x = element_text(size = 15),
+                axis.title.y = element_text(size = 15),
+                legend.title = element_blank(),
+                legend.text = element_text(size=12),
+                axis.text.x = element_text(size=15),
+                axis.text.y = element_text(size=15))
+    
+    # Plot x-axis.
+    y_min <- min(chain_df$Value, na.rm = TRUE)
+    y_max <- max(chain_df$Value, na.rm = TRUE)
+    if (y_min <= 0 && y_max >= 0) {
+        gg <- gg + geom_hline(yintercept = 0, color = "black", linetype = "dashed")
+    }
+
+    # Add title.
+    if(!is.null(title)) {
+        gg <- gg + ggtitle(title) + theme(plot.title = element_text(size=20))
+    }
+
+    plot(gg)
+}
+
+#' Plot the MCMC chains for all gammas grouped by scale in the same graph.
+#'
+#' @param gammas A list of mcmc objects containing the gamma samples for each scale.
+#' @param title An optional title for the plot (default: NULL).
+.plot_gamma_chains_grouped_by_scale <- function(gammas, title = NULL) {
+    # Combine all gamma chains into one data frame
+    chain_list <- list()
+    scale_labels <- list()
+    for (scale_idx in seq_along(gammas)) {
+        chains <- as.matrix(gammas[[scale_idx]])
+        n_iter <- nrow(chains)
+        n_param <- ncol(chains)
+        for (param_idx in seq_len(n_param)) {
+            chain_list[[length(chain_list) + 1]] <- data.frame(
+                Iteration = 1:n_iter,
+                Value = chains[, param_idx],
+                Scale = scale_idx,
+                Gamma = param_idx
+            )
+            scale_labels[[length(scale_labels) + 1]] <- bquote(gamma[.(param_idx)]^{(.(scale_idx))})
+        }
+    }
+    chain_df <- do.call(rbind, chain_list)
+    chain_df$Label <- factor(
+        paste0("gamma_", chain_df$Gamma, "_group_", chain_df$Scale),
+        levels = unique(paste0("gamma_", chain_df$Gamma, "_group_", chain_df$Scale))
+    )
+
+    # Plot the chains.
+    gg <- ggplot(chain_df, aes(x = Iteration, y = Value, color = Label)) +
+        geom_line() +
+        labs(x = "Iteration", y = "", color = "Parameter") +
+        scale_color_manual(
+            values = scales::hue_pal()(length(scale_labels)),
+            labels = scale_labels
+        ) +
+        theme(panel.grid.major = element_blank(),
+              panel.grid.minor = element_blank(),
+              panel.background = element_rect(fill="white", color="white"),
+              axis.title.x = element_text(size = 15),
+              axis.title.y = element_text(size = 15),
+              legend.title = element_blank(),
+              legend.text = element_text(size=12),
+              axis.text.x = element_text(size=15),
+              axis.text.y = element_text(size=15))
+
+    # Plot x-axis.
+    y_min <- min(chain_df$Value, na.rm = TRUE)
+    y_max <- max(chain_df$Value, na.rm = TRUE)
+    if (y_min <= 0 && y_max >= 0) {
+        gg <- gg + geom_hline(yintercept = 0, color = "black", linetype = "dashed")
+    }
+
+    # Plot title.
+    if(!is.null(title)) {
+        gg <- gg + ggtitle(title) + theme(plot.title = element_text(size=20))
+    }
+
+    plot(gg)
 }
