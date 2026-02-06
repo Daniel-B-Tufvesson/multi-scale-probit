@@ -5,6 +5,7 @@ library(callr)
 # Supported metrics are "f1" for F1 score and "kendall" for Kendall's tau correlation.
 #
 # Arguments:
+# test_data: An mspm_data object containing the test data with true labels.
 # predictions: An mspm_labeled_prediction object containing predicted labels.
 # metrics: A character vector specifying which evaluation metrics to compute. Defaults to 
 #          c("f1", "kendall").
@@ -14,6 +15,7 @@ library(callr)
 # Returns:
 # An mspm_labeled_evaluation object containing the evaluation results.
 eval_mspm_prediction_draws <- function(
+    test_data,
     predictions,
     ...,
     metrics = c("f1", "kendall")
@@ -21,7 +23,7 @@ eval_mspm_prediction_draws <- function(
     .validate_metrics(metrics)
 
     # Extract necessary components from the labeled predictions.
-    data <- predictions$data
+    data <- test_data ## Fix this !
     ylabels_pred <- predictions$ylabelIndexes
     ylist_true <- data$ylist
     ntargets <- data$ntargets

@@ -1,5 +1,47 @@
 source("R/generics.R")
 
+#' Constructor for creating a data specification object for model data.
+new_msmp_data_spec <- function(
+    predictorNames,
+    responseNames,
+    levelNames,
+    nlevels,
+    ntargets,
+    call
+) {
+    structure(
+        list(
+            predictorNames = predictorNames,
+            responseNames = responseNames,
+            levelNames = levelNames,
+            nlevels = nlevels,
+            ntargets = ntargets,
+            call = call
+        ),
+        class = "mspm_data_spec"
+    )
+}
+
+predictorNames.mspm_data_spec <- function(object, ...) {
+    object$predictorNames
+}
+
+responseNames.mspm_data_spec <- function(object, ...) {
+    object$responseNames
+}
+
+levelNames.mspm_data_spec <- function(object, ...) {
+    object$levelNames
+}
+
+nlevels.mspm_data_spec <- function(object, ...) {
+    object$nlevels
+}
+
+ntargets.mspm_data_spec <- function(object, ...) {
+    object$ntargets
+}
+
 # Constructor for creating a new multi-scale probit model data structure.
 #
 # Arguments:
@@ -25,44 +67,51 @@ new_mspm_data <- function(
 ) {
     structure(
         list(
-            predictorNames = predictorNames,
-            responseNames = responseNames,
             Xlist = Xlist,
             ylist = ylist,
-            levelNames = levelNames,
-            nlevels = nlevels,
-            ntargets = ntargets,
-            seed = seed,
-            call = call
+            call = call,
+
+            data_spec = new_msmp_data_spec(
+                predictorNames = predictorNames,
+                responseNames = responseNames,
+                levelNames = levelNames,
+                nlevels = nlevels,
+                ntargets = ntargets,
+                call = call
+            )
         ),
         class = "mspm_data"
     )
 }
 
+data_spec.mspm_data <- function(object, ...) {
+    object$data_spec
+}
+
 ntargets.mspm_data <- function(object, ...) {
-    object$ntargets
+    ntargets(object$data_spec)
 }
 
 nlevels.mspm_data <- function(object, ...) {
-    object$nlevels
+    nlevels(object$data_spec)
 }
 
 predictorNames.mspm_data <- function(object, ...) {
-    object$predictorNames
+    predictorNames(object$data_spec)
 }
 
 responseNames.mspm_data <- function(object, ...) {
-    object$responseNames
+    responseNames(object$data_spec)
 }
 
 levelNames.mspm_data <- function(object, ...) {
-    object$levelNames
+    levelNames(object$data_spec)
 }
 
 # Constructor for creating a new multi-scale probit model (MSPM).
 # 
 # Arguments: 
-# data: An MSPM data structure holding the data used for fitting.
+# data_spec: The data specification object containing information about the predictors, responses, levels, etc.
 # beta: An MCMC object for the beta (the coefficients) parameters.
 # gammas: A list of MCMC gammas (the thresholds) of each target dataset.
 # meanPrior: Prior mean for regression coefficients.
@@ -70,7 +119,7 @@ levelNames.mspm_data <- function(object, ...) {
 # seed: The random seed used for reproducibility.
 # call: The original function call used to create the model.
 new_mspm <- function(
-    data,
+    data_spec,
     beta,
     gammas,
     meanPrior,
@@ -84,7 +133,7 @@ new_mspm <- function(
 ) {
     structure(
         list(
-            data = data,
+            data_spec = data_spec,
             beta = beta,
             gammas = gammas,
             meanPrior = meanPrior,
@@ -97,15 +146,6 @@ new_mspm <- function(
             thin = thin,
             burnin = burnin,
 
-            training_data_info = list(
-                ntargets = ntargets(data),
-                nlevels = nlevels(data),
-                levelNames = levelNames(data),
-                predictorNames = predictorNames(data),
-                responseNames = responseNames(data),
-                seed = data$seed
-            )
-            
             # diagnostics = list(
             #     rhat = rhat,
             #     ess = ess,
@@ -116,24 +156,28 @@ new_mspm <- function(
     )
 }
 
+data_spec.mspm <- function(object, ...) {
+    object$data_spec
+}
+
 ntargets.mspm <- function(object, ...) {
-    object$training_data_info$ntargets
+    ntargets(object$data_spec)
 }
 
 nlevels.mspm <- function(object, ...) {
-    object$training_data_info$nlevels
+    nlevels(object$data_spec)
 }
 
 levelNames.mspm <- function(object, ...) {
-    object$training_data_info$levelNames
+    levelNames(object$data_spec)
 }
 
 predictorNames.mspm <- function(object, ...) {
-    object$training_data_info$predictorNames
+    predictorNames(object$data_spec)
 }
 
 responseNames.mspm <- function(object, ...) {
-    object$training_data_info$responseNames
+    responseNames(object$data_spec)
 }
 
 beta.mspm <- function(object, ...) {
@@ -152,12 +196,12 @@ precPrior.mspm <- function(object, ...) {
     object$precPrior
 }
 
-ndraws.mspm <- function(object, withoutThinning = FALSE, ...) {
-    if (withoutThinning) {
-        object$ndrawsNoThin
-    } else {
-        object$ndraws
-    }
+ndraws.mspm <- function(object, ...) {
+    object$ndraws
+}
+
+ndrawsNoThin.mspm <- function(object, ...) {
+    object$ndrawsNoThin
 }
 
 burnin.mspm <- function(object, ...) {
@@ -169,128 +213,65 @@ thin.mspm <- function(object, ...) {
 }
 
 
-# Constructor for creating a new multi-scale probit model latent prediction object.
-# 
-# Arguments:
-# data: The mspm_data object containing the data used for predicting (the test data).
-# fit: The fitted mspm object that was used for predicting.
-# ystars: A data frame of latent variable samples for each observation and each draw.
-# call: The original function call used to create the prediction.
-new_mspm_latent_prediction <- function(
-    data,
-    fit,
-    ystars,
-    call
-) {
-    structure(
-        list(
-            data = data,
-            fit = fit,
-            ystars = ystars,
-            call = call
-        ),
-        class = "mspm_latent_prediction"
-    )
-}
-
-ntargets.mspm_latent_prediction <- function(object, ...) {
-    ntargets(object$fit)
-}
-
-nlevels.mspm_latent_prediction <- function(object, ...) {
-    nlevels(object$fit)
-}
-
-predictorNames.mspm_latent_prediction <- function(object, ...) {
-    predictorNames(object$fit)
-}
-
-responseNames.mspm_latent_prediction <- function(object, ...) {
-    responseNames(object$fit)
-}
-
-levelNames.mspm_latent_prediction <- function(object, ...) {
-    levelNames(object$fit)
-}
-
-ndraws.mspm_latent_prediction <- function(object, withoutThinning = FALSE, ...) {
-    if (withoutThinning) {
-        object$fit$ndrawsNoThin
-    } else {
-        object$fit$ndraws
-    }
-}
-
-model.mspm_latent_prediction <- function(object, ...) {
-    object$fit
-}
-
-latent.mspm_latent_prediction <- function(object, ...) {
-    object$ystars
-}
-
 # Constructor for creating a new multi-scale probit model labeled prediction object.
 # 
 # Arguments:
-# data: The mspm_data object containing the data used for predicting.
-# fit: The fitted mspm object that was used for predicting.
+# data_spec: The data specification object containing information about the predictors, responses, levels, etc.
+# ndraws: The number of posterior draws used for prediction.
+# ystars: A list of matrices of latent variable samples for each dataset. Each matrix has rows 
+#         corresponding to observations and columns to posterior draws.
 # ylabels: A list of data frames of observed categorical labels for each observation and 
 #          each draw. There is one data frame for each scale.
 # ylabelIndexes: A list of matrices indicating the indexes of predicted labels for each
 #                observation and each draw. There is one matrix for each scale.
-# latentPredictions: The mspm_latent_prediction object containing latent variable samples.
 # call: The original function call used to create the prediction.
 new_mspm_labeled_prediction <- function(
-    data,
-    fit,
+    data_spec,
+    ndraws,
+    ystars,
     ylabels,
     ylabelIndexes,
-    latentPredictions,
     call
 ) {
     structure(
         list(
-            data = data,
-            fit = fit,
+            data_spec = data_spec,
+            ndraws = ndraws,
+            ystars = ystars,
             ylabels = ylabels,
             ylabelIndexes = ylabelIndexes,
-            latentPredictions = latentPredictions,
             call = call
         ),
         class = "mspm_labeled_prediction"
     )
 }
 
+data_spec.mspm_labeled_prediction <- function(object, ...) {
+    object$data_spec
+}
+
 ntargets.mspm_labeled_prediction <- function(object, ...) {
-    ntargets(object$fit)
+    ntargets(object$data_spec)
 }
 
 nlevels.mspm_labeled_prediction <- function(object, ...) {
-    nlevels((object$fit))
+    nlevels((object$data_spec))
 }
 
 predictorNames.mspm_labeled_prediction <- function(object, ...) {
-    predictorNames(object$fit)
+    predictorNames(object$data_spec)
 }
 
 responseNames.mspm_labeled_prediction <- function(object, ...) {
-    responseNames(object$fit)
+    responseNames(object$data_spec)
 }
 
 levelNames.mspm_labeled_prediction <- function(object, ...) {
-    levelNames(object$fit)
+    levelNames(object$data_spec)
 }
 
-ndraws.mspm_labeled_prediction <- function(object, withoutThinning = FALSE, ...) {
-    if (withoutThinning) {
-        object$fit$ndrawsNoThin
-    } else {
-        object$fit$ndraws
-    }
-}
-
-model.mspm_labeled_prediction <- function(object, ...) {
-    object$fit
+ndraws.mspm_labeled_prediction <- function(object, ...) {
+    object$ndraws
 }
 
 predictedLabels.mspm_labeled_prediction <- function(object, ...) {
@@ -308,7 +289,8 @@ latent.mspm_labeled_prediction <- function(object, ...) {
 # Constructor for creating a new multi-scale probit model labeled evaluation object.
 # 
 # Arguments:
-# prediction: The mspm_labeled_prediction object containing predicted labels.
+# data_spec: The data specification object containing information about the predictors, responses, levels, etc.
+# ndraws: The number of posterior draws used for evaluation.
 # metrics: A character vector specifying which evaluation metrics were computed.
 # drawResults: A list containing the computed evaluation results. Each element corresponds 
 #              to a metric and contains a matrix of results with rows for draws and columns 
@@ -320,7 +302,8 @@ latent.mspm_labeled_prediction <- function(object, ...) {
 # drawMeans: A list containing the mean evaluation results for each draw across all targets.
 # call: The original function call used to create the evaluation.
 new_mspm_labeled_evaluation <- function(
-    prediction,
+    data_spec,
+    ndraws,
     metrics,
     drawResults,
     targetMeans,
@@ -330,7 +313,8 @@ new_mspm_labeled_evaluation <- function(
 ) {
     structure(
         list(
-            prediction = prediction,
+            data_spec = data_spec,
+            ndraws = ndraws,
             metrics = metrics,
             drawResults = drawResults,
             targetMeans = targetMeans,
@@ -342,48 +326,32 @@ new_mspm_labeled_evaluation <- function(
     )
 }
 
+data_spec.mspm_labeled_evaluation <- function(object, ...) {
+    object$data_spec
+}
+
 ntargets.mspm_labeled_evaluation <- function(object, ...) {
-    ntargets(object$prediction$fit)
+    ntargets(object$data_spec)
 }
 
 nlevels.mspm_labeled_evaluation <- function(object, ...) {
-    nlevels(object$prediction$fit)
+    nlevels(object$data_spec)
 }
 
 predictorNames.mspm_labeled_evaluation <- function(object, ...) {
-    predictorNames(object$prediction$fit)
+    predictorNames(object$data_spec)
 }
 
 responseNames.mspm_labeled_evaluation <- function(object, ...) {
-    responseNames(object$prediction$fit)
+    responseNames(object$data_spec)
 }
 
 levelNames.mspm_labeled_evaluation <- function(object, ...) {
-    levelNames(object$prediction$fit)
+    levelNames(object$data_spec)
 }
 
-ndraws.mspm_labeled_evaluation <- function(object, withoutThinning = FALSE, ...) {
-    if (withoutThinning) {
-        object$prediction$fit$ndrawsNoThin
-    } else {
-        object$prediction$fit$ndraws
-    }
-}
-
-model.mspm_labeled_evaluation <- function(object, ...) {
-    object$prediction$fit
-}
-
-latent.mspm_labeled_evaluation <- function(object, ...) {
-    object$prediction$latentPredictions$ystars
-}
-
-predictedLabels.mspm_labeled_evaluation <- function(object, ...) {
-    object$prediction$ylabels
-}
-
-predictedLabelIndexes.mspm_labeled_evaluation <- function(object, ...) {
-    object$prediction$ylabelIndexes
+ndraws.mspm_labeled_evaluation <- function(object, ...) {
+    ndraws(object$data_spec)
 }
 
 evalMetrics.mspm_labeled_evaluation <- function(object, ...) {
