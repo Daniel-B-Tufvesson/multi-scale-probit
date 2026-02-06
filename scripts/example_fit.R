@@ -33,3 +33,5 @@ fit
 
 # Plot chains.
 plot_beta_chains(fit)
+plot_gamma_chains(fit, seperateGraphs = TRUE)
+plot_gamma_chains(fit)
