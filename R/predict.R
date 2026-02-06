@@ -1,52 +1,42 @@
 source("R/internal.R")
 
-# The main predict method for mspm objects.
-#
-# Arguments:
-# fit: A fitted mspm object.
-# newdata: An mspm_data object containing new data for prediction. If NULL, uses data from fit.
-# type: The type of prediction to perform. Currently only "draws" is supported.
-# latentOnly: If TRUE, only returns latent variable predictions without discretizing to labels.
-#
-# Returns:
-# An mspm_latent_prediction object if latentOnly is TRUE, otherwise an mspm_labeled_prediction 
-# object.
+#' The main predict method for mspm objects.
+#'
+#' @param fit A fitted mspm object.
+#' @param newdata An mspm_data object containing new data for prediction.
+#' @param type The type of prediction to perform. Currently only "draws" is supported.
+#' @param latentOnly If TRUE, only returns latent variable predictions without discretizing to 
+#' labels
+#'
+#' @return If latentOnly = TRUE, then a list of matrices of latent variable samples for each 
+#' dataset. Each matrix has rows corresponding to observations and columns to posterior draws. 
+#' If latentOnly = FALSE, then an mspm_labeled_prediction object containing both latent variable 
+#' predictions and predicted labels for each dataset.
 predict_mspm <- function(
     fit,
+    newdata,
     ...,
-    newdata = NULL,
     type = "draws",
     latentOnly = FALSE
 ) {
-    # If newdata is null, use data from fit.
-    if (is.null(newdata)) {
-        newdata <- fit$data
-    }
-
     if (type == "draws") {
 
         # Predict latent variable draws.
         ystars <- .predict_mspm_latent_draws(fit, newdata)
-        latentPredictions <- new_mspm_latent_prediction(
-            data = newdata,
-            fit = fit,
-            ystars = ystars,
-            call = match.call()
-        )
 
         # Return latent predictions only if specified.
         if (latentOnly) {
-            return(latentPredictions)
+            return(ystars)
         }
 
         # Predict labels as well.
         labels <- .predict_mspm_labels_draws(fit, newdata, ystars)
         return (new_mspm_labeled_prediction(
-            data = newdata,
-            fit = fit,
+            data_spec = data_spec(fit),
+            ndraws = ndraws(fit),
+            ystars = ystars,
             ylabels = labels$ylabels,
             ylabelIndexes = labels$ylabelIndexes,
-            latentPredictions = latentPredictions,
             call = match.call()
         ))
     }
@@ -70,10 +60,8 @@ predict_mspm <- function(
     newdata
 ) {
     ystars = list()
-    for (i in 1:newdata$ntargets) {
+    for (i in 1:ntargets(newdata)) {
         Xnew <- newdata$Xlist[[i]]
-        nobs_new <- nrow(Xnew)
-        ndraws <- nrow(fit$beta)
 
         # Compute the linear predictor for all draws
         ystar <- tcrossprod(Xnew, fit$beta)
@@ -118,7 +106,7 @@ predict_mspm <- function(
         ylabelIndexes[[i]] <- y + 1
         
         # Convert to factor labels using level names.
-        levelNames <- fit$data$levelNames[[i]]
+        levelNames <- levelNames(fit)[[i]]
         labels <- apply(y, c(1,2), function(idx) {
             return(levelNames[idx+1])
         })

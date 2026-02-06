@@ -6,6 +6,7 @@ library(callr)
 #
 # Arguments:
 # predictions: An mspm_labeled_prediction object containing predicted labels.
+# test_data: An mspm_data object containing the test data with true labels.
 # metrics: A character vector specifying which evaluation metrics to compute. Defaults to 
 #          c("f1", "kendall").
 # harmonic: Logical indicating whether to compute harmonic mean of metrics when multiple
@@ -15,17 +16,18 @@ library(callr)
 # An mspm_labeled_evaluation object containing the evaluation results.
 eval_mspm_prediction_draws <- function(
     predictions,
+    test_data,
     ...,
     metrics = c("f1", "kendall")
 ) {
     .validate_metrics(metrics)
 
     # Extract necessary components from the labeled predictions.
-    data <- predictions$data
-    ylabels_pred <- predictions$ylabelIndexes
-    ylist_true <- data$ylist
-    ntargets <- data$ntargets
-    ndraws <- predictions$fit$ndraws
+    ylabels_pred <- predictedLabelIndexes(predictions)
+    ylist_true <- test_data$ylist
+    ntargets <- ntargets(test_data)
+    ndraws <- ndraws(predictions)
+    nlevels <- nlevels(test_data)
 
     # Determine the number of result columns (for multi-scale, add one)
     # Last column is used for harmonic mean accross datasets.
@@ -43,11 +45,10 @@ eval_mspm_prediction_draws <- function(
         for (i in 1:ntargets) {
             y_true <- ylist_true[[i]]
             y_pred_draws <- ylabels_pred[[i]]
-            nlevels <- data$nlevels[i]
 
             # Compute metric for each draw.
             if (metric == "f1") {
-                res[, i] <- compute_f1_score_draws(y_true, y_pred_draws, nlevels)
+                res[, i] <- compute_f1_score_draws(y_true, y_pred_draws, nlevels[i])
             } 
             else if (metric == "kendall") {
                 res[, i] <- apply(y_pred_draws, 2, function(y_pred){
@@ -105,7 +106,8 @@ eval_mspm_prediction_draws <- function(
     }
 
     return(new_mspm_labeled_evaluation(
-        prediction = predictions,
+        data_spec = data_spec(predictions),
+        ndraws = ndraws(predictions),
         metrics = metrics,
         drawResults = results,
         targetMeans = targetMeans,

@@ -37,9 +37,9 @@ fit_mspm <- function(
     verbose = 0
 ) {
 
-    nlevels = data$nlevels
-    ntargets = data$ntargets
-    npredictors = length(data$predictorNames)
+    nlevels = nlevels(data)
+    ntargets = ntargets(data)
+    npredictors = length(predictorNames(data))
 
     # Check for empty matrices or vectors in data
     if (is.null(data$Xlist) || length(data$Xlist) == 0) {
@@ -174,7 +174,7 @@ fit_mspm <- function(
 
     # Return fitted model.
     new_mspm(
-        data = data,
+        data_spec = data_spec(data),
         beta = beta,
         gammas = gammas,
         meanPrior = meanPrior,
