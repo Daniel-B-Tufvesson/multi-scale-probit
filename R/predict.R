@@ -3,8 +3,7 @@ source("R/internal.R")
 #' The main predict method for mspm objects.
 #'
 #' @param fit A fitted mspm object.
-#' @param newdata An mspm_data object containing new data for prediction. If NULL, uses data 
-#' from fit.
+#' @param newdata An mspm_data object containing new data for prediction.
 #' @param type The type of prediction to perform. Currently only "draws" is supported.
 #' @param latentOnly If TRUE, only returns latent variable predictions without discretizing to 
 #' labels
@@ -15,16 +14,11 @@ source("R/internal.R")
 #' predictions and predicted labels for each dataset.
 predict_mspm <- function(
     fit,
+    newdata,
     ...,
-    newdata = NULL,
     type = "draws",
     latentOnly = FALSE
 ) {
-    # If newdata is null, use data from fit.
-    if (is.null(newdata)) {
-        newdata <- fit$data
-    }
-
     if (type == "draws") {
 
         # Predict latent variable draws.
@@ -66,10 +60,8 @@ predict_mspm <- function(
     newdata
 ) {
     ystars = list()
-    for (i in 1:newdata$ntargets) {
+    for (i in 1:ntargets(newdata)) {
         Xnew <- newdata$Xlist[[i]]
-        nobs_new <- nrow(Xnew)
-        ndraws <- nrow(fit$beta)
 
         # Compute the linear predictor for all draws
         ystar <- tcrossprod(Xnew, fit$beta)

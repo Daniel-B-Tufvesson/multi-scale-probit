@@ -144,7 +144,7 @@ new_mspm <- function(
             ndraws = ndraws,
             ndrawsNoThin = ndrawsNoThin,
             thin = thin,
-            burnin = burnin,
+            burnin = burnin
 
             # diagnostics = list(
             #     rhat = rhat,
@@ -351,7 +351,7 @@ levelNames.mspm_labeled_evaluation <- function(object, ...) {
 }
 
 ndraws.mspm_labeled_evaluation <- function(object, ...) {
-    ndraws(object$data_spec)
+    object$ndraws
 }
 
 evalMetrics.mspm_labeled_evaluation <- function(object, ...) {

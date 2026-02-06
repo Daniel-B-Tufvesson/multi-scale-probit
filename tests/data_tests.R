@@ -55,7 +55,7 @@ run_all_data_tests <- function() {
     train <- split$train
     test <- split$test
 
-    for (i in 1:data$ntargets) {
+    for (i in 1:ntargets(data)) {
         # Check size of train and test sets.
         expected_train_size <- floor(0.7 * nrow(data$Xlist[[i]]))
         expected_test_size <- nrow(data$Xlist[[i]]) - expected_train_size
@@ -98,13 +98,14 @@ run_all_data_tests <- function() {
     )
 
     # Check level names for each dataset.
-    for (i in 1:data$ntargets) {
+    levelNames <- levelNames(data)
+    for (i in 1:ntargets(data)) {
         expected_level_names <- paste0("D", i, "_", 0:ngamma[i])
-        if (!isTRUE(all.equal(data$levelNames[[i]], expected_level_names))) {
+        if (!isTRUE(all.equal(levelNames[[i]], expected_level_names))) {
             stop(paste("Test failed: Level names for dataset", i, "are incorrect. Expected:", 
                        paste(expected_level_names, collapse = ", "), 
                        "Got:", 
-                       paste(data$levelNames[[i]], collapse = ", ")))
+                       paste(levelNames[[i]], collapse = ", ")))
         }
     }
 
@@ -128,13 +129,13 @@ run_all_data_tests <- function() {
     }
 
     # Check number of levels.
-    if (data$nlevels[1] != 2) {
+    if (nlevels(data)[1] != 2) {
         stop("Test failed: Number of levels is incorrect for minimal data.")
     }
 
     # Check levels.
     expected_level_names <- c("D1_0", "D1_1")
-    if (!isTRUE(all.equal(data$levelNames[[1]], expected_level_names))) {
+    if (!isTRUE(all.equal(levelNames(data)[[1]], expected_level_names))) {
         stop("Test failed: Level names are incorrect for minimal data.")
     }
 

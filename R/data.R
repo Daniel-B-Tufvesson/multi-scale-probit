@@ -144,25 +144,25 @@ split_data.mspm_data <- function(
     }
 
     train <- new_mspm_data(
-        predictorNames = data$predictorNames,
-        responseNames = data$responseNames,
+        predictorNames = predictorNames(data),
+        responseNames = responseNames(data),
         Xlist = Xtrain,
         ylist = ytrain,
-        levelNames = data$levelNames,
-        nlevels = data$nlevels,
-        ntargets = data$ntargets,
+        levelNames = levelNames(data),
+        nlevels = nlevels(data),
+        ntargets = ntargets(data),
         seed = data$seed,
         call = match.call()
     )
 
     test <- new_mspm_data(
-        predictorNames = data$predictorNames,
-        responseNames = data$responseNames,
+        predictorNames = predictorNames(data),
+        responseNames = responseNames(data),
         Xlist = Xtest,
         ylist = ytest,
-        levelNames = data$levelNames,
-        nlevels = data$nlevels,
-        ntargets = data$ntargets,
+        levelNames = levelNames(data),
+        nlevels = nlevels(data),
+        ntargets = ntargets(data),
         seed = data$seed,
         call = match.call()
     )

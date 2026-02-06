@@ -7,14 +7,13 @@ run_all_prediction_tests <- function() {
     .test_predict_on_new_data()
     .test_predict_reproducibility()
     .test_predict_minimal_data()
-    .test_accessors_mspm_latent_prediction()
     .test_accessors_mspm_labeled_prediction()
 }
 
 # Test case 1: Generate synthetic data, fit a model, and verify latent variable predictions.
 .test_predict_latent_draws <- function() {
     # Generate the data.
-    mspm.data <- generate_synthetic_data(
+    data <- generate_synthetic_data(
         nobs = 100,
         ncov = 48,
         ngamma = c(1, 3, 3),
@@ -22,8 +21,8 @@ run_all_prediction_tests <- function() {
     )
 
     # Fit model.
-    mspm.fit = fit_mspm(
-        data = mspm.data,
+    fit = fit_mspm(
+        data = data,
         ndraws = 500,
         burnin = 500,
         thin = 1,
@@ -33,26 +32,27 @@ run_all_prediction_tests <- function() {
     )
 
     # Predict latent ystar values.
-    mspm.latent <- predict_mspm(
-        fit = mspm.fit,
+    latent <- predict_mspm(
+        fit = fit,
+        newdata = data,
         latentOnly = TRUE
     )
 
     # Check that number of ystar elements match number of targets.
-    if (length(mspm.latent$ystars) != mspm.data$ntargets) {
+    if (length(latent) != ntargets(data)) {
         stop("Test failed: Number of predicted latent variable sets does not match number of targets.")
     }
 
     # Check that the dimensions of the predicted latent values match the data.
-    for (i in 1:mspm.data$ntargets) {
+    for (i in 1:ntargets(data)) {
 
         # Check number of predictions match number of observations
-        if (nrow(mspm.latent$ystars[[i]]) != nrow(mspm.data$Xlist[[i]])) {
+        if (nrow(latent[[i]]) != nrow(data$Xlist[[i]])) {
             stop(paste("Test failed: Number of predicted latent values does not match number of observations for target", i))
         }
 
         # Check number of predictions match number of draws
-        if (ncol(mspm.latent$ystars[[i]]) != mspm.fit$ndraws) {
+        if (ncol(latent[[i]]) != ndraws(fit)) {
             stop(paste("Test failed: Number of predicted latent value draws does not match number of posterior draws for target", i))
         }
     }
@@ -63,7 +63,7 @@ run_all_prediction_tests <- function() {
 # Test case 2: Generate synthetic data, fit a model, and verify label predictions.
 .test_predict_labels_draws <- function() {
     # Generate the data.
-    mspm.data <- generate_synthetic_data(
+    data <- generate_synthetic_data(
         nobs = 100,
         ncov = 48,
         ngamma = c(1, 3, 3),
@@ -71,8 +71,8 @@ run_all_prediction_tests <- function() {
     )
 
     # Fit model.
-    mspm.fit = fit_mspm(
-        data = mspm.data,
+    fit = fit_mspm(
+        data = data,
         ndraws = 500,
         burnin = 500,
         thin = 1,
@@ -82,50 +82,55 @@ run_all_prediction_tests <- function() {
     )
 
     # Predict labels.
-    mspm.labels <- predict_mspm(
-        fit = mspm.fit
+    predictions <- predict_mspm(
+        fit = fit,
+        newdata = data
     )
+    labels <- predictedLabels(predictions)
+    labelIndexes <- predictedLabelIndexes(predictions)
+    levelNames <- levelNames(data)
+    nlevels <- nlevels(data)
 
     # Check that number of ylabels elements match number of targets.
-    if (length(mspm.labels$ylabels) != mspm.data$ntargets) {
+    if (length(labels) != ntargets(data)) {
         stop("Test failed: Number of predicted label sets does not match number of targets.")
     }
 
     # Check that the predicted labels are factors and have correct lengths.
-    for (i in 1:mspm.data$ntargets) {
+    for (i in 1:ntargets(data)) {
 
         # Check that all predicted label strings are in the allowed level names
-        if (!all(mspm.labels$ylabels[[i]] %in% mspm.data$levelNames[[i]])) {
+        if (!all(labels[[i]] %in% levelNames[[i]])) {
             stop(paste("Test failed: Predicted labels for target", i, "are not in allowed level names."))
         }
 
         # Check number of labels match number of observations
-        if (nrow(mspm.labels$ylabels[[i]]) != nrow(mspm.data$Xlist[[i]])) {
+        if (nrow(labels[[i]]) != nrow(data$Xlist[[i]])) {
             stop(paste("Test failed: Number of predicted labels does not match number of observations for target", i))
         }
 
         # Check number of labels match number of draws.
-        if (ncol(mspm.labels$ylabels[[i]]) != mspm.fit$ndraws) {
+        if (ncol(labels[[i]]) != ndraws(fit)) {
             stop(paste("Test failed: Number of predicted label draws does not match number of posterior draws for target", i))
         }
 
         # Check that predicted label indexes are a matrix.
-        if (!is.matrix(mspm.labels$ylabelIndexes[[i]])) {
+        if (!is.matrix(labelIndexes[[i]])) {
             stop(paste("Test failed: Predicted label indexes for target", i, "are not a matrix."))
         }
 
         # Check that all predicted label indexes are valid (within 1:length(levelNames))
-        if (!all(mspm.labels$ylabelIndexes[[i]] %in% 1:mspm.data$nlevels[i])) {
+        if (!all(labelIndexes[[i]] %in% 1:nlevels[i])) {
             stop(paste("Test failed: Predicted label indexes for target", i, "are not valid indexes."))
         }
 
         # Check number of label indexes match number of observations
-        if (nrow(mspm.labels$ylabelIndexes[[i]]) != nrow(mspm.data$Xlist[[i]])) {
+        if (nrow(labelIndexes[[i]]) != nrow(data$Xlist[[i]])) {
             stop(paste("Test failed: Number of predicted label indexes does not match number of observations for target", i))
         }
 
         # Check number of label indexes match number of draws.
-        if (ncol(mspm.labels$ylabelIndexes[[i]]) != mspm.fit$ndraws) {
+        if (ncol(labelIndexes[[i]]) != ndraws(fit)) {
             stop(paste("Test failed: Number of predicted label index draws does not match number of posterior draws for target", i))
         }
     }
@@ -144,7 +149,7 @@ run_all_prediction_tests <- function() {
     )
 
     # Fit model on training data.
-    mspm.fit = fit_mspm(
+    fit = fit_mspm(
         data = train.data,
         ndraws = 500,
         burnin = 500,
@@ -161,30 +166,33 @@ run_all_prediction_tests <- function() {
         ngamma = c(1, 3, 3),
         seed = 5678
     )
+    ntargets <- ntargets(test.data)
+    levelNames <- levelNames(test.data)
 
     # Predict on new data.
-    mspm.pred <- predict_mspm(
-        fit = mspm.fit,
+    pred <- predict_mspm(
+        fit = fit,
         newdata = test.data
     )
+    labels <- predictedLabels(pred)
 
     # Check that number of ylabels elements match number of targets.
-    if (length(mspm.pred$ylabels) != test.data$ntargets) {
+    if (length(labels) != ntargets) {
         stop("Test failed: Number of predicted label sets does not match number of targets (new data).")
     }
 
     # Check that the predicted labels are factors and have correct lengths.
-    for (i in 1:test.data$ntargets) {
+    for (i in 1:ntargets) {
         # Check that all predicted label strings are in the allowed level names
-        if (!all(mspm.pred$ylabels[[i]] %in% test.data$levelNames[[i]])) {
+        if (!all(labels[[i]] %in% levelNames[[i]])) {
             stop(paste("Test failed: Predicted labels for target", i, "(new data) are not in allowed level names."))
         }
         # Check number of labels match number of observations
-        if (nrow(mspm.pred$ylabels[[i]]) != nrow(test.data$Xlist[[i]])) {
+        if (nrow(labels[[i]]) != nrow(test.data$Xlist[[i]])) {
             stop(paste("Test failed: Number of predicted labels does not match number of observations for target", i, "(new data)"))
         }
         # Check number of labels match number of draws.
-        if (ncol(mspm.pred$ylabels[[i]]) != mspm.fit$ndraws) {
+        if (ncol(labels[[i]]) != ndraws(fit)) {
             stop(paste("Test failed: Number of predicted label draws does not match number of posterior draws for target", i, "(new data)"))
         }
     }
@@ -195,7 +203,7 @@ run_all_prediction_tests <- function() {
 # Test case 4: Check that predictions are reproducible with the same seed and data.
 .test_predict_reproducibility <- function() {
     # Generate the data.
-    mspm.data <- generate_synthetic_data(
+    data <- generate_synthetic_data(
         nobs = 100,
         ncov = 48,
         ngamma = c(1, 3, 3),
@@ -203,8 +211,8 @@ run_all_prediction_tests <- function() {
     )
 
     # Fit model.
-    mspm.fit = fit_mspm(
-        data = mspm.data,
+    fit = fit_mspm(
+        data = data,
         ndraws = 200,
         burnin = 200,
         thin = 1,
@@ -215,15 +223,18 @@ run_all_prediction_tests <- function() {
 
     # Predict twice with the same fit and seed.
     set.seed(999)
-    pred1 <- predict_mspm(fit = mspm.fit)
+    pred1 <- predict_mspm(fit = fit, newdata = data)
     set.seed(999)
-    pred2 <- predict_mspm(fit = mspm.fit)
+    pred2 <- predict_mspm(fit = fit, newdata = data)
 
-    # Compare predictions for all targets.
-    for (i in seq_along(pred1$ylabels)) {
-        if (!identical(pred1$ylabels[[i]], pred2$ylabels[[i]])) {
-            stop(paste("Test failed: Predictions are not reproducible for target", i))
-        }
+    # Compare labels.
+    if (!identical(predictedLabels(pred1), predictedLabels(pred2))) {
+        stop("Test failed: Predictions are not reproducible with same seed and data.")
+    }
+
+    # Compare label indexes.
+    if (!identical(predictedLabelIndexes(pred1), predictedLabelIndexes(pred2))) {
+        stop("Test failed: Predicted label indexes are not reproducible with same seed and data.")
     }
 
     cat("Test passed: Predictions are reproducible with same seed and data.\n")
@@ -231,19 +242,17 @@ run_all_prediction_tests <- function() {
 
 # Test case 5: Predict with minimal data (6 observation, 1 covariate, 3x1 gammas)
 .test_predict_minimal_data <- function() {
-    cat("Generating minimal data test...\n")
     # Generate minimal data
-    min.data <- generate_synthetic_data(
+    data <- generate_synthetic_data(
         nobs = 6,
         ncov = 1,
         ngamma = c(1, 1, 1),
         seed = 2026
     )
 
-    cat("Fitting model on minimal data...\n")
     # Fit model
-    min.fit = fit_mspm(
-        data = min.data,
+    fit = fit_mspm(
+        data = data,
         ndraws = 10,
         burnin = 10,
         thin = 1,
@@ -252,23 +261,21 @@ run_all_prediction_tests <- function() {
         verbose = 0
     )
 
-    cat("Predicting on minimal data...\n")
     # Predict
-    min.pred <- predict_mspm(fit = min.fit)
-
-    cat("Checking predictions on minimal data...\n")
+    pred <- predict_mspm(fit = fit, newdata = data)
+    labels <- predictedLabels(pred)
 
     # Check that number of ylabels elements match number of targets
-    if (length(min.pred$ylabels) != min.data$ntargets) {
+    if (length(labels) != ntargets(data)) {
         stop("Test failed: Number of predicted label sets does not match number of targets (minimal data).")
     }
 
     # Check that the predicted labels have correct shape
-    for (i in 1:min.data$ntargets) {
-        if (nrow(min.pred$ylabels[[i]]) != 6) {
+    for (i in 1:ntargets(data)) {
+        if (nrow(labels[[i]]) != 6) {
             stop(paste("Test failed: Number of predicted labels does not match 6 observation for target", i, "(minimal data)"))
         }
-        if (ncol(min.pred$ylabels[[i]]) != min.fit$ndraws) {
+        if (ncol(labels[[i]]) != ndraws(fit)) {
             stop(paste("Test failed: Number of predicted label draws does not match number of posterior draws for target", i, "(minimal data)"))
         }
     }
@@ -276,86 +283,11 @@ run_all_prediction_tests <- function() {
     cat("Test passed: Prediction works for minimal data (6 obs, 1 covariate).\n")
 }
 
-# Test case 6: Test if the accessor functions work for mspm_latent_prediction object.
-.test_accessors_mspm_latent_prediction <- function() {
-    # Generate the data.
-    mspm.data <- generate_synthetic_data(
-        nobs = 100,
-        ncov = 5,
-        ngamma = c(2, 3),
-        seed = 42
-    )
 
-    # Fit using all the data.
-    fit = fit_mspm(
-        data = mspm.data,
-        ndraws = 1000,
-        burnin = 500,
-        thin = 2,
-        tune = 0.1,
-        seed = 1234,
-        verbose = 0
-    )
-
-    # Predict latent ystar values.
-    latent <- predict_mspm(
-        fit = fit,
-        latentOnly = TRUE
-    )
-
-    # Test ntargets accessor
-    if (ntargets(latent) != mspm.data$ntargets) {
-        stop("Test failed: ntargets accessor does not return correct value. Got ", 
-             ntargets(latent), " expected ", mspm.data$ntargets, ".")
-    }
-
-    # Test nlevels accessor
-    if (!all(nlevels(latent) == mspm.data$nlevels)) {
-        stop("Test failed: nlevels accessor does not return correct value.")
-    }
-
-    # Test predictorNames accessor.
-    if (!all.equal(predictorNames(latent), mspm.data$predictorNames)) {
-        stop("Test failed: predictorNames accessor returned incorrect value.")
-    }
-
-    # Test responseNames accessor.
-    if (!all.equal(responseNames(latent), mspm.data$responseNames)) {
-        stop("Test failed: responseNames accessor returned incorrect value.")
-    }
-
-    # Test levelNames accessor.
-    if (!all.equal(levelNames(latent), mspm.data$levelNames)) {
-        stop("Test failed: levelNames accessor returned incorrect value.")
-    }
-
-    # Test ndraws accessor.
-    if (ndraws(latent) != fit$ndraws) {
-        stop("Test failed: ndraws accessor does not return correct value.")
-    }
-
-    # Test ndraws accessor without thinning.
-    if (ndraws(latent, withoutThinning = TRUE) != fit$ndrawsNoThin) {
-        stop("Test failed: ndraws accessor with thinning does not return correct value.")
-    }
-
-    # Test model accessor.
-    if (!identical(model(latent), fit)) {
-        stop("Test failed: fit accessor does not return correct model.")
-    }
-
-    # Test latent accessor.
-    if (!identical(latent(latent), latent$ystars)) {
-        stop("Test failed: latent accessor does not return correct latent values.")
-    }
-    
-    cat("Test passed: Accessor functions for mspm_latent_prediction work correctly.\n")
-}
-
-# Test case 7: Test if accessor functions work for mspm_labeled_prediction object.
+# Test case 6: Test if accessor functions work for mspm_labeled_prediction object.
 .test_accessors_mspm_labeled_prediction <- function() {
     # Generate the data.
-    mspm.data <- generate_synthetic_data(
+    data <- generate_synthetic_data(
         nobs = 100,
         ncov = 5,
         ngamma = c(2, 3),
@@ -364,7 +296,7 @@ run_all_prediction_tests <- function() {
 
     # Fit using all the data.
     fit = fit_mspm(
-        data = mspm.data,
+        data = data,
         ndraws = 1000,
         burnin = 500,
         thin = 2,
@@ -374,58 +306,51 @@ run_all_prediction_tests <- function() {
     )
 
     # Predict labels.
-    labeled <- predict_mspm(
-        fit = fit
+    prediction <- predict_mspm(
+        fit = fit,
+        newdata = data
     )
+    labels = prediction$ylabels
+    labelIndexes = prediction$ylabelIndexes
 
     # Test ntargets accessor
-    if (ntargets(labeled) != mspm.data$ntargets) {
+    if (ntargets(prediction) != ntargets(data)) {
         stop("Test failed: ntargets accessor does not return correct value. Got ", 
-             ntargets(labeled), " expected ", mspm.data$ntargets, ".")
+             ntargets(prediction), " expected ", ntargets(data), ".")
     }
 
     # Test nlevels accessor
-    if (!all(nlevels(labeled) == mspm.data$nlevels)) {
+    if (!all(nlevels(prediction) == nlevels(data))) {
         stop("Test failed: nlevels accessor does not return correct value.")
     }
 
     # Test predictorNames accessor.
-    if (!all.equal(predictorNames(labeled), mspm.data$predictorNames)) {
+    if (!all.equal(predictorNames(prediction), predictorNames(data))) {
         stop("Test failed: predictorNames accessor returned incorrect value.")
     }
 
     # Test responseNames accessor.
-    if (!all.equal(responseNames(labeled), mspm.data$responseNames)) {
+    if (!all.equal(responseNames(prediction), responseNames(data))) {
         stop("Test failed: responseNames accessor returned incorrect value.")
     }
 
     # Test levelNames accessor.
-    if (!all.equal(levelNames(labeled), mspm.data$levelNames)) {
+    if (!all.equal(levelNames(prediction), levelNames(data))) {
         stop("Test failed: levelNames accessor returned incorrect value.")
     }
 
     # Test ndraws accessor.
-    if (ndraws(labeled) != fit$ndraws) {
+    if (ndraws(prediction) != ndraws(fit)) {
         stop("Test failed: ndraws accessor does not return correct value.")
     }
 
-    # Test ndraws accessor without thinning.
-    if (ndraws(labeled, withoutThinning = TRUE) != fit$ndrawsNoThin) {
-        stop("Test failed: ndraws accessor with thinning does not return correct value.")
-    }
-
-    # Test model accessor.
-    if (!identical(model(labeled), fit)) {
-        stop("Test failed: fit accessor does not return correct model.")
-    }
-
     # Test predictedLabels accessor.
-    if (!identical(predictedLabels(labeled), labeled$ylabels)) {
+    if (!identical(predictedLabels(prediction), labels)) {
         stop("Test failed: predictedLabels accessor does not return correct labels.")
     }
 
     # Test predictedLabelIndexes accessor.
-    if (!identical(predictedLabelIndexes(labeled), labeled$ylabelIndexes)) {
+    if (!identical(predictedLabelIndexes(prediction), labelIndexes)) {
         stop("Test failed: predictedLabelIndexes accessor does not return correct label indexes.")
     }
 

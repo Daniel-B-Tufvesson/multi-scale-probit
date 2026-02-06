@@ -23,7 +23,7 @@ run_all_persistence_tests <- function() {
 
     # Fit model.
     fit = fit_mspm(
-        data = mspm.data,
+        data = data,
         ndraws = 100,
         burnin = 100,
         thin = 2,
@@ -38,6 +38,21 @@ run_all_persistence_tests <- function() {
 
     # Load model from file.
     loaded_fit <- load_model(temp_file)
+
+    # Check class.
+    if (!inherits(loaded_fit, "mspm")) {
+        stop("Test failed: Loaded object does not have class 'mspm'.")
+    }
+
+    # Check class of data_spec.
+    if (!inherits(data_spec(loaded_fit), "mspm_data_spec")) {
+        stop("Test failed: data_spec of loaded model does not have class 'mspm_data_spec'.")
+    }
+
+    # Check data_spec.
+    if (!identical(data_spec(fit), data_spec(loaded_fit))) {
+        stop("Test failed: data_spec are not identical after loading.")
+    }
 
     # Check beta.
     if (!identical(beta(fit), beta(loaded_fit))) {
@@ -92,11 +107,6 @@ run_all_persistence_tests <- function() {
     # Check thin.
     if (thin(fit) != thin(loaded_fit)) {
         stop("Test failed: thin are not identical after loading.")
-    }
-
-    # Check training data. Should be null.
-    if (!is.null(loaded_fit$data)) {
-        stop("Test failed: training data should be null after loading.")
     }
 
     cat("Test passed: Model saved and loaded successfully.\n")
