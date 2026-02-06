@@ -8,32 +8,28 @@ source("R/plot.R")
 source("R/data.R")
 
 
-# Initial parameter tuning code
-burnin <- 2000
-ndraws <- 2000
-thin <- 10
-verbose <- 0
-
 # Generate the data.
-mspm.data <- generate_synthetic_data(
+data <- generate_synthetic_data(
     nobs = 60,
-    ncov = 48,
+    ncov = 6,
     ngamma = c(1, 3, 3),
     seed = 1234
 )
 
 # Fit using all the data.
-tst_fit = mspm.fit <- fit_mspm(
-    data = mspm.data,
-    ndraws = ndraws,
-    burnin = burnin,
-    thin = thin,
+fit <- fit_mspm(
+    data = data,
+    ndraws = 2000,
+    burnin = 2000,
+    thin = 10,
     tune = 0.1,
     seed = 1234,
-    verbose = verbose
 )
-tst_fit
+fit
 
 # Plot fit.
-plot_posteriors_beta(tst_fit)
-plot_posterior_gammas(tst_fit)
+#plot_posteriors_beta(fit)
+#plot_posterior_gammas(fit)
+
+# Plot chains.
+plot_beta_chains(fit)

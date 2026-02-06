@@ -2,6 +2,7 @@
 library(ggplot2)
 
 source("R/util.R")
+source("R/internal.R")
 
 # Plot all posterior beta distributions. This creates a separate plot for each beta 
 # parameter.
@@ -429,4 +430,40 @@ plot_eval_draws_diff <- function(
     gg <- gg + labs(x = ifelse(is.null(xlabel), "", xlabel))
 
     plot(gg) # Display the plot
+}
+
+
+#' Plot the MCMC chains for the beta of the fit.
+plot_beta_chains <- function(fit) {
+            chains <- as.matrix(beta(fit))
+            n_iter <- nrow(chains)
+            n_param <- ncol(chains)
+            param_labels <- paste0("beta_", seq_len(n_param))
+            math_labels <- lapply(seq_len(n_param), function(i) bquote(beta[.(i)]))
+            chain_df <- data.frame(
+                Iteration = rep(1:n_iter, times = n_param),
+                Value = as.vector(chains),
+                Parameter = factor(rep(param_labels, each = n_iter), levels = param_labels)
+            )
+
+            gg <- ggplot(chain_df, aes(x = Iteration, y = Value, color = Parameter)) +
+                geom_line() +
+                geom_hline(yintercept = 0, color = "black", linetype = "dashed") +
+                labs(x = "Iteration", y = "Value", color = "Parameter") +
+                scale_color_manual(
+                    values = scales::hue_pal()(n_param),
+                    labels = math_labels
+                ) +
+                theme(panel.grid.major = element_blank(),
+                      panel.grid.minor = element_blank(),
+                      panel.background = element_rect(fill="white", color="white"),
+                      axis.title.x = element_text(size = 15),
+                      axis.title.y = element_text(size = 15),
+                      legend.title = element_blank(),
+                      legend.text = element_text(size=12),
+                      axis.text.x = element_text(size=15),
+                      axis.text.y = element_text(size=15))
+
+            plot(gg)
+    
 }
