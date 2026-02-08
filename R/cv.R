@@ -46,27 +46,27 @@ cross_validate <- function(
     }
     # >1 workers -> parallelize across splits.
     else if (nworkers > 1) {
-        cl<-makeForkCluster(8)
+        cl<-makeForkCluster(nworkers)
+        on.exit(stopCluster(cl))
         registerDoParallel(cl)
         clusterSetRNGStream(cl, 12345)
 
         # Export necessary environment variables to the workers.
         exportVars <- c(
-            "data",
-            "prop", 
-            "ndraws", 
-            "burnin", 
-            "thin", 
-            "meanPrior", 
-            "precPrior", 
-            "metrics", 
-            "seed",
-            "meansOnly",
             ".do_cv_trial"
         )
+        # Combine results as a list.
+        combine <- function(x, y) {
+            is_res_x <- "means" %in% names(x)
+            is_res_y <- "means" %in% names(y)
+            if (is_res_x && is_res_y) return(c(list(x), list(y)))
+            if (is_res_x) return(c(list(x), y))
+            if (is_res_y) return(c(x, list(y)))
+            return(c(x, y))
+        }
 
         # Run the cross-validation splits in parallel.
-        res <- foreach(i = 1:nsplits, .combine = 'list', .export = exportVars) %dopar% {
+        res <- foreach(i = 1:nsplits, .combine = combine, .export = exportVars) %dopar% {
             .do_cv_trial(
                 data = data,
                 prop = prop,
@@ -85,7 +85,7 @@ cross_validate <- function(
         stop("nworkers must be a positive integer.")
     }
 
-    
+    par_Res <<- res
 
     # Aggregate means as a matrix, with rows for each trial and cols for each metric.
     allMeans <- list()
@@ -187,7 +187,8 @@ cross_validate <- function(
     # Return the results.
     if (meansOnly) {
         return (list(
-            means = means
+            means = means,
+            hello = "hi"
         ))
     }
     else {

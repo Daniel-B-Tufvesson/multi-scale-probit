@@ -20,6 +20,7 @@ cv_res <- cross_validate(
     ndraws = 100,
     burnin = 100,
     thin = 1,
-    seed = 42
+    seed = 42,
+    nworkers = 10
 )
 cv_res
