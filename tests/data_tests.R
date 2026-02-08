@@ -46,7 +46,7 @@ run_all_data_tests <- function() {
         seed = 42
     )
 
-    split <- split_data.mspm_data(
+    split <- split_data(
         data = data,
         prop = 0.7,
         seed = 42

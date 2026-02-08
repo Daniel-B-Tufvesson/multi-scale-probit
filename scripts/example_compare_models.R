@@ -16,7 +16,7 @@ data <- generate_synthetic_data(
 )
 
 # Split data.
-split_data = split_data.mspm_data(
+split_data = split_data(
     data = data,
     prop = 0.8,
     seed = 1234
