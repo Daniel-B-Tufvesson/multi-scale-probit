@@ -1,6 +1,7 @@
 source("R/data.R")
 source("R/fit.R")
 source("R/eval.R")
+source("R/util.R")
 
 # Libraries for parallelization.
 library(doParallel)
@@ -171,11 +172,13 @@ cross_validate <- function(
         # Compute harmonic mean across metrics for this target.
         if (nmetrics > 1) {
             metricValues <- meansMatrix[1, 1:nmetrics]
-            if (any(metricValues == 0, na.rm = TRUE)) {
-                meansMatrix[1, nmetrics + 1] <- 0
-            } else {
-                meansMatrix[1, nmetrics + 1] <- length(metricValues) / sum(1/metricValues, na.rm = TRUE)
-            }
+            meansMatrix[1, nmetrics + 1] <- harmonic_mean(metricValues)
+            # if (any(metricValues == 0, na.rm = TRUE)) {
+            #     meansMatrix[1, nmetrics + 1] <- 0
+            # } else {
+            #     #meansMatrix[1, nmetrics + 1] <- length(metricValues) / sum(1/metricValues, na.rm = TRUE)
+                
+            # }
         }
 
         means[[i]] <- meansMatrix

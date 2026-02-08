@@ -1,4 +1,7 @@
+source("R/util.R")
+
 library(callr)
+
 
 # Evaluate the predictions from an mspm model. 
 #
@@ -69,13 +72,7 @@ eval_mspm_prediction_draws <- function(
 
         # Compute harmonic mean over datasets.
         if (ntargets > 1) {
-            res[, ncol(res)] <- apply(res[, 1:(ncol(res)-1)], 1, function(x) {
-                 if (any(x == 0, na.rm = TRUE)) {
-                    return(0)
-                } else {
-                    return(length(x) / sum(1/x, na.rm = TRUE))
-                }
-            })
+            res[, ncol(res)] <- apply(res[, 1:(ncol(res)-1)], 1, harmonic_mean)
         } 
 
         results[[metric]] <- res
@@ -108,13 +105,7 @@ eval_mspm_prediction_draws <- function(
         # Create a matrix where each row is a draw, each column is a metric
         metric_mat <- sapply(results, function(res) res[, j])
         # Harmonic mean for each draw in this dataset
-        metricMeans[, j] <- apply(metric_mat, 1, function(x) {
-             if (any(x == 0, na.rm = TRUE)) {
-                return(0)
-            } else {
-                return(length(x) / sum(1/x, na.rm = TRUE))
-            }
-        })
+        metricMeans[, j] <- apply(metric_mat, 1, harmonic_mean)
     }
 
     return(new_mspm_labeled_evaluation(
