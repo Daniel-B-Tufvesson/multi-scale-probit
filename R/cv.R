@@ -111,10 +111,11 @@ cross_validate <- function(
     new_mspm_cv_result(
         data_spec = data_spec(data),
         nsplits = nsplits,
+        metrics = metrics,
         allEvaluations = allEvals,
         means = allMeans,
         meansOnly = meansOnly,
-        seed,
+        seed = seed,
         call = match.call()
     )
 }
@@ -173,12 +174,6 @@ cross_validate <- function(
         if (nmetrics > 1) {
             metricValues <- meansMatrix[1, 1:nmetrics]
             meansMatrix[1, nmetrics + 1] <- harmonic_mean(metricValues)
-            # if (any(metricValues == 0, na.rm = TRUE)) {
-            #     meansMatrix[1, nmetrics + 1] <- 0
-            # } else {
-            #     #meansMatrix[1, nmetrics + 1] <- length(metricValues) / sum(1/metricValues, na.rm = TRUE)
-                
-            # }
         }
 
         means[[i]] <- meansMatrix

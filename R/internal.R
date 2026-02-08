@@ -389,6 +389,7 @@ evalMetricMeans.mspm_labeled_evaluation <- function(object, ...) {
 new_mspm_cv_result <- function(
     data_spec,
     nsplits,
+    metrics,
     allEvaluations,
     means,
     meansOnly,
@@ -399,6 +400,7 @@ new_mspm_cv_result <- function(
         list(
             data_spec = data_spec,
             nsplits = nsplits,
+            metrics = metrics,
             allEvaluations = allEvaluations,
             means = means,
             meansOnly = meansOnly,
@@ -407,4 +409,28 @@ new_mspm_cv_result <- function(
         ),
         class = "mspm_cv_result"
     )
+}
+
+data_spec.mspm_cv_result <- function(object, ...) {
+    object$data_spec
+}
+
+ntargets.mspm_cv_result <- function(object, ...) {
+    ntargets(object$data_spec)
+}
+
+evalMetrics.mspm_cv_result <- function(object, ...) {
+    object$metrics
+}
+
+nsplits.mspm_cv_result <- function(object, ...) {
+    object$nsplits
+}
+
+cvAllEvaluations.mspm_cv_result <- function(object, ...) {
+    object$allEvaluations
+}
+
+cvMeans.mspm_cv_result <- function(object, ...) {
+    object$means
 }

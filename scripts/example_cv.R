@@ -2,6 +2,7 @@
 
 source("R/data.R")
 source("R/cv.R")
+source("R/plot.R")
 
 
 # Generate the data.
@@ -13,14 +14,29 @@ data <- generate_synthetic_data(
 )
 
 # Perform cross-validation.
-cv_res <- cross_validate(
-    data = data,
-    nsplits = 10,
-    prop = 0.7,
-    ndraws = 100,
-    burnin = 100,
-    thin = 1,
-    seed = 42,
-    nworkers = 10
-)
-cv_res
+# cv_res1 <- cross_validate(
+#     data = data,
+#     nsplits = 10,
+#     prop = 0.7,
+#     ndraws = 100,
+#     burnin = 100,
+#     thin = 1,
+#     seed = 42,
+#     nworkers = 10
+# )
+# 
+# cv_res2 <- cross_validate(
+#     data = data,
+#     nsplits = 10,
+#     prop = 0.7,
+#     ndraws = 100,
+#     burnin = 100,
+#     thin = 1,
+#     seed = 123,
+#     nworkers = 10
+# )
+
+# Plot difference.
+plot_cv_diff(cv_res1, cv_res2)
+
+# Todo: cross validate with total evaluations as well. 

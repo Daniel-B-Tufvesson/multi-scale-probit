@@ -215,29 +215,29 @@ plot_eval_draws <- function(
     }
 }
 
-# Verify that the eval objects contain at least all the provided metrics.
+# Verify that the provided metrics vectors contain at least all the provided metrics.
 #
 # Arguments:
-# evals  : A list of mspm_labeled_evaluation objects.
-# metrics: A character vector of metric names to check for.
-.validateMetricsForEvalObjects1 <- function(evals, metrics) {
-    for (eval in evals) {
-        for (metric in metrics) {
-            if (!(metric %in% eval$metrics)) {
-                stop(paste("Evaluation object is missing metric:", metric))
+# metricsList  : A list of character vectors for the metrics.
+# requiredMetrics: A character vector of metric names to check for.
+.validateMetrics1 <- function(metricsList, requiredMetrics) {
+    for (metrics in metricsList) {
+        for (requiredMetric in metrics) {
+            if (!(requiredMetric %in% metrics)) {
+                stop(paste("Evaluation object is missing metric:", requiredMetric))
             }
         }
     }
 }
 
-# Verify that the all eval objects contain the same metrics.
+# Verify that the all character vectors contain the same metrics.
 #
 # Arguments:
-# evals  : A list of mspm_labeled_evaluation objects.
-.validateMetricsForEvalObjects2 <- function(evals) {
-    base_metrics <- evals[[1]]$metrics
-    for (eval in evals) {
-        if (!identical(sort(base_metrics), sort(eval$metrics))) {
+# evals  : A list of character vectors containing the metrics.
+.validateMetrics2 <- function(metricsList) {
+    base_metrics <- sort(metricsList[[1]])
+    for (metrics in metricsList) {
+        if (!identical(base_metrics, sort(metrics))) {
             stop("Evaluation objects contain different metrics.")
         }
     }
@@ -280,11 +280,11 @@ plot_eval_draws_diff <- function(
 
     # Validate metrics.
     if (is.null(metrics)) {
-        .validateMetricsForEvalObjects2(list(eval1, eval2))
-        metrics <- eval1$metrics
+        .validateMetrics2(list(evalMetrics(eval1), evalMetrics(eval2)))
+        metrics <- evalMetrics(eval1)
     }
     else {
-        .validateMetricsForEvalObjects1(list(eval1, eval2), metrics)
+        .validateMetrics1(list(evalMetrics(eval1), evalMetrics(eval2)), metrics)
     }
 
     # Plot drawMeans.
@@ -431,6 +431,99 @@ plot_eval_draws_diff <- function(
 
     plot(gg) # Display the plot
 }
+
+
+# Plot CV distributions --------------------------------------------------------------------------
+
+
+#' Plot the distribution of differences between two cross-validation results. 
+#'
+#' @param cv_res1 The first mspm_cv_result object.
+#' @param cv_res2 The second mspm_cv_result object.
+#' @param metrics The evaluation metric to plot (default: NULL, which plots all the metrics).
+#' @param label1 Label for the first CV result in the legend (default: "CV 1").
+#' @param label2 Label for the second CV result in the legend (default: "CV 2").
+#' @param plotData Which data to plot the differences from. Options are "drawMeans" (default), or "allDraws".
+#' @param addXLabel Whether to add an x-axis label indicating the metric (default: TRUE).
+plot_cv_diff <- function(
+    cv_res1,
+    cv_res2,
+    ...,
+    metrics = NULL,
+    label1 = "CV 1",
+    label2 = "CV 2",
+    plotData = "means",
+    addXLabel = TRUE
+) {
+    # Validate plot option.
+    supportedData = c("means", "allDraws")
+    if (!(plotData %in% supportedData)) {
+        stop(paste("plotData must be one of:", paste(supportedData, collapse=", ")))
+    }
+
+    # Validate eval objects.
+    if (class(cv_res1) != "mspm_cv_result" || 
+        class(cv_res2) != "mspm_cv_result") {
+        stop("Both cv_res1 and cv_res2 must be mspm_cv_result objects.")
+    }
+
+    # Validate metrics.
+    if (is.null(metrics)) {
+        .validateMetrics2(list(evalMetrics(cv_res1), evalMetrics(cv_res2)))
+        metrics <- evalMetrics(cv_res1)
+    }
+    else {
+        .validateMetrics1(list(evalMetrics(cv_res1), evalMetrics(cv_res2)), metrics)
+    }
+
+    # Plot means.
+    if (plotData == "means") {
+
+        # For each metric, compute differences and plot
+        for (metric in metrics) {
+            for (target in 1:ntargets(cv_res1)) {
+                xlabel <- ifelse(addXLabel, paste0("Difference in mean ", metric, " for target ", target))
+                .plot_dist_diff(
+                    cvMeans(cv_res1)[[target]][, metric],
+                    cvMeans(cv_res2)[[target]][, metric],
+                    label1,
+                    label2,
+                    xlabel
+                )
+            }
+        }
+    }
+    # Todo: implment this.
+    # Plot allDraws.
+    # else if (plotData == "allDraws") {
+    #     # For each metric, compute differences and plot
+    #     for (metric in metrics) {
+    #         # Get the results matrices for this metric
+    #         res1 <- cvDrawResults(cv_res1)[[metric]]
+    #         res2 <- cvDrawResults(cv_res2)[[metric]]
+
+    #         # Plot for each target.
+    #         ntargets <- ncol(res1)
+    #         for (target in 1:ntargets) {
+    #             xlabel <- ifelse(addXLabel, 
+    #                              paste0("Difference in ", metric, " for target ", target), "")
+    #             .plot_dist_diff(
+    #                 res1[, target], 
+    #                 res2[, target],
+    #                 label1,
+    #                 label2,
+    #                 xlabel
+    #             )
+    #         }
+    #     }
+    # }
+    # else {
+    #     stop("Unsupported dataToPlot option.")
+    # }
+}
+
+
+# Plot MCMC chains -------------------------------------------------------------------------------
 
 
 #' Plot the MCMC chains for the beta of the fit.
