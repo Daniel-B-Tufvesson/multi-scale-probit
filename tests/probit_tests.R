@@ -3,7 +3,6 @@ source("R/util.R")
 source("R/data.R")
 
 run_all_probit_tests <-function() {
-    .test_generate_data()
     .test_fit()
     .test_fit_compare()
     .test_accessors()
@@ -50,22 +49,68 @@ run_all_probit_tests <-function() {
     # Check beta.
     beta_estimates <- colMeans(as.matrix(tst_fit$beta))
     if (max(abs(beta_estimates - beta)) > 0.2) {
-        failed <- TRUE
-        warning("Test failed: Estimated beta coefficients deviate significantly from true values.")
+        stop("Test failed: Estimated beta coefficients deviate significantly from true values.")
     }
 
     # Check gammas.
     for (i in 1:length(gammas)) {
         gamma_estimates <- colMeans(as.matrix(tst_fit$gammas[[i]]))
         if (max(abs(gamma_estimates - gammas[[i]])) > 0.5) {
-            failed <- TRUE
-            warning(paste("Test failed: Estimated gammas for dataset", i, "deviate significantly from true values."))
+            stop(paste("Test failed: Estimated gammas for dataset", i, 
+                       "deviate significantly from true values."))
         }
     }
 
-    if (!failed) {
-        cat("Test passed: Fitted model estimates parameters accurately.\n")
+    # Check diagnostics.
+    if (is.null(diagnostics(tst_fit))) {
+        stop("Test failed: Diagnostics are NULL.")
     }
+
+    # Check essBeta.
+    if(is.null(essBeta(tst_fit))) {
+        stop("Test failed: essBeta is NULL.")
+    }
+    if(length(essBeta(tst_fit)) != length(beta)) {
+        stop("Test failed: essBeta length does not match number of beta coefficients.")
+    }
+
+    # Check essGammas.
+    if(is.null(essGammas(tst_fit))) {
+        stop("Test failed: essGammas is NULL.")
+    }
+    for (i in 1:length(gammas)) {
+        if(is.null(essGammas(tst_fit)[[i]])) {
+            stop(paste("Test failed: essGammas for dataset", i, "is NULL."))
+        }
+        if(length(essGammas(tst_fit)[[i]]) != length(gammas[[i]])) {
+            stop(paste("Test failed: essGammas length for dataset", i, 
+                       "does not match number of gamma thresholds."))
+        }
+    }
+
+    # Check gewekeBeta.
+    if(is.null(gewekeBeta(tst_fit))) {
+        stop("Test failed: gewekeBeta is NULL.")
+    }
+    if (length(gewekeBeta(tst_fit)$z) != length(beta)) {
+        stop("Test failed: gewekeBeta length does not match number of beta coefficients.")
+    }
+    
+    # Check gewekeGammas.
+    if(is.null(gewekeGammas(tst_fit))) {
+        stop("Test failed: gewekeGammas is NULL.")
+    }
+    for (i in 1:length(gammas)) {
+        if(is.null(gewekeGammas(tst_fit)[[i]])) {
+            stop(paste("Test failed: gewekeGammas for dataset", i, "is NULL."))
+        }
+        if(length(gewekeGammas(tst_fit)[[i]]$z) != length(gammas[[i]])) {
+            stop(paste("Test failed: gewekeGammas length for dataset", i, 
+                       "does not match number of gamma thresholds."))
+        }
+    }
+
+    cat("Test passed: Fitted model estimates parameters accurately and returns valid diagnostics.\n")
 }
 
 

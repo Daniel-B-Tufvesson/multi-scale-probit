@@ -18,6 +18,7 @@ source("R/internal.R")
 # beta.initial: Initial values for regression coefficients.
 # gamma.initial: Initial values for threshold parameters.
 # verbose: Verbosity level for output.
+# computeDiagnostics: Whether to compute diagnostics for the fitted model.
 # 
 # Returns:
 # An object of class 'mspm' containing the fitted model.
@@ -34,7 +35,8 @@ fit_mspm <- function(
     seed = NA,
     beta.initial = NULL,
     gamma.initial = NULL,
-    verbose = 0
+    verbose = 0,
+    computeDiagnostics = TRUE
 ) {
 
     nlevels = nlevels(data)
@@ -172,6 +174,12 @@ fit_mspm <- function(
         gammas[[i]] <- mcmc(sim$storegamma[[i]], start = burnin + 1, thin = thin)
     }
 
+    # Compute diagnostics.
+    diagnostics <- NULL
+    if (computeDiagnostics) {
+        diagnostics <- .run_diagnostics(beta, gammas)
+    }
+
     # Return fitted model.
     new_mspm(
         data_spec = data_spec(data),
@@ -184,6 +192,24 @@ fit_mspm <- function(
         ndrawsNoThin = ndraws,
         thin = thin,
         burnin = burnin,
+        diagnostics = diagnostics,
         call = match.call()
     )  
+}
+
+.run_diagnostics <- function(beta, gammas) {
+    # Compute Geweke diagnostic.
+    gewekeBeta <- geweke.diag(beta)
+    gewekeGammas <- lapply(gammas, geweke.diag)
+
+    # Compute ESS.
+    essBeta <- effectiveSize(beta)
+    essGammas <- lapply(gammas, effectiveSize)
+
+    new_mspm_single_chain_diag(
+        gewekeBeta = gewekeBeta,
+        gewekeGammas = gewekeGammas,
+        essBeta = essBeta,
+        essGammas = essGammas
+    )
 }

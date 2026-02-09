@@ -7,6 +7,8 @@ source("R/util.R")
 library(doParallel)
 library(foreach)
 
+library(coda)
+
 #' Cross-validate an mspm model using the specified data. This is a Monte Carlo cross-validation,
 #' also known as repeated random sub-sampling validation. 
 #'
@@ -34,6 +36,8 @@ library(foreach)
 #' parallel across splits. Default is 1.
 #' @param meansOnly A logical value indicating whether to return only the mean evaluations for 
 #' each target (TRUE) or to return the full evaluation objects for each split (FALSE).
+#' @param computeDiagnostics A logical value indicating whether to compute diagnostics for each 
+# fitted model.
 #'
 #' @return An object of class 'mspm_cv_result' containing the results of cross-validation, 
 #' including mean evaluation metrics for each target and, optionally, the full evaluation objects 
@@ -51,7 +55,8 @@ cross_validate <- function(
     seed = NULL,
     metrics = c("f1", "kendall"),
     nworkers = 1,
-    meansOnly = TRUE
+    meansOnly = TRUE,
+    computeDiagnostics = TRUE
 ) {
     if (is.null(seed)) {
         seed <- sample.int(1e6, 1)
@@ -74,9 +79,6 @@ cross_validate <- function(
                 meansOnly = meansOnly
             )
         }
-
-        ser_Res <<- res
-
     }
     # >1 workers -> parallelize across splits.
     else if (nworkers > 1) {
@@ -114,9 +116,6 @@ cross_validate <- function(
                 meansOnly = meansOnly
             )
         }
-
-        par_Res <<- res
-
     }
     else {
         stop("nworkers must be a positive integer.")
@@ -143,6 +142,28 @@ cross_validate <- function(
         }
     }
 
+    # Compute diagnostics if requested.
+    rhatBeta <- NULL
+    rhatGammas <- NULL
+    if (computeDiagnostics) {
+        betaList <- list()
+        gammasList <- list()
+
+        # Collect MCMC chains.
+        for (i in 1:nsplits) {
+            betaList[[i]] <- res[[i]]$fit$beta
+            gammasList[[i]] <- res[[i]]$fit$gammas
+        }
+
+        # Compute Gelman-Rubin R-hat diagnostics.
+        rhatBeta <- gelman.diag(betaList)
+        rhatGammas <- list()
+        for (i in 1:ntargets(data)) {
+            gammas_i <- lapply(gammasList, function(g) g[[i]])
+            rhatGammas[[i]] <- gelman.diag(mcmc.list(gammas_i))
+        }
+    }
+
     # Return result.
     new_mspm_cv_result(
         data_spec = data_spec(data),
@@ -152,6 +173,8 @@ cross_validate <- function(
         means = allMeans,
         meansOnly = meansOnly,
         seed = seed,
+        gelmanRhatBeta = rhatBeta,
+        gelmanRhatGammas = rhatGammas,
         call = match.call()
     )
 }
@@ -236,13 +259,14 @@ cross_validate <- function(
     if (meansOnly) {
         return (list(
             means = means,
-            hello = "hi"
+            fit = fit
         ))
     }
     else {
         return(list(
             results = results,
-            means = means
+            means = means,
+            fit = fit
         ))
     }
 }
