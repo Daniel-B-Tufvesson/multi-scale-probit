@@ -16,12 +16,13 @@ What makes MSP different from the standard Bayesian Ordered Probit is that it ca
 $$
 y_i = 
 \begin{cases}
-1 & \text{if } y_i^* \le \gamma_1^{(s_i)}, \\
-2 & \text{if } \gamma_1^{(s_i)} \le y_i^* \le \gamma_2^{(s_i)}, \\
-\vdots \\
-C^{(s_i)} & \text{if } \gamma_{C^(s_i)-1}^{(s_i)} <  y_i^*,
+    1 & \text{if } y_i^* \le \gamma_1^{(s_i)}, \\
+    2 & \text{if } \gamma_1^{(s_i)} \le y_i^* \le \gamma_2^{(s_i)}, \\
+    \vdots \\
+    C^{(s_i)} & \text{if } \gamma_{C^(s_i)-1}^{(s_i)} <  y_i^*,
 \end{cases}
 $$
+
 where $s_i$ indicates the ordinal scale of $y_i$, $C^{(s_i)}$ is the number of ordinal values for the scale $s_i$, and $\gamma^{(s_i)}$ are the thresholds between each value on the scale $s_i$.
 
 (Footnote: this section is taken directly from my thesis.) 
