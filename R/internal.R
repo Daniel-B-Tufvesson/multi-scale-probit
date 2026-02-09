@@ -108,6 +108,50 @@ levelNames.mspm_data <- function(object, ...) {
     levelNames(object$data_spec)
 }
 
+#' Constructor for creating a new multi-scale probit model single chain diagnostics object.
+#'
+#' @param essBeta A numeric vector containing the effective sample size (ESS) for each beta 
+#' coefficient.
+#' @param essGammas A list of numeric vectors containing the effective sample size (ESS) for each 
+#' gamma threshold in each target dataset.
+#' @param gewekeBeta A numeric vector containing the Geweke diagnostic z-scores for each beta 
+#' coefficient.
+#' @param gewekeGammas A list of numeric vectors containing the Geweke diagnostic z-scores for 
+#' each gamma threshold in each target dataset.
+new_mspm_single_chain_diag <- function (
+    essBeta,
+    essGammas,
+    gewekeBeta,
+    gewekeGammas
+) {
+    structure(
+        list(
+            essBeta = essBeta,
+            essGammas = essGammas,
+            gewekeBeta = gewekeBeta,
+            gewekeGammas = gewekeGammas
+        ),
+        class = "mspm_single_chain_diag"
+    )
+}
+
+essBeta.mspm_single_chain_diag <- function(object, ...) {
+    object$essBeta
+}
+
+essGammas.mspm_single_chain_diag <- function(object, ...) {
+    object$essGammas
+}
+
+gewekeBeta.mspm_single_chain_diag <- function(object, ...) {
+    object$gewekeBeta
+}
+
+gewekeGammas.mspm_single_chain_diag <- function(object, ...) {
+    object$gewekeGammas
+}
+
+
 # Constructor for creating a new multi-scale probit model (MSPM).
 # 
 # Arguments: 
@@ -117,6 +161,8 @@ levelNames.mspm_data <- function(object, ...) {
 # meanPrior: Prior mean for regression coefficients.
 # precPrior: Prior precision for regression coefficients.
 # seed: The random seed used for reproducibility.
+# diagnostics: An mspm_single_chain_diag object containing diagnostic information about the 
+# MCMC sampling, such as effective sample size (ess) and Geweke diagnostics for each parameter.
 # call: The original function call used to create the model.
 new_mspm <- function(
     data_spec,
@@ -129,6 +175,7 @@ new_mspm <- function(
     ndrawsNoThin,
     thin,
     burnin,
+    diagnostics,
     call
 ) {
     structure(
@@ -144,13 +191,8 @@ new_mspm <- function(
             ndraws = ndraws,
             ndrawsNoThin = ndrawsNoThin,
             thin = thin,
-            burnin = burnin
-
-            # diagnostics = list(
-            #     rhat = rhat,
-            #     ess = ess,
-            #     divergences = divergences
-            # ),
+            burnin = burnin,
+            diagnostics = diagnostics
         ),
         class = "mspm"
     )
@@ -210,6 +252,26 @@ burnin.mspm <- function(object, ...) {
 
 thin.mspm <- function(object, ...) {
     object$thin
+}
+
+diagnostics.mspm <- function(object, ...) {
+    object$diagnostics
+}
+
+essBeta.mspm <- function(object, ...) {
+    essBeta(diagnostics(object))
+}
+
+essGammas.mspm <- function(object, ...) {
+    essGammas(diagnostics(object))
+}
+
+gewekeBeta.mspm <- function(object, ...) {
+    gewekeBeta(diagnostics(object))
+}
+
+gewekeGammas.mspm <- function(object, ...) {
+    gewekeGammas(diagnostics(object))
 }
 
 

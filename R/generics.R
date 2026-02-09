@@ -263,3 +263,71 @@ cvMeans <- function(object, ...) {
 cvAllDraws <- function(object, ...) {
     UseMethod("cvAllDraws")
 }
+
+#' The MCMC diagnostics for a multi-scale probit model object.
+#'
+#' @param object An mspm object.
+#' @param ... Additional arguments (not used).
+#' @return A list containing the MCMC diagnostics for the model. The list may include diagnostics 
+#' such as effective sample size (ESS) for beta coefficients and gamma thresholds, Geweke 
+#' diagnostic results for beta coefficients and gamma thresholds, and any other relevant 
+#' diagnostics. Returns NULL if the diagnostics cannot be computed for the given object or if the 
+#' object does not contain the necessary information to compute diagnostics.
+diagnostics <- function(object, ...) {
+    UseMethod("diagnostics")
+}
+
+#' The effective sample size (ESS) for the beta coefficients in a multi-scale probit model object.
+#'
+#' @param object An mspm object.
+#' @param ... Additional arguments (not used).
+#' @return A vector containing the effective sample size for each beta coefficient. Returns NULL 
+#' if the object does not contain beta coefficients or if the effective sample size cannot be 
+#' computed.
+essBeta <- function(object, ...) {
+    UseMethod("essBeta")
+}
+
+#' The effective sample size (ESS) for the gamma thresholds in a multi-scale probit model object.
+#'
+#' @param object An mspm object.
+#' @param ... Additional arguments (not used).
+#' @return A list containing the effective sample size for each gamma threshold. Each element of 
+#' the list corresponds to a target dataset and contains a vector of effective sample sizes for 
+#' the gamma thresholds of that target. Returns NULL if the object does not contain gamma thresholds 
+#' or if the effective sample size cannot be computed.
+essGammas <- function(object, ...) {
+    UseMethod("essGammas")
+}
+
+#' The Geweke diagnostic for the beta coefficients in a multi-scale probit model object.
+#'
+#' @param object An mspm object.
+#' @param ... Additional arguments (not used).
+#' @return A list containing the Geweke diagnostic results for each beta coefficient. Each element of 
+#' the list corresponds to a beta coefficient and contains a list with the following components:
+#' \itemize{
+#'   \item z: The Geweke z-score for the beta coefficient.
+#'   \item p: The p-value associated with the Geweke z-score.
+#' } Returns NULL if the object does not contain beta coefficients or if the Geweke diagnostic 
+#' cannot be computed.
+gewekeBeta <- function(object, ...) {
+    UseMethod("gewekeBeta")
+}
+
+#' The Geweke diagnostic for the gamma thresholds in a multi-scale probit model object.
+#'
+#' @param object An mspm object.
+#' @param ... Additional arguments (not used).
+#' @return A list containing the Geweke diagnostic results for each gamma threshold. Each element of 
+#' the list corresponds to a target dataset and contains a list of Geweke diagnostic results for 
+#' the gamma thresholds of that target. Each Geweke diagnostic result is a list with the following 
+#' components:
+#' \itemize{
+#'   \item z: The Geweke z-score for the gamma threshold.
+#'   \item p: The p-value associated with the Geweke z-score.
+#' } Returns NULL if the object does not contain gamma thresholds or if the Geweke diagnostic 
+#' cannot be computed.
+gewekeGammas <- function(object, ...) {
+    UseMethod("gewekeGammas")
+}

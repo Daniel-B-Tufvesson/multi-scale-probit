@@ -74,9 +74,6 @@ cross_validate <- function(
                 meansOnly = meansOnly
             )
         }
-
-        ser_Res <<- res
-
     }
     # >1 workers -> parallelize across splits.
     else if (nworkers > 1) {
@@ -114,9 +111,6 @@ cross_validate <- function(
                 meansOnly = meansOnly
             )
         }
-
-        par_Res <<- res
-
     }
     else {
         stop("nworkers must be a positive integer.")
