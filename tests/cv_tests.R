@@ -97,6 +97,21 @@ run_all_cv_tests <- function() {
         }
     }
 
+    # Check gelmanRhatBeta.
+    rhatBeta <- gelmanRhatBeta(cv_res)
+    if (is.null(rhatBeta)) {
+        stop("Expected gelmanRhatBeta to be computed and not NULL.")
+    }
+
+    # Check gelmanRhatGammas.
+    rhatGammas <- gelmanRhatGammas(cv_res)
+    if (is.null(rhatGammas)) {
+        stop("Expected gelmanRhatGammas to be computed and not NULL.")
+    }
+    if (length(rhatGammas) != 3) {
+        stop("Expected gelmanRhatGammas to have length equal to ntargets.")
+    }
+
     cat("Test passed: cross-validation runs without errors and returns results in the expected format.\n")
 }
 

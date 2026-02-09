@@ -331,3 +331,11 @@ gewekeBeta <- function(object, ...) {
 gewekeGammas <- function(object, ...) {
     UseMethod("gewekeGammas")
 }
+
+gelmanRhatBeta <- function(object, ...) {
+    UseMethod("gelmanRhatBeta")
+}
+
+gelmanRhatGammas <- function(object, ...) {
+    UseMethod("gelmanRhatGammas")
+}

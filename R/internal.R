@@ -456,6 +456,8 @@ new_mspm_cv_result <- function(
     means,
     meansOnly,
     seed,
+    gelmanRhatBeta,
+    gelmanRhatGammas,
     call
 ) {
     structure(
@@ -467,6 +469,8 @@ new_mspm_cv_result <- function(
             means = means,
             meansOnly = meansOnly,
             seed = seed,
+            gelmanRhatBeta = gelmanRhatBeta,
+            gelmanRhatGammas = gelmanRhatGammas,
             call = call
         ),
         class = "mspm_cv_result"
@@ -517,4 +521,12 @@ cvAllDraws.mspm_cv_result <- function(object, ...) {
     }
 
     results
+}
+
+gelmanRhatBeta.mspm_cv_result <- function(object, ...) {
+    object$gelmanRhatBeta
+}
+
+gelmanRhatGammas.mspm_cv_result <- function(object, ...) {
+    object$gelmanRhatGammas
 }

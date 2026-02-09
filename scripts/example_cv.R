@@ -14,17 +14,17 @@ data <- generate_synthetic_data(
 )
 
 # Perform cross-validation.
-# cv_res1 <- cross_validate(
-#     data = data,
-#     nsplits = 10,
-#     prop = 0.7,
-#     ndraws = 100,
-#     burnin = 100,
-#     thin = 1,
-#     seed = 42,
-#     nworkers = 10,
-#     meansOnly = FALSE
-# )
+cv_res1 <- cross_validate(
+    data = data,
+    nsplits = 10,
+    prop = 0.7,
+    ndraws = 100,
+    burnin = 100,
+    thin = 1,
+    seed = 42,
+    nworkers = 10,
+    meansOnly = FALSE
+)
 # 
 # cv_res2 <- cross_validate(
 #     data = data,

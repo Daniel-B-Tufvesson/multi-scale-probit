@@ -34,5 +34,8 @@ geweke_result <- geweke.diag(beta(fit1))
 geweke_result
 
 # Compute the Gelman-Rubin R-hat for beta coefficients.
-rhat_result <- gelman.diag(mcmc.list(beta(fit1), beta(fit2)))
-rhat_result
+rhat_beta <- gelman.diag(mcmc.list(beta(fit1), beta(fit2)))
+rhat_beta
+
+#rhat_gammas <- gelman.diag(mcmc.list(gammas(fit1), gammas(fit2)))
+#rhat_gammas
