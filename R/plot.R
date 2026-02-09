@@ -376,7 +376,8 @@ plot_eval_draws_diff <- function(
     values2,
     label1,
     label2,
-    xlabel = NULL
+    xlabel = NULL,
+    title = NULL
 ) {
     diffs <- values1 - values2
     dat <- data.frame(differences = diffs)
@@ -427,7 +428,13 @@ plot_eval_draws_diff <- function(
                 legend.background = element_blank(),
                 legend.key.size = unit(1.5, 'lines'))
     
+    # Add x-axis label.
     gg <- gg + labs(x = ifelse(is.null(xlabel), "", xlabel))
+
+    # Plot title.
+    if (!is.null(title)) {
+        gg <- gg + ggtitle(title) + theme(plot.title = element_text(size=20))
+    }
 
     plot(gg) # Display the plot
 }
@@ -446,6 +453,7 @@ plot_eval_draws_diff <- function(
 #' @param label2 Label for the second CV result in the legend (default: "CV 2").
 #' @param plotData Which data to plot the differences from. Options are "drawMeans" (default), or "allDraws".
 #' @param addXLabel Whether to add an x-axis label indicating the metric (default: TRUE).
+#' @param title An optional title for the plots (default: NULL).
 plot_cv_diff <- function(
     cv_res1,
     cv_res2,
@@ -455,7 +463,8 @@ plot_cv_diff <- function(
     label1 = "CV 1",
     label2 = "CV 2",
     plotData = "means",
-    addXLabel = TRUE
+    addXLabel = TRUE,
+    title = NULL
 ) {
     # Validate plot option.
     supportedData = c("means", "allDraws")
@@ -490,7 +499,8 @@ plot_cv_diff <- function(
                     cvMeans(cv_res2)[[target]][, metric],
                     label1,
                     label2,
-                    xlabel
+                    xlabel,
+                    title
                 )
             }
         }
@@ -504,38 +514,44 @@ plot_cv_diff <- function(
                     cvMeans(cv_res2)[[target]][, "HarmonicMean"],
                     label1,
                     label2,
-                    xlabel
+                    xlabel,
+                    title
                 )
             }
         }
     }
-    # Todo: implment this.
     # Plot allDraws.
-    # else if (plotData == "allDraws") {
-    #     # For each metric, compute differences and plot
-    #     for (metric in metrics) {
-    #         # Get the results matrices for this metric
-    #         res1 <- cvDrawResults(cv_res1)[[metric]]
-    #         res2 <- cvDrawResults(cv_res2)[[metric]]
+    else if (plotData == "allDraws") {
+        all_draws1 <- cvAllDraws(cv_res1)
+        all_draws2 <- cvAllDraws(cv_res2)
+        # For each metric, compute differences and plot
+        for (metric in metrics) {
+            # Get the results matrices for this metric
+            res1 <- all_draws1[[metric]]
+            res2 <- all_draws2[[metric]]
 
-    #         # Plot for each target.
-    #         ntargets <- ncol(res1)
-    #         for (target in 1:ntargets) {
-    #             xlabel <- ifelse(addXLabel, 
-    #                              paste0("Difference in ", metric, " for target ", target), "")
-    #             .plot_dist_diff(
-    #                 res1[, target], 
-    #                 res2[, target],
-    #                 label1,
-    #                 label2,
-    #                 xlabel
-    #             )
-    #         }
-    #     }
-    # }
-    # else {
-    #     stop("Unsupported dataToPlot option.")
-    # }
+            # Plot for each target.
+            ntargets <- ncol(res1)
+            for (target in 1:ntargets) {
+                targetName <- ifelse(target <= ntargets(cv_res1), 
+                                 paste0("target ", target), 
+                                 "harmonic mean accross targets")
+                xlabel <- ifelse(addXLabel, 
+                                 paste0("Difference in ", metric, " for ", targetName), "")
+                .plot_dist_diff(
+                    res1[, target], 
+                    res2[, target],
+                    label1,
+                    label2,
+                    xlabel,
+                    title
+                )
+            }
+        }
+    }
+    else {
+        stop("Unsupported dataToPlot option.")
+    }
 }
 
 

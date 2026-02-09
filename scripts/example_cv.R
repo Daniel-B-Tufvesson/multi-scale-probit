@@ -22,7 +22,8 @@ data <- generate_synthetic_data(
 #     burnin = 100,
 #     thin = 1,
 #     seed = 42,
-#     nworkers = 10
+#     nworkers = 10,
+#     meansOnly = FALSE
 # )
 # 
 # cv_res2 <- cross_validate(
@@ -33,10 +34,14 @@ data <- generate_synthetic_data(
 #     burnin = 100,
 #     thin = 1,
 #     seed = 123,
-#     nworkers = 10
+#     nworkers = 10,
+#     meansOnly = FALSE
 # )
 
 # Plot difference.
-plot_cv_diff(cv_res1, cv_res2)
+plot_cv_diff(cv_res1, cv_res2, title = "Means per split")
+
+cvAllDraws(cv_res1)
+plot_cv_diff(cv_res1, cv_res2, plotData = "allDraws", title = "Total draws")
 
 # Todo: cross validate with total evaluations as well. 

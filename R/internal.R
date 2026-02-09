@@ -434,3 +434,25 @@ cvAllEvaluations.mspm_cv_result <- function(object, ...) {
 cvMeans.mspm_cv_result <- function(object, ...) {
     object$means
 }
+
+cvAllDraws.mspm_cv_result <- function(object, ...) {
+
+    allEvals <- cvAllEvaluations(object)
+    if (is.null(allEvals)) {
+        return(NULL)
+    }
+
+    # Get metrics and number of splits.
+    metrics <- evalMetrics(object)
+    nsplits <- nsplits(object)
+
+    # Aggregate all evaluation draws for each metric across all splits.
+    results <- list()
+    for (metric in metrics) {
+        results[[metric]] <- do.call(rbind, lapply(allEvals, function(eval) {
+            evalDrawResults(eval)[[metric]]
+        }))
+    }
+
+    results
+}
