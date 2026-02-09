@@ -5,7 +5,7 @@ The Multi-Scale Probit (MSP) is an extension of the Bayesian Ordered Probit. It 
 ## Use Case: Modeling Text Complexity
 
 ## Mathematical Definition
-MSP models the relationship between the continuous input features $\bf{x}$ and an ordinal response variable $y$ via a latent variable $y^*$. For a given observation $i$, the value $y^*_i$ is defined as 
+MSP models the relationship between the continuous input features $\bf{x}$ and an ordinal response variable $y$ via a latent variable $y^{*}$. For a given observation $i$, the value $y^*_i$ is defined as 
 
 $$y^*_i=\bf{x}^T_i \bf{\beta}+\epsilon$$
 
