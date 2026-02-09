@@ -10,6 +10,34 @@ library(foreach)
 #' Cross-validate an mspm model using the specified data. This is a Monte Carlo cross-validation,
 #' also known as repeated random sub-sampling validation. 
 #'
+#' Note that this function can be computationally intensive, especially with a large number of 
+#' splits and posterior draws.
+#'
+#' Also note that parallel and serial cross-validation may yield different results due to 
+#' differences in random number generation and execution order. This is despite using the same 
+#' random seed, because of how parallelization works in R.
+#'
+#' @param data An mspm_data object containing the dataset to be used for cross-validation.
+#' @param nsplits An integer specifying the number of random splits to perform.
+#' @param prop A numeric value between 0 and 1 indicating the proportion of data to be used for 
+#' training in each split. The rest will be used for testing.
+#' @param ndraws An integer specifying the number of posterior draws to use when fitting the model.
+#' @param burnin An integer specifying the number of initial draws to discard as burn-in.
+#' @param thin An integer specifying the thinning interval for posterior draws.
+#' @param meanPrior A numeric vector specifying the prior mean for regression coefficients.
+#' @param precPrior A numeric vector specifying the prior precision for regression coefficients.
+#' @param seed An integer random seed for reproducibility. If NULL, a random seed will be generated.
+#' @param metrics A character vector specifying the evaluation metrics to compute. Default 
+#' is c("f1", "kendall").
+#' @param nworkers An integer specifying the number of worker processes to use for parallelization.
+#' If nworkers = 1, cross-validation will run sequentially. If nworkers > 1, it will run in 
+#' parallel across splits. Default is 1.
+#' @param meansOnly A logical value indicating whether to return only the mean evaluations for 
+#' each target (TRUE) or to return the full evaluation objects for each split (FALSE).
+#'
+#' @return An object of class 'mspm_cv_result' containing the results of cross-validation, 
+#' including mean evaluation metrics for each target and, optionally, the full evaluation objects 
+#' for each split.
 cross_validate <- function(
     data,
     nsplits,
@@ -25,6 +53,9 @@ cross_validate <- function(
     nworkers = 1,
     meansOnly = TRUE
 ) {
+    if (is.null(seed)) {
+        seed <- sample.int(1e6, 1)
+    }
     
     # 1 worker -> no parallelization, run sequentially.
     if (nworkers == 1) {
@@ -43,6 +74,9 @@ cross_validate <- function(
                 meansOnly = meansOnly
             )
         }
+
+        ser_Res <<- res
+
     }
     # >1 workers -> parallelize across splits.
     else if (nworkers > 1) {
@@ -80,12 +114,14 @@ cross_validate <- function(
                 meansOnly = meansOnly
             )
         }
+
+        par_Res <<- res
+
     }
     else {
         stop("nworkers must be a positive integer.")
     }
 
-    par_Res <<- res
 
     # Aggregate means as a matrix, with rows for each trial and cols for each metric.
     allMeans <- list()
@@ -122,6 +158,23 @@ cross_validate <- function(
 
 #' Run a single trial for Monte Carlo cross-validation.
 #'
+#' @param data An mspm_data object containing the dataset to be used for this trial.
+#' @param prop A numeric value between 0 and 1 indicating the proportion of data to be used for 
+#' training in this trial. The rest will be used for testing.
+#' @param ndraws An integer specifying the number of posterior draws to use when fitting the model.
+#' @param burnin An integer specifying the number of initial draws to discard as burn-in.
+#' @param thin An integer specifying the thinning interval for posterior draws.
+#' @param meanPrior A numeric vector specifying the prior mean for regression coefficients.
+#' @param precPrior A numeric vector specifying the prior precision for regression coefficients.
+#' @param seed An integer random seed for reproducibility.
+#' @param metrics A character vector specifying the evaluation metrics to compute.
+#' @param meansOnly A logical value indicating whether to return only the mean evaluations for 
+#' each target (TRUE) or to return the full evaluation objects for this trial (FALSE).
+#'
+#' @return A list containing either:
+#' \item{means}{A list of matrices containing mean evaluation metrics for each target.}
+#' \item{results}{An mspm_labeled_evaluation object containing the full evaluation results for 
+#' this trial.}
 .do_cv_trial <- function(
     data,
     prop,

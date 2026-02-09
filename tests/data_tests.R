@@ -6,6 +6,7 @@ run_all_data_tests <- function() {
     .test_level_names()
     .test_minimal_data()
     .test_accessors()
+    .test_split_replication()
 }
 
 
@@ -192,4 +193,45 @@ run_all_data_tests <- function() {
     }
 
     cat("Test passed: Accessor functions work correctly.\n")
+}
+
+
+# Test case 5: Test that two splits with the same seed produce the same results.
+.test_split_replication <- function() {
+    data <- generate_synthetic_data(
+        nobs = 100,
+        ncov = 5,
+        ngamma = c(2, 3),
+        seed = 42
+    )
+
+    split1 <- split_data(
+        data = data,
+        prop = 0.7,
+        seed = 42
+    )
+
+    split2 <- split_data(
+        data = data,
+        prop = 0.7,
+        seed = 42
+    )
+
+    # Check that the two splits are identical.
+    for (i in 1:ntargets(data)) {
+        if (!isTRUE(all.equal(split1$train$Xlist[[i]], split2$train$Xlist[[i]]))) {
+            stop(paste("Test failed: Training predictor matrices for dataset", i, "are not identical across splits."))
+        }
+        if (!isTRUE(all.equal(split1$train$ylist[[i]], split2$train$ylist[[i]]))) {
+            stop(paste("Test failed: Training response vectors for dataset", i, "are not identical across splits."))
+        }
+        if (!isTRUE(all.equal(split1$test$Xlist[[i]], split2$test$Xlist[[i]]))) {
+            stop(paste("Test failed: Test predictor matrices for dataset", i, "are not identical across splits."))
+        }
+        if (!isTRUE(all.equal(split1$test$ylist[[i]], split2$test$ylist[[i]]))) {
+            stop(paste("Test failed: Test response vectors for dataset", i, "are not identical across splits."))
+        }
+    }
+    cat("Test passed: Data split is reproducible with the same seed.\n")
+
 }
