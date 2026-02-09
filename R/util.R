@@ -1,5 +1,24 @@
 source("R/internal.R")
 
+#' Compute the harmonic mean of a numeric vector, handling zeros and NAs appropriately. If any
+#' value is zero, the harmonic mean is defined to be zero. If any value is NA, the harmonic mean 
+#' is NA.
+#'
+#' @param x A numeric vector for which to compute the harmonic mean.
+#' @return The harmonic mean of the input vector, or 0 if any value is zero, or NA if any value 
+#' is NA.
+harmonic_mean <- function(x) {
+    if (any(x == 0, na.rm = TRUE)) {
+        return(0)
+    } 
+    else if (any(is.na(x))) {
+        return(NA)
+    }
+    else {
+        return(length(x) / sum(1/x, na.rm = TRUE))
+    }
+}
+
 # Simulate data from a probit model with given X, beta, and gamma thresholds.
 # Returns FALSE if unable to generate valid categories within the limit of attempts,  
 # or a list containing the generated data otherwise.

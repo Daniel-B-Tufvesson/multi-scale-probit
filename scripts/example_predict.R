@@ -6,7 +6,7 @@ source("R/predict.R")
 source("R/eval.R")
 
 # Generate the data.
-mspm.data <- generate_synthetic_data(
+data <- generate_synthetic_data(
     nobs = 100,
     ncov = 48,
     ngamma = c(1, 3, 3),
@@ -14,57 +14,36 @@ mspm.data <- generate_synthetic_data(
 )
 
 # Split data.
-split_data = split_data.mspm_data(
-    data = mspm.data,
+split_data = split_data(
+    data = data,
     prop = 0.8,
     seed = 1234
 )
-mspm.train = split_data$train
-mspm.test = split_data$test
-
-# Initial parameter tuning code
-burnin <- 2000
-ndraws <- 2000
-thin <- 10
-verbose <- 0
+train = split_data$train
+test = split_data$test
 
 # Fit using the training data.
-mspm.fit <- fit_mspm(
-    data = mspm.train,
-    ndraws = ndraws,
-    burnin = burnin,
-    thin = thin,
+fit <- fit_mspm(
+    data = train,
+    ndraws = 2000,
+    burnin = 2000,
+    thin = 10,
     tune = 0.1,
-    seed = 1234,
-    verbose = verbose
+    seed = 1234
 )
 
 # Predict latent ystar values for training data.
-mspm.latent.train <- predict_mspm(
-    fit = mspm.fit,
-    latentOnly = TRUE
-)
+latent.train <- predict_mspm(fit, newdata = train, latentOnly = TRUE)
 
 # Predict labels for training data.
-mspm.labels.train <- predict_mspm(
-    fit = mspm.fit
-)
+labels.train <- predict_mspm(fit, newdata = train)
 
 # Predict labels for test data.
-mspm.labels.test <- predict_mspm(
-  fit = mspm.fit,
-  newdata = mspm.test
-)
-
+labels.test <- predict_mspm(fit, newdata = test)
 
 # Evaluate predictions.
-train.eval <- eval_mspm_prediction_draws(
-    predictions = mspm.labels.train
-)
-
-test.eval <- eval_mspm_prediction_draws(
-    predictions = mspm.labels.test
-)
+train.eval <- eval_mspm_prediction_draws(predictions = labels.train, test_data = train)
+test.eval <- eval_mspm_prediction_draws(predictions = labels.test, test_data = test)
 
 # Plot performance metrics for training data.
 plot_eval_draws(

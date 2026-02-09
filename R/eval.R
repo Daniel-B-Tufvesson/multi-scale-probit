@@ -1,4 +1,7 @@
+source("R/util.R")
+
 library(callr)
+
 
 # Evaluate the predictions from an mspm model. 
 #
@@ -40,7 +43,14 @@ eval_mspm_prediction_draws <- function(
     # Compute each metric for each target.
     results <- list()
     for (metric in metrics) {
+
+        # Create the result matrix for this metric.
         res <- matrix(0, nrow = ndraws, ncol = nresults)
+        colnames(res) <- if (ntargets > 1) {
+            c(paste0("D", 1:ntargets), "HarmonicMean")
+        } else {
+            paste0("D", 1:ntargets)
+        }
 
         for (i in 1:ntargets) {
             y_true <- ylist_true[[i]]
@@ -62,13 +72,7 @@ eval_mspm_prediction_draws <- function(
 
         # Compute harmonic mean over datasets.
         if (ntargets > 1) {
-            res[, ncol(res)] <- apply(res[, 1:(ncol(res)-1)], 1, function(x) {
-                if (any(x == 0)) {
-                    return(0)
-                } else {
-                    return(length(x) / sum(1/x))
-                }
-            })
+            res[, ncol(res)] <- apply(res[, 1:(ncol(res)-1)], 1, harmonic_mean)
         } 
 
         results[[metric]] <- res
@@ -92,17 +96,16 @@ eval_mspm_prediction_draws <- function(
 
     # Compute harmonic mean over the metrics for each draw.
     metricMeans <- matrix(0, nrow = ndraws, ncol = nresults)
+    colnames(metricMeans) <- if (ntargets > 1) {
+        c(paste0("D", 1:ntargets), "HarmonicMean")
+    } else {
+        paste0("D", 1:ntargets)
+    }
     for (j in 1:nresults) { # for each dataset/column
         # Create a matrix where each row is a draw, each column is a metric
         metric_mat <- sapply(results, function(res) res[, j])
         # Harmonic mean for each draw in this dataset
-        metricMeans[, j] <- apply(metric_mat, 1, function(x) {
-            if (any(x == 0)) {
-                return(0)
-            } else {
-                return(length(x) / sum(1/x))
-            }
-        })
+        metricMeans[, j] <- apply(metric_mat, 1, harmonic_mean)
     }
 
     return(new_mspm_labeled_evaluation(
@@ -185,3 +188,4 @@ compute_f1_score_draws <- function(y_true, y_pred, nlabels) {
         stop("At least one metric must be specified.")
     }
 }
+

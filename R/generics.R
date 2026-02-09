@@ -7,6 +7,7 @@
 #'   \item An mspm_data object.
 #'   \item An mspm_labeled_prediction object.
 #'   \item An mspm_labeled_evaluation object.
+#'   \item An mspm_cv_result object.
 #' }
 #' @param ... Additional arguments (not used).
 #' @return An mspm_data_spec object containing the data specification for the data.
@@ -179,6 +180,7 @@ predictedLabelIndexes <- function(object, ...) {
 #' @param object One of:
 #' \itemize{
 #'   \item An mspm_labeled_evaluation object.
+#'   \item An mspm_cv_result object.
 #' }
 #' @param ... Additional arguments (not used).
 #' @return A character vector of evaluation metric names.
@@ -236,4 +238,28 @@ evalDrawMeans <- function(object, ...) {
 #' possibly harmonic mean).
 evalMetricMeans <- function(object, ...) {
     UseMethod("evalMetricMeans")
+}
+
+nsplits <- function(object, ...) {
+    UseMethod("nsplits")
+}
+
+cvAllEvaluations <- function(object, ...) {
+    UseMethod("cvAllEvaluations")
+}
+
+cvMeans <- function(object, ...) {
+    UseMethod("cvMeans")
+}
+
+#' All the evaluation draws aggregated across all cross-validation splits.
+#'
+#' @param object An mspm_cv_result object.
+#' @param ... Additional arguments (not used).
+#' @return A list containing all the evaluation draws aggregated across all cross-validation splits.
+#' Each element corresponds to a metric and contains a matrix of results with rows for draws and 
+#' columns for targets (and possibly harmonic mean as the last column). Returns NULL if the cv result 
+#' does not contain evaluation draws.
+cvAllDraws <- function(object, ...) {
+    UseMethod("cvAllDraws")
 }

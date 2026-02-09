@@ -373,3 +373,86 @@ evalDrawMeans.mspm_labeled_evaluation <- function(object, ...) {
 evalMetricMeans.mspm_labeled_evaluation <- function(object, ...) {
     object$metricMeans
 }
+
+#' Constructor for creating a new multi-scale probit model cross-validation result object.
+#'
+#' @param data_spec The data specification object containing information about the predictors, 
+#' responses, levels, etc.
+#' @param nsplits The number of cross-validation splits performed.
+#' @param allEvaluations A list containing the evaluation results for each split. Each element 
+#' is an mspm_labeled_evaluation object.
+#' @param means A list containing the mean performance scores over the draws for each split. Each 
+#' element is a matrix where each row is a split and each column is a metric. 
+#' @param meansOnly A boolean indicating whether only the mean performance scores are included in 
+#' the result (TRUE) or if the full evaluation results for each split are included (FALSE).
+#' @param seed The random seed used for reproducibility.
+new_mspm_cv_result <- function(
+    data_spec,
+    nsplits,
+    metrics,
+    allEvaluations,
+    means,
+    meansOnly,
+    seed,
+    call
+) {
+    structure(
+        list(
+            data_spec = data_spec,
+            nsplits = nsplits,
+            metrics = metrics,
+            allEvaluations = allEvaluations,
+            means = means,
+            meansOnly = meansOnly,
+            seed = seed,
+            call = call
+        ),
+        class = "mspm_cv_result"
+    )
+}
+
+data_spec.mspm_cv_result <- function(object, ...) {
+    object$data_spec
+}
+
+ntargets.mspm_cv_result <- function(object, ...) {
+    ntargets(object$data_spec)
+}
+
+evalMetrics.mspm_cv_result <- function(object, ...) {
+    object$metrics
+}
+
+nsplits.mspm_cv_result <- function(object, ...) {
+    object$nsplits
+}
+
+cvAllEvaluations.mspm_cv_result <- function(object, ...) {
+    object$allEvaluations
+}
+
+cvMeans.mspm_cv_result <- function(object, ...) {
+    object$means
+}
+
+cvAllDraws.mspm_cv_result <- function(object, ...) {
+
+    allEvals <- cvAllEvaluations(object)
+    if (is.null(allEvals)) {
+        return(NULL)
+    }
+
+    # Get metrics and number of splits.
+    metrics <- evalMetrics(object)
+    nsplits <- nsplits(object)
+
+    # Aggregate all evaluation draws for each metric across all splits.
+    results <- list()
+    for (metric in metrics) {
+        results[[metric]] <- do.call(rbind, lapply(allEvals, function(eval) {
+            evalDrawResults(eval)[[metric]]
+        }))
+    }
+
+    results
+}

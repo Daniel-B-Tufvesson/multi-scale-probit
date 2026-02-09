@@ -113,7 +113,7 @@ mspm_data <- function(
 # 
 # Returns:
 # A list with two elements: 'train' and 'test', each an mspm_data object.
-split_data.mspm_data <- function(
+split_data <- function(
     data,
     ...,
     prop = 0.8,
