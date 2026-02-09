@@ -441,6 +441,7 @@ plot_eval_draws_diff <- function(
 #' @param cv_res1 The first mspm_cv_result object.
 #' @param cv_res2 The second mspm_cv_result object.
 #' @param metrics The evaluation metric to plot (default: NULL, which plots all the metrics).
+#' @param plotHarmonicMeans Whether to plot the harmonic means when multiple metrics are present (default: TRUE).
 #' @param label1 Label for the first CV result in the legend (default: "CV 1").
 #' @param label2 Label for the second CV result in the legend (default: "CV 2").
 #' @param plotData Which data to plot the differences from. Options are "drawMeans" (default), or "allDraws".
@@ -450,6 +451,7 @@ plot_cv_diff <- function(
     cv_res2,
     ...,
     metrics = NULL,
+    plotHarmonicMeans = TRUE,
     label1 = "CV 1",
     label2 = "CV 2",
     plotData = "means",
@@ -486,6 +488,20 @@ plot_cv_diff <- function(
                 .plot_dist_diff(
                     cvMeans(cv_res1)[[target]][, metric],
                     cvMeans(cv_res2)[[target]][, metric],
+                    label1,
+                    label2,
+                    xlabel
+                )
+            }
+        }
+
+        # Plot harmonic mean if needed.
+        if (plotHarmonicMeans && length(metrics) > 1) {
+            for (target in 1:ntargets(cv_res1)) {
+                xlabel <- ifelse(addXLabel, paste0("Difference in harmonic mean for target ", target))
+                .plot_dist_diff(
+                    cvMeans(cv_res1)[[target]][, "HarmonicMean"],
+                    cvMeans(cv_res2)[[target]][, "HarmonicMean"],
                     label1,
                     label2,
                     xlabel
