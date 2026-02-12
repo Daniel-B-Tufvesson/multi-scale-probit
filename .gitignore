@@ -9,6 +9,7 @@
 *.RDS
 !data/**/*.RDS
 mydata
+output
 
 # cpp compiled files.
 *.o

@@ -186,7 +186,7 @@ Rcpp::List cpp_hprobit(const Rcpp::List Xlist, // Todo: pass by reference instea
             gsl_cdf_ugaussian_P(gamma[target](y_val-1) - Xbeta[i]));
         }
       }
-      new_gamma[target] = gamma_p;
+      new_gamma[target] = gamma_p; // new_gamma is not used.
       if (gsl_ran_flat(gen, 0.0, 1.0) <= exp(loglikerat)){
          gamma[target] = gamma_p;
         if (iter >= burnin) {
