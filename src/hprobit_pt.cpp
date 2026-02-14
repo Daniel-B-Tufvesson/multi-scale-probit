@@ -379,6 +379,25 @@ private:
     }
 };
 
+// Function declarations. -----------------------------------------------------------------------
+
+Data unpack_data(
+    const Rcpp::List& xlist,
+    const Rcpp::List& ylist
+);
+
+void do_step(
+    std::vector<TemperatureChain>& chains, 
+    int ntemperatures,
+    const Data& data,
+    int& nswap_accepts,
+    int& nswap_proposals,
+    gsl_rng* rng
+);
+
+
+// Function definitions. -------------------------------------------------------------------------
+
 /**
  * Sample a probit model using parallel tempering.
  * 

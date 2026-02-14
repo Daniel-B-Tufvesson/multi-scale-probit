@@ -1,3 +1,6 @@
+#ifndef __UTIL_HPP
+#define __UTIL_HPP
+
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::depends(RcppGSL)]]
@@ -192,3 +195,4 @@ mat alpha2gamma(const mat& alpha){
 }
 
 }
+#endif

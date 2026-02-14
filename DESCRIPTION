@@ -8,6 +8,6 @@ Description: Tools and models for master thesis experiments.
 License: GPL-2
 Encoding: UTF-8
 LazyData: true
-LinkingTo: Rcpp, RcppArmadillo
-Imports: Rcpp, RcppArmadillo
+LinkingTo: Rcpp, RcppArmadillo, RcppGSL
+Imports: Rcpp, RcppArmadillo, RcppGSL
 SystemRequirements: GNU Scientific Library (GSL)

@@ -2,6 +2,7 @@
 // Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 #include <RcppArmadillo.h>
+#include <RcppGSL.h>
 #include <Rcpp.h>
 
 using namespace Rcpp;
@@ -32,6 +33,31 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const int >::type seed(seedSEXP);
     Rcpp::traits::input_parameter< const int >::type verbose(verboseSEXP);
     rcpp_result_gen = Rcpp::wrap(cpp_hprobit(Xlist, Ylist, meanPrior, precPrior, fixZero, ncat, gammaStart, betaStart, tune, iterations, burnin, thin, seed, verbose));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_hprobit_pt
+Rcpp::List cpp_hprobit_pt(const Rcpp::List& xlist, const Rcpp::List& ylist, const arma::colvec& mean_prior, const arma::mat& prec_prior, const int fix_zero, const arma::ivec& ncategories, const Rcpp::List& gamma_start, const arma::colvec& beta_start, const Rcpp::List& tune, const int ntemperatures, const int iterations, const int burnin, const int thin, const int seed, const int verbose);
+RcppExport SEXP _masteruppsatsr_cpp_hprobit_pt(SEXP xlistSEXP, SEXP ylistSEXP, SEXP mean_priorSEXP, SEXP prec_priorSEXP, SEXP fix_zeroSEXP, SEXP ncategoriesSEXP, SEXP gamma_startSEXP, SEXP beta_startSEXP, SEXP tuneSEXP, SEXP ntemperaturesSEXP, SEXP iterationsSEXP, SEXP burninSEXP, SEXP thinSEXP, SEXP seedSEXP, SEXP verboseSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type xlist(xlistSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type ylist(ylistSEXP);
+    Rcpp::traits::input_parameter< const arma::colvec& >::type mean_prior(mean_priorSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type prec_prior(prec_priorSEXP);
+    Rcpp::traits::input_parameter< const int >::type fix_zero(fix_zeroSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type ncategories(ncategoriesSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type gamma_start(gamma_startSEXP);
+    Rcpp::traits::input_parameter< const arma::colvec& >::type beta_start(beta_startSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type tune(tuneSEXP);
+    Rcpp::traits::input_parameter< const int >::type ntemperatures(ntemperaturesSEXP);
+    Rcpp::traits::input_parameter< const int >::type iterations(iterationsSEXP);
+    Rcpp::traits::input_parameter< const int >::type burnin(burninSEXP);
+    Rcpp::traits::input_parameter< const int >::type thin(thinSEXP);
+    Rcpp::traits::input_parameter< const int >::type seed(seedSEXP);
+    Rcpp::traits::input_parameter< const int >::type verbose(verboseSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_hprobit_pt(xlist, ylist, mean_prior, prec_prior, fix_zero, ncategories, gamma_start, beta_start, tune, ntemperatures, iterations, burnin, thin, seed, verbose));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -112,6 +138,7 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_masteruppsatsr_cpp_hprobit", (DL_FUNC) &_masteruppsatsr_cpp_hprobit, 14},
+    {"_masteruppsatsr_cpp_hprobit_pt", (DL_FUNC) &_masteruppsatsr_cpp_hprobit_pt, 15},
     {"_masteruppsatsr_cpp_fmeasure_distribution", (DL_FUNC) &_masteruppsatsr_cpp_fmeasure_distribution, 3},
     {"_masteruppsatsr_cpp_classification_metric_distributions", (DL_FUNC) &_masteruppsatsr_cpp_classification_metric_distributions, 3},
     {"_masteruppsatsr_cpp_harmonic_rowmeans", (DL_FUNC) &_masteruppsatsr_cpp_harmonic_rowmeans, 1},

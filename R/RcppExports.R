@@ -5,6 +5,10 @@ cpp_hprobit <- function(Xlist, Ylist, meanPrior, precPrior, fixZero, ncat, gamma
     .Call(`_masteruppsatsr_cpp_hprobit`, Xlist, Ylist, meanPrior, precPrior, fixZero, ncat, gammaStart, betaStart, tune, iterations, burnin, thin, seed, verbose)
 }
 
+cpp_hprobit_pt <- function(xlist, ylist, mean_prior, prec_prior, fix_zero, ncategories, gamma_start, beta_start, tune, ntemperatures, iterations, burnin, thin, seed, verbose) {
+    .Call(`_masteruppsatsr_cpp_hprobit_pt`, xlist, ylist, mean_prior, prec_prior, fix_zero, ncategories, gamma_start, beta_start, tune, ntemperatures, iterations, burnin, thin, seed, verbose)
+}
+
 cpp_fmeasure_distribution <- function(predictions, reference, n_labels) {
     .Call(`_masteruppsatsr_cpp_fmeasure_distribution`, predictions, reference, n_labels)
 }

@@ -274,6 +274,59 @@ gewekeGammas.mspm <- function(object, ...) {
     gewekeGammas(diagnostics(object))
 }
 
+#' Constructor for creating a new multi-scale probit model fitted object for parallel tempering.
+#' This inherits from the mspm class and includes additional information specific to parallel 
+#' tempering.
+#' @param data_spec The data specification object containing information about the predictors, 
+#' responses, levels, etc.
+#' @param beta An MCMC object for the beta (the coefficients) parameters.
+#' @param gammas A list of MCMC gammas (the thresholds) of each target dataset.
+#' @param meanPrior Prior mean for regression coefficients.
+#' @param precPrior Prior precision for regression coefficients.
+#' @param seed The random seed used for reproducibility.
+#' @param ndraws The number of posterior draws collected after thinning.
+#' @param ndrawsNoThin The number of posterior draws collected before thinning.
+#' @param thin The thinning interval used in MCMC sampling.
+#' @param burnin The number of burn-in iterations used in MCMC sampling.
+#' @param diagnostics An mspm_single_chain_diag object containing diagnostic information about the 
+#' MCMC sampling, such as effective sample size (ess) and Geweke diagnostics for each parameter.
+#' @param call The original function call used to create the model.
+new_mspm_pt <- function(
+    data_spec,
+    beta,
+    gammas,
+    meanPrior,
+    precPrior,
+    seed,
+    ndraws,
+    ndrawsNoThin,
+    thin,
+    ntemperatures,
+    burnin,
+    diagnostics,
+    call
+) {
+    structure(
+        list(
+            data_spec = data_spec,
+            beta = beta,
+            gammas = gammas,
+            meanPrior = meanPrior,
+            precPrior = precPrior,
+            call = call,
+            seed = seed,
+            nobs = nrow(beta), # Why is nobs the number of rows in beta? Shouldn't this be ndraws?
+            ndraws = ndraws,
+            ndrawsNoThin = ndrawsNoThin,
+            thin = thin,
+            ntemperatures = ntemperatures,
+            burnin = burnin,
+            diagnostics = diagnostics
+        ),
+        class = c("mspm_pt", "mspm")
+    )
+}
+
 
 # Constructor for creating a new multi-scale probit model labeled prediction object.
 # 
