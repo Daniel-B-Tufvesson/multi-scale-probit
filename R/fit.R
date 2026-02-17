@@ -353,9 +353,9 @@ fit_mspm_pt <- function(
             seed, 
             verbose
         ),
-        show = FALSE # set to TRUE for debugging
+        show = TRUE # set to TRUE for debugging
     )}, error = function(e) {
-        message("Error in cpp_hprobit: ", e$message)
+        message("Error in cpp_hprobit_pt: ", e$message)
         if (!is.null(e$stdout)) {
             cat("---- STDOUT ----\n")
             cat(e$stdout, sep = "\n")

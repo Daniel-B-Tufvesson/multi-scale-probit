@@ -12,7 +12,7 @@
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_cdf.h>
-#include "util.hpp"
+#include "mspm_util.hpp"
 #include "rtnorm.hpp"
 
 /**
@@ -86,8 +86,9 @@ public:
         ncategories(ncategories), gamma_tune(gamma_tune), mean_prior(mean_prior), 
         prec_prior(prec_prior), ntargets(ntargets) {
         
+        
         // Initialize storage matrixes.
-        store_beta = arma::mat(nstore, total_nobs, arma::fill::zeros);
+        store_beta = arma::mat(nstore, beta.n_rows, arma::fill::zeros);
         store_gamma = std::vector<arma::mat>(ntargets);
         for (unsigned int target = 0; target < ntargets; target++) {
             store_gamma[target] = arma::mat(nstore, ncategories(target)-1, arma::fill::zeros);
@@ -98,9 +99,9 @@ public:
 
         // Set extremes for gamma values. Note that this always overrides the start values for
         // the first and last gammas. Is this intentional in the original implementation?
-        for (unsigned int target = 0; target < gamma.size(); target++) {
+        for (unsigned int target = 0; target < ntargets; target++) {
             gamma[target](0) = -std::numeric_limits<double>::max();
-            gamma[target](ncategories(target)) = std::numeric_limits<double>::max();
+            gamma[target](ncategories[target]) = std::numeric_limits<double>::max();
         }
     }
 
@@ -191,9 +192,9 @@ public:
         }
 
         // Store gammas.
-        for (unsigned int target = 0; target < gamma.size(); target++) {
+        for (unsigned int target = 0; target < ntargets; target++) {
             for (unsigned int j = 1; j < ncategories(target); j++) {
-                store_gamma[target][nstored, j-1] = gamma[target][j];
+                store_gamma[target](nstored, j-1) = gamma[target](j);
             }
         }
 
@@ -255,7 +256,7 @@ private:
      * @return A vector containing the proposed new threshold values for the target.
      */
     arma::colvec propose_gamma(int target, int ncats, gsl_rng* rng) {
-        colvec gamma_prop(ncats + 1, arma::fill::zeros);
+        arma::colvec gamma_prop(ncats + 1, arma::fill::zeros);
         gamma_prop.head(1) = -INFINITY;
         gamma_prop.tail(1) = INFINITY;
 
@@ -363,7 +364,9 @@ private:
             }
             const colvec current_ystar = data.X[target] * beta;
             for (unsigned int i = 0; i < data.X[target].n_rows; i++) {
-                ystar(offset + 1) = rtnorm(
+                int idx1 = data.Y[target](i) - 1;
+                int idx2 = data.Y[target](i);
+                ystar(offset + i) = rtnorm(
                     rng,
                     gamma[target](data.Y[target](i) - 1),
                     gamma[target](data.Y[target](i)),
@@ -375,7 +378,7 @@ private:
 
         // Then update beta.
         arma::mat XpZ = arma::trans(data.Xall) * ystar;
-        beta = util::NormNormregress_beta_draw(rng, data.XpX, XpZ, mean_prior, prec_prior, 1.0);
+        beta = mspm_util::NormNormregress_beta_draw(rng, data.XpX, XpZ, mean_prior, prec_prior, 1.0);
     }
 };
 
@@ -461,9 +464,15 @@ Rcpp::List cpp_hprobit_pt(
     const int nstore = iterations / thin;
     const int ntargets = xlist.size();
     const Data data = unpack_data(xlist, ylist);
-    
+
     const int npredictors = data.Xall.n_cols;
     const int nobs = data.Xall.n_rows;
+
+    // Unpack gammas.
+    std::vector<arma::colvec> gamma_start_vec(ntargets);
+    for (unsigned int target = 0; target < ntargets; target++) {
+        gamma_start_vec[target] = Rcpp::as<arma::colvec>(gamma_start[target]);
+    }
 
     // Create chains.
     std::vector<TemperatureChain> chains;
@@ -472,7 +481,7 @@ Rcpp::List cpp_hprobit_pt(
         chains.emplace_back(
             inv_temperature,
             beta_start,
-            std::vector<arma::colvec>(ntargets), // Todo: we need to unpack the starting gammas here.
+            gamma_start_vec,
             ncategories,
             arma::vec(ntargets, arma::fill::ones), // Todo: we need to unpack the tuning parameters here.
             mean_prior,
@@ -504,12 +513,33 @@ Rcpp::List cpp_hprobit_pt(
                 chain.storeSample();
             }
         }
+
+        // Print progress updates.
+        if (verbose > 0 && (iter % verbose == 0 || iter == iterations - 1)) {
+            Rcpp::Rcout << "Iteration " << (iter+1) << "/" << iterations 
+                        << ", Swap acceptance ratio: " 
+                        << (nswap_proposals > 0 ? static_cast<double>(nswap_accepts) / nswap_proposals : 0.0)
+                        << std::endl;
+        }
     }
 
     // Free pointers.
     gsl_rng_free(gen);
 
-    return Rcpp::List::create();
+    // Wrap gammas into Rcpp::List for output. This prevents R from automatically converting the 
+    // matrices to vectors, which causes issues when we have multiple targets.
+    Rcpp::List storegamma_list;
+    for (size_t i = 0; i < chains[0].store_gamma.size(); ++i) {
+        storegamma_list.push_back(chains[0].store_gamma[i]);
+    }
+
+    // Return results.
+    return Rcpp::List::create(
+        _["storebeta"] = chains[0].store_beta,
+        _["storegamma"] = storegamma_list,
+        _["nswap_accepts"] = nswap_accepts,
+        _["nswap_proposals"] = nswap_proposals
+    );
 }
 
 /**
@@ -590,6 +620,6 @@ Data unpack_data(
         }
         data.target_nobs[target] = data.Y[target].n_elem;
     }
-    data.XpX = util::crossprod(data.Xall, data.Xall);
+    data.XpX = mspm_util::crossprod(data.Xall, data.Xall);
     return data;
 }

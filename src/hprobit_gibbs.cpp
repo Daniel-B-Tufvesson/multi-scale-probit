@@ -14,7 +14,7 @@
 #include <gsl/gsl_cdf.h>
 #include "rtnorm.hpp"
 #include <utility> 
-#include "util.hpp"
+#include "mspm_util.hpp"
 
 #define TESTBROKE 1
 // #define TESTCOMP 1
@@ -22,7 +22,7 @@
 using namespace Rcpp;
 using namespace R;
 using namespace arma;
-using namespace util;
+using namespace mspm_util;
 
 
 // [[Rcpp::depends("RcppArmadillo")]]
