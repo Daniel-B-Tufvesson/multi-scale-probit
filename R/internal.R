@@ -327,6 +327,10 @@ new_mspm_pt <- function(
     )
 }
 
+ntemperatures.mspm_pt <- function(object, ...) {
+    object$ntemperatures
+}
+
 
 # Constructor for creating a new multi-scale probit model labeled prediction object.
 # 

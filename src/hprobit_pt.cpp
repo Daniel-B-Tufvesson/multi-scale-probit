@@ -570,7 +570,7 @@ void do_step(
     }
 
     // Select pair of adjacent temperatures to swap.
-    int swap_index = rand() % (ntemperatures - 1); // fix: we need to make sure the seed is set.
+    int swap_index = gsl_rng_uniform_int(rng, ntemperatures - 1);
     TemperatureChain& chain1 = chains[swap_index];
     TemperatureChain& chain2 = chains[swap_index + 1];
     nswap_proposals++;
