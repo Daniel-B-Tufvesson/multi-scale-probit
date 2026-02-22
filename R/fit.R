@@ -241,6 +241,18 @@ fit_mspm <- function(
 #' @param precPrior Prior precision for regression coefficients.
 #' @param fix.zero Index of the threshold to fix at zero.
 #' @param tune Tuning parameter for the sampler.
+#' @param temperatureLadder Optional initial temperature ladder. If NULL, a default ladder 
+#' will be created.
+#' @param target_temp_swap_accept_ratio Target acceptance ratio for temperature swaps, used for 
+#' adaptive temperature ladder. If set to -1, the temperature ladder will not be adapted.
+#' @param temperature_window_size Window size for computing swap acceptance ratios for adaptive 
+#' temperature ladder.
+#' @param tempperature_window_growth_factor Growth factor for the window size used in adaptive
+#' temperature ladder.
+#' @param temperature_ladder_learning_rate Learning rate for updating the temperature ladder in 
+#' the adaptive temperature ladder algorithm.
+#' @param complete_param_swapping Whether to perform complete swapping of the parameters (beta and 
+#' gammas) during temperature swaps, or just swap the gammas.
 #' @param seed Random seed for reproducibility.
 #' @param beta.initial Initial values for regression coefficients.
 #' @param gamma.initial Initial values for threshold parameters.
@@ -258,6 +270,12 @@ fit_mspm_pt <- function(
     precPrior = NULL,
     fix.zero = 1,
     tune = NULL,
+    temperatureLadder = NULL,
+    target_temp_swap_accept_ratio = 0.3,
+    temperature_window_size = 100,
+    tempperature_window_growth_factor = 2,
+    temperature_ladder_learning_rate = 0.01,
+    complete_param_swapping = TRUE,
     seed = NA,
     beta.initial = NULL,
     gamma.initial = NULL,
@@ -299,6 +317,13 @@ fit_mspm_pt <- function(
         tune <- rep(tune, ntargets)
     }
 
+    # Set default temperature ladder if not provided.
+    if (is.null(temperatureLadder)) {
+        temperatureLadder <- 2^(1 - (1:ntemperatures))
+    } else if (length(temperatureLadder) != ntemperatures) {
+        stop("Length of temperatureLadder must match ntemperatures.")
+    }
+
     # Call the backend parallel tempering sampler.
     # Tmp: start as subprocess for more robust development.
     sim <- tryCatch({callr::r(
@@ -311,11 +336,17 @@ fit_mspm_pt <- function(
             gamma.initial, 
             beta.initial, 
             tune, 
-            ntemperatures, 
-            ndraws, 
-            burnin, 
-            thin, 
-            seed, 
+            ntemperatures,
+            temperatureLadder,
+            target_temp_swap_accept_ratio,
+            temperature_window_size,
+            tempperature_window_growth_factor,
+            temperature_ladder_learning_rate,
+            ndraws,
+            burnin,
+            thin,
+            seed,
+            complete_param_swapping,
             verbose
         ) {
             devtools::load_all()
@@ -330,10 +361,16 @@ fit_mspm_pt <- function(
                 beta.initial,
                 tune,
                 ntemperatures,
+                temperatureLadder,
+                target_temp_swap_accept_ratio,
+                temperature_window_size,
+                tempperature_window_growth_factor,
+                temperature_ladder_learning_rate,
                 ndraws,
                 burnin,
                 thin,
                 seed,
+                complete_param_swapping,
                 verbose
             )
         },
@@ -346,14 +383,20 @@ fit_mspm_pt <- function(
             gamma.initial, 
             beta.initial, 
             tune, 
-            ntemperatures, 
-            ndraws, 
-            burnin, 
-            thin, 
-            seed, 
+            ntemperatures,
+            temperatureLadder,
+            target_temp_swap_accept_ratio,
+            temperature_window_size,
+            tempperature_window_growth_factor,
+            temperature_ladder_learning_rate,
+            ndraws,
+            burnin,
+            thin,
+            seed,
+            complete_param_swapping,
             verbose
         ),
-        show = FALSE # set to TRUE for debugging
+        show = TRUE # set to TRUE for debugging
     )}, error = function(e) {
         message("Error in cpp_hprobit_pt: ", e$message)
         if (!is.null(e$stdout)) {
@@ -395,6 +438,16 @@ fit_mspm_pt <- function(
         ntemperatures = ntemperatures,
         burnin = burnin,
         diagnostics = diagnostics,
+        initialTemperatureLadder = temperatureLadder,
+        adjustedTemperatureLadder = sim$adapted_temps,
+        targetSwapAcceptRatio = target_temp_swap_accept_ratio,
+        actualSwapAcceptRatio = sim$nswap_accepts / sim$nswap_proposals,
+        nacceptedSwaps = sim$nswap_accepts,
+        nproposedSwaps = sim$nswap_proposals,
+        ladderLearningRate = temperature_ladder_learning_rate,
+        initialWindowSize = temperature_window_size,
+        windowGrowthFactor = tempperature_window_growth_factor,
+        completeSwapping = complete_param_swapping,
         call = match.call()
     )  
 }

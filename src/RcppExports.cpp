@@ -37,8 +37,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_hprobit_pt
-Rcpp::List cpp_hprobit_pt(const Rcpp::List& xlist, const Rcpp::List& ylist, const arma::colvec& mean_prior, const arma::mat& prec_prior, const int fix_zero, const arma::ivec& ncategories, const Rcpp::List& gamma_start, const arma::colvec& beta_start, const Rcpp::List& tune, const int ntemperatures, const int iterations, const int burnin, const int thin, const int seed, const int verbose);
-RcppExport SEXP _masteruppsatsr_cpp_hprobit_pt(SEXP xlistSEXP, SEXP ylistSEXP, SEXP mean_priorSEXP, SEXP prec_priorSEXP, SEXP fix_zeroSEXP, SEXP ncategoriesSEXP, SEXP gamma_startSEXP, SEXP beta_startSEXP, SEXP tuneSEXP, SEXP ntemperaturesSEXP, SEXP iterationsSEXP, SEXP burninSEXP, SEXP thinSEXP, SEXP seedSEXP, SEXP verboseSEXP) {
+Rcpp::List cpp_hprobit_pt(const Rcpp::List& xlist, const Rcpp::List& ylist, const arma::colvec& mean_prior, const arma::mat& prec_prior, const int fix_zero, const arma::ivec& ncategories, const Rcpp::List& gamma_start, const arma::colvec& beta_start, const Rcpp::List& tune, const int ntemperatures, const arma::ivec temperature_ladder, const double target_temp_swap_accept_ratio, const int temp_window_size, const double temp_window_size_growth_factor, const double temp_ladder_learning_rate, const int iterations, const int burnin, const int thin, const int seed, bool complete_swapping, const int verbose);
+RcppExport SEXP _masteruppsatsr_cpp_hprobit_pt(SEXP xlistSEXP, SEXP ylistSEXP, SEXP mean_priorSEXP, SEXP prec_priorSEXP, SEXP fix_zeroSEXP, SEXP ncategoriesSEXP, SEXP gamma_startSEXP, SEXP beta_startSEXP, SEXP tuneSEXP, SEXP ntemperaturesSEXP, SEXP temperature_ladderSEXP, SEXP target_temp_swap_accept_ratioSEXP, SEXP temp_window_sizeSEXP, SEXP temp_window_size_growth_factorSEXP, SEXP temp_ladder_learning_rateSEXP, SEXP iterationsSEXP, SEXP burninSEXP, SEXP thinSEXP, SEXP seedSEXP, SEXP complete_swappingSEXP, SEXP verboseSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -52,12 +52,18 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::colvec& >::type beta_start(beta_startSEXP);
     Rcpp::traits::input_parameter< const Rcpp::List& >::type tune(tuneSEXP);
     Rcpp::traits::input_parameter< const int >::type ntemperatures(ntemperaturesSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec >::type temperature_ladder(temperature_ladderSEXP);
+    Rcpp::traits::input_parameter< const double >::type target_temp_swap_accept_ratio(target_temp_swap_accept_ratioSEXP);
+    Rcpp::traits::input_parameter< const int >::type temp_window_size(temp_window_sizeSEXP);
+    Rcpp::traits::input_parameter< const double >::type temp_window_size_growth_factor(temp_window_size_growth_factorSEXP);
+    Rcpp::traits::input_parameter< const double >::type temp_ladder_learning_rate(temp_ladder_learning_rateSEXP);
     Rcpp::traits::input_parameter< const int >::type iterations(iterationsSEXP);
     Rcpp::traits::input_parameter< const int >::type burnin(burninSEXP);
     Rcpp::traits::input_parameter< const int >::type thin(thinSEXP);
     Rcpp::traits::input_parameter< const int >::type seed(seedSEXP);
+    Rcpp::traits::input_parameter< bool >::type complete_swapping(complete_swappingSEXP);
     Rcpp::traits::input_parameter< const int >::type verbose(verboseSEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_hprobit_pt(xlist, ylist, mean_prior, prec_prior, fix_zero, ncategories, gamma_start, beta_start, tune, ntemperatures, iterations, burnin, thin, seed, verbose));
+    rcpp_result_gen = Rcpp::wrap(cpp_hprobit_pt(xlist, ylist, mean_prior, prec_prior, fix_zero, ncategories, gamma_start, beta_start, tune, ntemperatures, temperature_ladder, target_temp_swap_accept_ratio, temp_window_size, temp_window_size_growth_factor, temp_ladder_learning_rate, iterations, burnin, thin, seed, complete_swapping, verbose));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -138,7 +144,7 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_masteruppsatsr_cpp_hprobit", (DL_FUNC) &_masteruppsatsr_cpp_hprobit, 14},
-    {"_masteruppsatsr_cpp_hprobit_pt", (DL_FUNC) &_masteruppsatsr_cpp_hprobit_pt, 15},
+    {"_masteruppsatsr_cpp_hprobit_pt", (DL_FUNC) &_masteruppsatsr_cpp_hprobit_pt, 21},
     {"_masteruppsatsr_cpp_fmeasure_distribution", (DL_FUNC) &_masteruppsatsr_cpp_fmeasure_distribution, 3},
     {"_masteruppsatsr_cpp_classification_metric_distributions", (DL_FUNC) &_masteruppsatsr_cpp_classification_metric_distributions, 3},
     {"_masteruppsatsr_cpp_harmonic_rowmeans", (DL_FUNC) &_masteruppsatsr_cpp_harmonic_rowmeans, 1},

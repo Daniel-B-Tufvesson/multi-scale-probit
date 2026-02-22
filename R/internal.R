@@ -304,6 +304,16 @@ new_mspm_pt <- function(
     ntemperatures,
     burnin,
     diagnostics,
+    initialTemperatureLadder,
+    adjustedTemperatureLadder,
+    targetSwapAcceptRatio,
+    actualSwapAcceptRatio,
+    nacceptedSwaps,
+    nproposedSwaps,
+    ladderLearningRate,
+    initialWindowSize,
+    windowGrowthFactor,
+    completeSwapping,
     call
 ) {
     structure(
@@ -319,8 +329,21 @@ new_mspm_pt <- function(
             ndraws = ndraws,
             ndrawsNoThin = ndrawsNoThin,
             thin = thin,
-            ntemperatures = ntemperatures,
             burnin = burnin,
+
+            ntemperatures = ntemperatures,
+            initialTemperatureLadder = initialTemperatureLadder,
+            adjustedTemperatureLadder = adjustedTemperatureLadder,
+            targetSwapAcceptRatio = targetSwapAcceptRatio,
+            actualSwapAcceptRatio = actualSwapAcceptRatio,
+            nacceptedSwaps = nacceptedSwaps,
+            nproposedSwaps = nproposedSwaps,
+            ladderLearningRate = ladderLearningRate,
+            initialWindowSize = initialWindowSize,
+            windowGrowthFactor = windowGrowthFactor,
+            
+            completeSwapping = completeSwapping,
+
             diagnostics = diagnostics
         ),
         class = c("mspm_pt", "mspm")
