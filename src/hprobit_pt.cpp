@@ -15,6 +15,7 @@
 #include "mspm_util.hpp"
 #include "rtnorm.hpp"
 #include <algorithm>
+#include <cmath>
 
 /**
  * Struct to hold the data for the model. This includes the feature matrices and response vectors
@@ -418,14 +419,15 @@ void do_adaptive_burnin(
     int window_size,
     double window_growth_factor,
     double target_swap_ratio,
-    double ladder_adjust_learning_rate
+    double ladder_adjust_learning_rate,
+    arma::vec& swap_rates
 );
 
 void adjust_ladder(
     std::vector<TemperatureChain>& chains, 
     int ntemperatures,
     std::vector<double>& swap_probabilities,
-    std::vector<double>& swap_rates,
+    arma::vec& swap_rates,
     int nswap_proposals,
     double target_swap_ratio,
     double ladder_adjust_learning_rate,
@@ -549,6 +551,7 @@ Rcpp::List cpp_hprobit_pt(
         );
     }
 
+    arma::vec adaptation_swap_rates(ntemperatures-1, arma::fill::zeros);
     // Burn-in loop without temperature ladder adaptation.
     if (target_temp_swap_accept_ratio == -1) {
         do_burnin(chains, ntemperatures, data, burnin, gen);
@@ -563,7 +566,8 @@ Rcpp::List cpp_hprobit_pt(
             temp_window_size, 
             temp_window_size_growth_factor, 
             target_temp_swap_accept_ratio,
-            temp_ladder_learning_rate
+            temp_ladder_learning_rate,
+            adaptation_swap_rates
         );
     }
     
@@ -606,8 +610,6 @@ Rcpp::List cpp_hprobit_pt(
     for (int i = 0; i < ntemperatures; i++) {
         inv_temps(i) = chains[i].inv_temperature;
         adapted_temps(i) = 1.0 / chains[i].inv_temperature;
-
-        std::cout << "Temperature " << i << ": " << adapted_temps(i) << " (beta: " << inv_temps(i) << ")" << std::endl;
     }
 
     // Return results.
@@ -617,7 +619,8 @@ Rcpp::List cpp_hprobit_pt(
         _["nswap_accepts"] = nswap_accepts,
         _["nswap_proposals"] = nswap_proposals,
         _["adapted_inv_temps"] = inv_temps,
-        _["adapted_temps"] = adapted_temps
+        _["adapted_temps"] = adapted_temps,
+        _["adaptation_swap_rates"] = adaptation_swap_rates
     );
 }
 
@@ -720,10 +723,10 @@ void do_adaptive_burnin(
     int window_size,
     double window_growth_factor,
     double target_swap_ratio,
-    double ladder_adjust_learning_rate
+    double ladder_adjust_learning_rate,
+    arma::vec& swap_rates
 ) {
     std::vector<double> swap_probabilities(ntemperatures, 0);
-    std::vector<double> swap_rates(ntemperatures - 1);
     int nswap_accepts = 0;
     int nswap_proposals = 0;
     int window_step = 0;
@@ -748,6 +751,9 @@ void do_adaptive_burnin(
                 min_gap
             );
 
+            swap_probabilities.assign(ntemperatures, 0);
+            nswap_proposals = 0;
+            nswap_accepts = 0;
             window_step = 0;
             window_size *= window_growth_factor;
         }
@@ -786,7 +792,7 @@ void adjust_ladder(
     std::vector<TemperatureChain>& chains, 
     int ntemperatures,
     std::vector<double>& swap_probabilities,
-    std::vector<double>& swap_rates,
+    arma::vec& swap_rates,
     int nswap_proposals,
     double target_swap_ratio,
     double ladder_adjust_learning_rate,
@@ -806,7 +812,7 @@ void adjust_ladder(
 
     // Update ladder gaps.
     for (int i = 0; i < ntemperatures - 1; i++) {
-        ladder_gaps[i] *= exp(ladder_adjust_learning_rate * 
+        ladder_gaps[i] *= std::exp(ladder_adjust_learning_rate * 
             (swap_rates[i] - target_swap_ratio));
 
         // Impose min.

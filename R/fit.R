@@ -319,7 +319,7 @@ fit_mspm_pt <- function(
 
     # Set default temperature ladder if not provided.
     if (is.null(temperatureLadder)) {
-        temperatureLadder <- 2^(1 - (1:ntemperatures))
+        temperatureLadder <- 1:ntemperatures
     } else if (length(temperatureLadder) != ntemperatures) {
         stop("Length of temperatureLadder must match ntemperatures.")
     }
@@ -441,7 +441,9 @@ fit_mspm_pt <- function(
         initialTemperatureLadder = temperatureLadder,
         adjustedTemperatureLadder = sim$adapted_temps,
         targetSwapAcceptRatio = target_temp_swap_accept_ratio,
-        actualSwapAcceptRatio = sim$nswap_accepts / sim$nswap_proposals,
+        actualSwapAcceptRatio = mean(sim$adaptation_swap_rates),
+        swapRatios = sim$adaptation_swap_rates,
+        samplingSwapAcceptRatio = sim$nswap_accepts / sim$nswap_proposals,
         nacceptedSwaps = sim$nswap_accepts,
         nproposedSwaps = sim$nswap_proposals,
         ladderLearningRate = temperature_ladder_learning_rate,
