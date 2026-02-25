@@ -180,7 +180,7 @@ public:
             const colvec ystar1 = data.X[target] * beta;
             const colvec ystar2 = data.X[target] * other_chain.beta;
 
-            // Likl. computation wrong here?
+            // Loop over all data points for target.
             for (unsigned int i = 0; i < data.X[target].n_rows; i++) {
                 log_swap_accept_ratio = log_swap_accept_ratio
                     + log(cdf(gamma[target](data.Y[target](i)) - ystar2[i]) - 
