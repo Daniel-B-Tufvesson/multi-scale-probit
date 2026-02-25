@@ -339,3 +339,7 @@ gelmanRhatBeta <- function(object, ...) {
 gelmanRhatGammas <- function(object, ...) {
     UseMethod("gelmanRhatGammas")
 }
+
+ntemperatures <- function(object, ...) {
+    UseMethod("ntemperatures")
+}

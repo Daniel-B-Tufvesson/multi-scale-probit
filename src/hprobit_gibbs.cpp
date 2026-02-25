@@ -1,3 +1,11 @@
+/**
+ * @file hprobit_gibbs.cpp
+ * @author Johan Falkenjack
+ * @author Daniel Tufvesson
+ * @version 1.0
+ * @brief A Metropolis-Hastings-withing-Gibbs sampler for the Multi-Scale Probit model.
+ */
+
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 
@@ -6,7 +14,7 @@
 #include <gsl/gsl_cdf.h>
 #include "rtnorm.hpp"
 #include <utility> 
-#include "util.hpp"
+#include "mspm_util.hpp"
 
 #define TESTBROKE 1
 // #define TESTCOMP 1
@@ -14,7 +22,7 @@
 using namespace Rcpp;
 using namespace R;
 using namespace arma;
-using namespace util;
+using namespace mspm_util;
 
 
 // [[Rcpp::depends("RcppArmadillo")]]
@@ -87,11 +95,11 @@ Rcpp::List cpp_hprobit(const Rcpp::List Xlist, // Todo: pass by reference instea
   
   
   // Storage matrices
-  mat storebeta(nstore, Xall.n_cols, fill::zeros);
+  mat storebeta(nstore, Xall.n_cols, arma::fill::zeros);
   std::vector<mat> storegamma(ntargets);
   
   for (unsigned int target = 0; target < ntargets; ++target) {
-    storegamma[target] = mat(nstore, ncat(target)-1, fill::zeros);
+    storegamma[target] = mat(nstore, ncat(target)-1, arma::fill::zeros);
   }
   
   
@@ -113,12 +121,12 @@ Rcpp::List cpp_hprobit(const Rcpp::List Xlist, // Todo: pass by reference instea
   
   // Set Z vector starting point as OLS estimates
 
-  colvec Z(N, fill::zeros);// = X * beta;
+  colvec Z(N, arma::fill::zeros);// = X * beta;
   colvec Xbeta;
   
   // Bookkeeping
   unsigned int count = 0;
-  ivec accepts(ntargets+1, fill::zeros);
+  ivec accepts(ntargets+1, arma::fill::zeros);
   int offset;
 
   // Gibbs loop
@@ -132,7 +140,7 @@ Rcpp::List cpp_hprobit(const Rcpp::List Xlist, // Todo: pass by reference instea
     // double loglikerat = 0.0;
     for (unsigned int t = 0; t < ntargets; ++t) {
       int target = (iter+t) % ntargets;
-      colvec gamma_p(ncat(target)+1, fill::zeros);
+      colvec gamma_p(ncat(target)+1, arma::fill::zeros);
       gamma_p.head(1) = -INFINITY;
       gamma_p.tail(1) = INFINITY;
       if (ncat(target) == 2) {
@@ -186,7 +194,7 @@ Rcpp::List cpp_hprobit(const Rcpp::List Xlist, // Todo: pass by reference instea
             gsl_cdf_ugaussian_P(gamma[target](y_val-1) - Xbeta[i]));
         }
       }
-      new_gamma[target] = gamma_p;
+      new_gamma[target] = gamma_p; // new_gamma is not used.
       if (gsl_ran_flat(gen, 0.0, 1.0) <= exp(loglikerat)){
          gamma[target] = gamma_p;
         if (iter >= burnin) {
@@ -218,7 +226,7 @@ Rcpp::List cpp_hprobit(const Rcpp::List Xlist, // Todo: pass by reference instea
     
     
     // Step 3: Update beta (beta | Z, gamma)
-    mat XpZ = trans(Xall)*Z;
+    arma::mat XpZ = arma::trans(Xall)*Z;
     beta = NormNormregress_beta_draw(gen, XpX, XpZ, meanPrior, precPrior, 1.0);
     
     // print output to stdout
