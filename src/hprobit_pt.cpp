@@ -23,10 +23,20 @@
  * targets.
  */
 struct Data {
-    std::vector<arma::mat> X;
-    std::vector<arma::colvec> Y;
+
+    /** The feature matrix for each target. */
+    std::vector<arma::mat> X; 
+
+    /** The integer category labels for each target */
+    std::vector<arma::colvec> Y; 
+
+    /** The combined (stacked) feature matrix for all targets. */
     arma::mat Xall;
+
+    /** The precomputed X'X matrix for the combined feature matrix for all targets. */
     arma::mat XpX;
+
+    /** The number of observations for each target. */
     std::vector<int> target_nobs;
 
     /** The total number of observations. */
@@ -261,8 +271,9 @@ private:
      * @param ncats The number of categories for the target.
      * @param rng The GSL random number generator to use for sampling.
      * 
-     * @return A ProposedGammas struct containing the proposed new threshold values and the 
-     * probabilities of the proposal under the truncated normal distribution.
+     * @return A column vector containing the proposed new threshold values for the given target. 
+     * The first and last elements of the vector are set to -Inf and Inf, respectively, and the 
+     * proposed values for the thresholds are in between these extremes.
      */
     arma::colvec propose_gamma(int target, int ncats, gsl_rng* rng) {
         arma::colvec gamma_prop(ncats + 1, arma::fill::zeros);
@@ -309,6 +320,14 @@ private:
      * Compute the log probability ratio betweent the proposal distribution for the proposed gammas,
      * i.e. the log of q(ɣ|ɣ') / q(ɣ'|ɣ), where ɣ is the old gamma, ɣ' is the proposed gamma and 
      * q(.) is the truncated Gaussian proposal distribution.
+     * 
+     * Note that this is not the full proposal ratio, but only the part of the proposal ratio that
+     * depends on the proposed gammas. The full proposal ratio also includes the probabilities of the
+     * proposed gammas under the truncated normal distribution.
+     * 
+     * @param gamma_p The proposed new threshold values for the target.
+     * @param target The index of the target for which to compute the log proposal ratio.
+     * @return The log of the proposal ratio for the proposed gammas.
      */
     double compute_gamma_log_proposal_ratio(
         const colvec& gamma_p,
@@ -349,6 +368,17 @@ private:
         return log_proposal_ratio;
     }
 
+    /**
+     * Compute the log of the normalization constant for the truncated Gaussian distribution used 
+     * in the proposal distribution for the gammas.
+     * 
+     * @param x The value at which to compute the normalization constant.
+     * @param a The lower truncation point for the truncated Gaussian distribution.
+     * @param b The upper truncation point for the truncated Gaussian distribution.
+     * @param sigma The standard deviation of the truncated Gaussian distribution.
+     * @return The log of the normalization constant for the truncated Gaussian distribution at the 
+     * given value x.
+     */
     double compute_log_trunc_gauss_norm_constant(double x, double a, double b, double sigma) {
         auto cdf = gsl_cdf_ugaussian_P;
         double alpha = (a - x) / sigma;
@@ -358,6 +388,14 @@ private:
 
     /**
      * Compute the unscaled log likelihood ratio between the current gammas and the proposed gammas.
+     * Note that this is unscaled, i.e. it does not include the difference in inverse temperatures 
+     * between the two chains.
+     * 
+     * @param data The data object.
+     * @param gamma_p The proposed new threshold values for the target.
+     * @param target The index of the target for which to compute the log likelihood ratio.
+     * @return The unscaled log likelihood ratio between the current gammas and the proposed gammas 
+     * for the given target.
      */
     double compute_log_likelihood_ratio(
         const Data& data,
