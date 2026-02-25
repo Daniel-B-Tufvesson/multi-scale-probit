@@ -28,6 +28,9 @@ struct Data {
     arma::mat Xall;
     arma::mat XpX;
     std::vector<int> target_nobs;
+
+    /** The total number of observations. */
+    int nobs;
 };
 
 /**
@@ -167,21 +170,21 @@ public:
             const colvec ystar1 = data.X[target] * beta;
             const colvec ystar2 = data.X[target] * other_chain.beta;
 
+            // Likl. computation wrong here?
             for (unsigned int i = 0; i < data.X[target].n_rows; i++) {
                 log_swap_accept_ratio = log_swap_accept_ratio
-                    + log(cdf(gamma[target](data.Y[target](i)) - ystar1[i]) - 
-                          cdf(gamma[target](data.Y[target](i)-1) - ystar1[i]))
-                    - log(cdf(gamma[target](data.Y[target](i)) - ystar2[i]) - 
-                          cdf(gamma[target](data.Y[target](i)-1) - ystar2[i]));
+                    + log(cdf(gamma[target](data.Y[target](i)) - ystar2[i]) - 
+                          cdf(gamma[target](data.Y[target](i)-1) - ystar2[i]))
+                    - log(cdf(gamma[target](data.Y[target](i)) - ystar1[i]) - 
+                          cdf(gamma[target](data.Y[target](i)-1) - ystar1[i]));
             }
+
         }
 
         // Scale it by inv_temperature delta.
-        log_swap_accept_ratio = log_swap_accept_ratio * (inv_temperature 
-            - other_chain.inv_temperature);
+        log_swap_accept_ratio *= (inv_temperature - other_chain.inv_temperature);
         
         // Do the swap with the computed acceptance ratio.
-        //return gsl_ran_flat(rng, 0.0, 1.0) <= exp(log_swap_accept_ratio);
         return std::min(1.0, exp(log_swap_accept_ratio));
     }
 
@@ -240,7 +243,9 @@ private:
 
             // Make proposal.
             arma::colvec gamma_prop = propose_gamma(target, ncats, rng);
-            double log_accept_ratio = compute_gamma_log_accept_ratio(data, gamma_prop, target);
+            double log_likelihood_ratio = compute_log_likelihood_ratio(data, gamma_prop, target);
+            double log_proposal_ratio = compute_gamma_log_proposal_ratio(gamma_prop, target);
+            double log_accept_ratio = inv_temperature * log_likelihood_ratio + log_proposal_ratio;
 
             // Do MH acceptance step.
             if (gsl_ran_flat(rng, 0.0, 1.0) <= exp(log_accept_ratio)) {
@@ -256,12 +261,14 @@ private:
      * @param ncats The number of categories for the target.
      * @param rng The GSL random number generator to use for sampling.
      * 
-     * @return A vector containing the proposed new threshold values for the target.
+     * @return A ProposedGammas struct containing the proposed new threshold values and the 
+     * probabilities of the proposal under the truncated normal distribution.
      */
     arma::colvec propose_gamma(int target, int ncats, gsl_rng* rng) {
         arma::colvec gamma_prop(ncats + 1, arma::fill::zeros);
         gamma_prop.head(1) = -INFINITY;
         gamma_prop.tail(1) = INFINITY;
+        // Note: probabilities are 0 for the edge thresholds.
 
         if (ncats == 2) {
             // Draw new split point
@@ -287,10 +294,10 @@ private:
                 else { // If any other gamma
                     gamma_prop(i) = rtnorm(
                         rng,
-                        gamma_prop(i-1),
-                        gamma[target](i+1),
-                        gamma[target](i),
-                        gamma_tune(target)
+                        gamma_prop(i-1),    // a
+                        gamma[target](i+1), // b
+                        gamma[target](i),   //mu
+                        gamma_tune(target)  //sigma
                     ).first;
                 }
             }
@@ -299,45 +306,87 @@ private:
     }
 
     /**
-     * Compute the (log) likelihood acceptance ratio for the new proposal. The proposal is compared
-     * to the last accepted value of the thresholds, and the likelihood is computed based on the 
-     * current values of the regression coefficients and the data.
-     * 
-     * @param data The data object.
-     * @param gamma_prop The proposed new threshold values for the target.
-     * @param target The index of the target for which to compute the acceptance ratio.
-     * 
-     * @return The log acceptance ratio for the proposed new threshold values.
+     * Compute the log probability ratio betweent the proposal distribution for the proposed gammas,
+     * i.e. the log of q(ɣ|ɣ') / q(ɣ'|ɣ), where ɣ is the old gamma, ɣ' is the proposed gamma and 
+     * q(.) is the truncated Gaussian proposal distribution.
      */
-    double compute_gamma_log_accept_ratio(
-        const Data& data,
-        const arma::colvec& gamma_prop,
+    double compute_gamma_log_proposal_ratio(
+        const colvec& gamma_p,
         int target
     ) {
+        double log_proposal_ratio = 0;
+        for (int i = 1; i < ncategories(target); i++) {
+            // Normalization term Z(gamma) 
+            double z_old = compute_log_trunc_gauss_norm_constant(
+                gamma[target](i), 
+                gamma[target](i-1), 
+                gamma[target](i+1), 
+                gamma_tune(target)
+            );
+
+            if (i == 1) { // If first gamma
+                // Normalization term Z(gamma_p)
+                double z_prop = compute_log_trunc_gauss_norm_constant(
+                    gamma_p(i), 
+                    gamma[target](i-1), 
+                    gamma[target](i+1), 
+                    gamma_tune(target)
+                );
+                
+                log_proposal_ratio += z_old - z_prop;
+            } 
+            else { // If any other gamma
+                // Normalization term Z(gamma_p)
+                double z_prop = compute_log_trunc_gauss_norm_constant(
+                    gamma_p(i), 
+                    gamma_p(i-1), 
+                    gamma[target](i+1), 
+                    gamma_tune(target)
+                );
+                log_proposal_ratio += z_old - z_prop;
+            }
+        }
+        return log_proposal_ratio;
+    }
+
+    double compute_log_trunc_gauss_norm_constant(double x, double a, double b, double sigma) {
+        auto cdf = gsl_cdf_ugaussian_P;
+        double alpha = (a - x) / sigma;
+        double beta = (b - x) / sigma;
+        return log(cdf(beta) - cdf(alpha));
+    }
+
+    /**
+     * Compute the unscaled log likelihood ratio between the current gammas and the proposed gammas.
+     */
+    double compute_log_likelihood_ratio(
+        const Data& data,
+        const colvec& gamma_p,
+        int target
+    ) {
+        auto cdf = gsl_cdf_ugaussian_P;
         double log_likelihood_ratio = 0;
         colvec y_star = data.X[target] * beta;
-        auto cdf = gsl_cdf_ugaussian_P;
-
         for (unsigned int i = 0; i < data.X[target].n_rows; i++) {
             int y_val = data.Y[target](i);
 
             // Handle last category.
             if (y_val == ncategories(target)) {
                 log_likelihood_ratio = log_likelihood_ratio
-                    + log(1.0 - cdf(gamma_prop(y_val-1) - y_star[i]))
+                    + log(1.0 - cdf(gamma_p(y_val-1) - y_star[i]))
                     - log(1.0 - cdf(gamma[target](y_val-1) - y_star[i]));
             }
             // Handle first category.
             else if (y_val == 1) {
                 log_likelihood_ratio = log_likelihood_ratio
-                    + log(cdf(gamma_prop(y_val) - y_star[i]))
+                    + log(cdf(gamma_p(y_val) - y_star[i]))
                     - log(cdf(gamma[target](y_val) - y_star[i]));
             }
             // Handle categories inbetween.
             else {
                 log_likelihood_ratio = log_likelihood_ratio
-                    + log(cdf(gamma_prop(y_val) - y_star[i]) -
-                          cdf(gamma_prop(y_val-1) - y_star[i]))
+                    + log(cdf(gamma_p(y_val) - y_star[i]) -
+                          cdf(gamma_p(y_val-1) - y_star[i]))
                     - log(cdf(gamma[target](y_val) - y_star[i]) - 
                           cdf(gamma[target](y_val-1) - y_star[i]));
             }
@@ -396,8 +445,8 @@ void do_step(
     std::vector<TemperatureChain>& chains, 
     int ntemperatures,
     const Data& data,
-    int& nswap_accepts,
-    int& nswap_proposals,
+    std::vector<int>& nswap_accepts,
+    std::vector<int>& nswap_proposals,
     std::vector<double>* swap_probabilities,
     gsl_rng* rng
 );
@@ -420,7 +469,8 @@ void do_adaptive_burnin(
     double window_growth_factor,
     double target_swap_ratio,
     double ladder_adjust_learning_rate,
-    arma::vec& swap_rates
+    arma::vec& swap_rates,
+    int verbose
 );
 
 void adjust_ladder(
@@ -428,7 +478,7 @@ void adjust_ladder(
     int ntemperatures,
     std::vector<double>& swap_probabilities,
     arma::vec& swap_rates,
-    int nswap_proposals,
+    std::vector<int>& nswap_proposals,
     double target_swap_ratio,
     double ladder_adjust_learning_rate,
     double min_gap
@@ -512,6 +562,9 @@ Rcpp::List cpp_hprobit_pt(
     bool complete_swapping,
     const int verbose
 ) {
+    if (verbose != 0){
+        Rcpp::Rcout << "Starting parallel tempering sampler for multi-scale probit model..." << std::endl;
+    }
     // Initialize GSL random number generator.
     gsl_rng_env_setup();                          // Read variable environnement
     const gsl_rng_type* type = gsl_rng_default;   // Default algorithm 'twister'
@@ -533,6 +586,10 @@ Rcpp::List cpp_hprobit_pt(
         gamma_start_vec[target] = Rcpp::as<arma::colvec>(gamma_start[target]);
     }
 
+    if (verbose != 0){
+        Rcpp::Rcout << "Data unpacked. Starting parallel tempering sampler with " << ntemperatures << " temperatures." << std::endl;
+    }
+
     // Create chains.
     std::vector<TemperatureChain> chains;
     for (int i = 0; i < ntemperatures; i++) {
@@ -551,6 +608,10 @@ Rcpp::List cpp_hprobit_pt(
         );
     }
 
+    if (verbose != 0) {
+        Rcpp::Rcout << "Starting burn-in phase..." << std::endl;
+    }
+
     arma::vec adaptation_swap_rates(ntemperatures-1, arma::fill::zeros);
     // Burn-in loop without temperature ladder adaptation.
     if (target_temp_swap_accept_ratio == -1) {
@@ -567,16 +628,22 @@ Rcpp::List cpp_hprobit_pt(
             temp_window_size_growth_factor, 
             target_temp_swap_accept_ratio,
             temp_ladder_learning_rate,
-            adaptation_swap_rates
+            adaptation_swap_rates,
+            verbose
         );
     }
     
+    if (verbose != 0) {
+        Rcpp::Rcout << "Burn-in complete. Starting sampling phase..." << std::endl;
+    }
 
     // Sampling loop.
-    int nswap_accepts = 0;
-    int nswap_proposals = 0;
+    std::vector<int> nswap_accepts(ntemperatures-1, 0);
+    std::vector<int> nswap_proposals(ntemperatures-1, 0);
+    std::vector<double> swap_probabilities(ntemperatures-1, 0);
     for (unsigned int iter = 0; iter < iterations; iter++) {
-        do_step(chains, ntemperatures, data, nswap_accepts, nswap_proposals, nullptr, gen);
+        do_step(chains, ntemperatures, data, nswap_accepts, nswap_proposals, 
+            &swap_probabilities, gen);
 
         // Store samples.
         if (iter % thin == 0) {
@@ -586,10 +653,19 @@ Rcpp::List cpp_hprobit_pt(
         }
 
         // Print progress updates.
-        if (verbose > 0 && (iter % verbose == 0 || iter == iterations - 1)) {
+        if (verbose > 0 && iter > 0 && (iter % verbose == 0 || iter == iterations - 1)) {
+
+            // Compute mean swap ratio.
+            double mean_swap_ratio = 0;
+            for (int i = 0; i < ntemperatures - 1; i++) {
+                mean_swap_ratio += swap_probabilities[i] 
+                    / (nswap_proposals[i] == 0 ? 1 : nswap_proposals[i]);
+            }
+            mean_swap_ratio /= (ntemperatures - 1);
+
+            // Print progress.
             Rcpp::Rcout << "Iteration " << (iter+1) << "/" << iterations 
-                        << ", Swap acceptance ratio: " 
-                        << (nswap_proposals > 0 ? static_cast<double>(nswap_accepts) / nswap_proposals : 0.0)
+                        << ", Mean swap acceptance ratio: " << mean_swap_ratio
                         << std::endl;
         }
     }
@@ -632,10 +708,10 @@ Rcpp::List cpp_hprobit_pt(
  * temperature.
  * @param ntemperatures The number of temperatures (i.e., the size of the chains vector).
  * @param data The data object.
- * @param nswap_accepts A reference to an integer that counts the number of accepted swaps between
- * temperatures.
- * @param nswap_proposals A reference to an integer that counts the number of proposed swaps 
- * between temperatures.
+ * @param nswap_accepts A reference to a vector of integers that counts the number of accepted 
+ * swaps for each pair of adjacent temperatures.
+ * @param nswap_proposals A reference to a vector of integers that counts the number of proposed 
+ * swaps for each pair of adjacent temperatures.
  * @param swap_probabilities A pointer to a vector of doubles where the swap probabilities for each
  * pair of adjacent temperatures will be accumulated. If this pointer is null, the swap probabilities 
  * will not be stored or accumulated.
@@ -645,8 +721,8 @@ void do_step(
     std::vector<TemperatureChain>& chains, 
     int ntemperatures,
     const Data& data,
-    int& nswap_accepts,
-    int& nswap_proposals,
+    std::vector<int>& nswap_accepts,
+    std::vector<int>& nswap_proposals,
     std::vector<double>* swap_probabilities,
     gsl_rng* rng
 ) {
@@ -659,13 +735,13 @@ void do_step(
     int swap_index = gsl_rng_uniform_int(rng, ntemperatures - 1);
     TemperatureChain& chain1 = chains[swap_index];
     TemperatureChain& chain2 = chains[swap_index + 1];
-    nswap_proposals++;
+    nswap_proposals[swap_index]++;
     double swap_probability = chain1.compute_swap_probability(chain2, data, rng);
     if (gsl_ran_flat(rng, 0.0, 1.0) <= swap_probability) {
         // Todo: check if we only want to do partial chain swapping.
         chain1.swap_gammas(chain2);
         chain1.swap_beta(chain2);
-        nswap_accepts++;
+        nswap_accepts[swap_index]++;
     }
     // Store swap probability for temperature ladder adaptation.
     if (swap_probabilities != nullptr) {
@@ -683,8 +759,8 @@ void do_burnin(
     int burnin, 
     gsl_rng* rng
 ) {
-    int nswap_accepts = 0;
-    int nswap_proposals = 0;
+    std::vector<int> nswap_accepts(ntemperatures-1, 0);
+    std::vector<int> nswap_proposals(ntemperatures-1, 0);
     for (unsigned int iter = 0; iter < burnin; iter++) {
         do_step(chains, ntemperatures, data, nswap_accepts, nswap_proposals, nullptr, rng);
     }
@@ -724,11 +800,12 @@ void do_adaptive_burnin(
     double window_growth_factor,
     double target_swap_ratio,
     double ladder_adjust_learning_rate,
-    arma::vec& swap_rates
+    arma::vec& swap_rates,
+    int verbose
 ) {
     std::vector<double> swap_probabilities(ntemperatures, 0);
-    int nswap_accepts = 0;
-    int nswap_proposals = 0;
+    std::vector<int> nswap_accepts(ntemperatures-1, 0);
+    std::vector<int> nswap_proposals(ntemperatures-1, 0);
     int window_step = 0;
     double min_gap = (1.0 - chains[ntemperatures-1].inv_temperature) / ((ntemperatures - 1) * 0.1);
     
@@ -752,11 +829,25 @@ void do_adaptive_burnin(
             );
 
             swap_probabilities.assign(ntemperatures, 0);
-            nswap_proposals = 0;
-            nswap_accepts = 0;
+            nswap_proposals.assign(ntemperatures-1, 0);
+            nswap_accepts.assign(ntemperatures-1, 0);
             window_step = 0;
             window_size *= window_growth_factor;
         }
+
+        // Print progress.
+        if (verbose > 0 && iter > 0 && (iter % verbose == 0 || iter == burnin - 1)) {
+            double mean_swap_ratio = 0;
+            for (int i = 0; i < ntemperatures - 1; i++) {
+                mean_swap_ratio += swap_probabilities[i] 
+                    / (nswap_proposals[i] == 0 ? 1 : nswap_proposals[i]);
+            }
+            mean_swap_ratio /= (ntemperatures - 1);
+
+            Rcpp::Rcout << "Burn-in iteration " << (iter+1) << "/" << burnin 
+                        << ", Mean swap acceptance ratio: " << mean_swap_ratio
+                        << std::endl;
+         }
     }
 }
 
@@ -793,7 +884,7 @@ void adjust_ladder(
     int ntemperatures,
     std::vector<double>& swap_probabilities,
     arma::vec& swap_rates,
-    int nswap_proposals,
+    std::vector<int>& nswap_proposals,
     double target_swap_ratio,
     double ladder_adjust_learning_rate,
     double min_gap
@@ -807,7 +898,7 @@ void adjust_ladder(
 
     // Compute mean swap rate for each pair.
     for (int i = 0; i < ntemperatures - 1; i++) {
-        swap_rates[i] = swap_probabilities[i] / nswap_proposals;
+        swap_rates[i] = swap_probabilities[i] / (nswap_proposals[i] == 0 ? 1 : nswap_proposals[i]);
     }
 
     // Update ladder gaps.
@@ -833,7 +924,7 @@ void adjust_ladder(
 
     // Reconstruct ladder.
     chains[0].inv_temperature = 1.0;
-    for (int i = 1; i < ntemperatures; i++) {
+    for (int i = 1; i < ntemperatures-1; i++) {
         chains[i].inv_temperature = chains[i-1].inv_temperature - ladder_gaps[i-1];
     }
 }
@@ -863,7 +954,8 @@ Data unpack_data(
         .Y = std::vector<arma::colvec>(ntargets),
         .Xall = arma::mat(),
         .XpX = arma::mat(),
-        .target_nobs = std::vector<int>(ntargets)
+        .target_nobs = std::vector<int>(ntargets),
+        .nobs = 10
     };
     for (unsigned int target = 0; target < ntargets; ++target) {
         data.X[target] = Rcpp::as<arma::mat>(xlist[target]);
@@ -877,5 +969,6 @@ Data unpack_data(
         data.target_nobs[target] = data.Y[target].n_elem;
     }
     data.XpX = mspm_util::crossprod(data.Xall, data.Xall);
+    data.nobs = data.Xall.n_rows;
     return data;
 }

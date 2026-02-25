@@ -319,7 +319,7 @@ fit_mspm_pt <- function(
 
     # Set default temperature ladder if not provided.
     if (is.null(temperatureLadder)) {
-        temperatureLadder <- 1:ntemperatures
+        temperatureLadder <- 2^(1:ntemperatures - 1)
     } else if (length(temperatureLadder) != ntemperatures) {
         stop("Length of temperatureLadder must match ntemperatures.")
     }

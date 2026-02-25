@@ -16,13 +16,14 @@ data <- generate_synthetic_data(
 fit <- fit_mspm_pt(
     data = data,
     ndraws = 500,
-    burnin = 5000,
+    burnin = 10000,
     thin = 2,
     tune = 0.1,
     seed = 1234,
-    ntemperatures = 20,
+    ntemperatures = 5,
     verbose = 100,
     temperature_ladder_learning_rate = 0.01,
+    tempperature_window_growth_factor = 2,
     complete_param_swapping = TRUE
 )
 #fit
