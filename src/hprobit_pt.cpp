@@ -9,39 +9,8 @@
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 
-#include <gsl/gsl_rng.h>
-#include <gsl/gsl_randist.h>
-#include <gsl/gsl_cdf.h>
-#include "mspm_util.hpp"
-#include "rtnorm.hpp"
-#include <algorithm>
-#include <cmath>
+#include "sampling.hpp"
 
-/**
- * Struct to hold the data for the model. This includes the feature matrices and response vectors
- * for each target, as well as the combined feature matrix and precomputed X'X matrix for all 
- * targets.
- */
-struct Data {
-
-    /** The feature matrix for each target. */
-    std::vector<arma::mat> X; 
-
-    /** The integer category labels for each target */
-    std::vector<arma::colvec> Y; 
-
-    /** The combined (stacked) feature matrix for all targets. */
-    arma::mat Xall;
-
-    /** The precomputed X'X matrix for the combined feature matrix for all targets. */
-    arma::mat XpX;
-
-    /** The number of observations for each target. */
-    std::vector<int> target_nobs;
-
-    /** The total number of observations. */
-    int nobs;
-};
 
 /**
  * Class representing a single Markov chain at a given temperature in the parallel tempering 
