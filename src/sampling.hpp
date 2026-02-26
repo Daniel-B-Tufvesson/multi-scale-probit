@@ -43,5 +43,10 @@ struct Data {
     int nobs;
 };
 
+Data unpack_data(
+    const Rcpp::List& xlist,
+    const Rcpp::List& ylist
+);
+
 
 #endif // __SAMPLING_HPP
