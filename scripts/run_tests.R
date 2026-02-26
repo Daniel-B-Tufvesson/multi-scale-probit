@@ -8,9 +8,10 @@ source("tests/persistence_tests.R")
 source("tests/cv_tests.R")
 source("tests/pt_tests.R")
 
-run_all_data_tests()
+
 run_all_probit_tests()
 run_all_pt_tests()
+run_all_data_tests()
 run_all_prediction_tests()
 run_all_eval_tests()
 run_all_cv_tests()

@@ -9,40 +9,7 @@
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 
-#include <gsl/gsl_rng.h>
-#include <gsl/gsl_randist.h>
-#include <gsl/gsl_cdf.h>
-#include "rtnorm.hpp"
-#include <utility> 
-#include "mspm_util.hpp"
-#include <cmath>
-
-// Function declarations ---------------------------------------------------------
-
-colvec propose_gamma(
-    const colvec& gamma,
-    int target,
-    double sigma,
-    int ncategories,
-    gsl_rng *gen
-);
-
-double compute_log_likelihood_ratio(
-    const colvec& gamma,
-    const colvec& gamma_p,
-    const mat& X,
-    const colvec& Y,
-    const colvec& beta,
-    int ncategories
-);
-
-double compute_log_proposal_ratio(
-    const colvec& gamma,
-    const colvec& gamma_p,
-    double sigma
-);
-
-// Function definitions ------------------------------------------------------------
+#include "sampling.hpp"
 
 // [[Rcpp::depends("RcppArmadillo")]]
 // [[Rcpp::export]]
@@ -70,50 +37,24 @@ Rcpp::List cpp_hprobit(
     gsl_rng *gen = gsl_rng_alloc (type);          // Rand generator allocation
     gsl_rng_set(gen, seed);
   
-    // Define constants
+    // Unpack data and define constants.
+    const Data data = unpack_data(Xlist, Ylist);
+    const int ntargets = data.ntargets;
     const int tot_iter = iterations+burnin;
     const int nstore = iterations/thin;
-    const int ntargets = Xlist.size();
-    double gammamax = std::numeric_limits<double>::max();
-    double gammamin = -std::numeric_limits<double>::max();
-  
-    // Unpack Xlist, Ylist and gammaStart
-    std::vector<mat> X(ntargets);
-    std::vector<colvec> Y(ntargets);
+
+    // Unpack gamma.
     std::vector<colvec> gamma(ntargets);
-    // std::vector<colvec> new_gamma(ntargets);
-    mat Xall;
-    colvec Yall;
-    std::vector<int> sizes(ntargets);
     for (unsigned int target = 0; target < ntargets; ++target) {
-        X[target] = Rcpp::as<mat>(Xlist[target]);
-        Y[target] = Rcpp::as<colvec>(Ylist[target]);
         gamma[target] = Rcpp::as<colvec>(gammaStart[target]);
-        if (target == 0) {
-        Xall = X[target];
-        Yall = Y[target];
-        } else {
-        Xall = join_vert(Xall, X[target]);
-        Yall = join_cols(Yall, Y[target]);
-        }
-        sizes[target] = Y[target].n_elem;
-    }
-    // Define data constants
-    const int k = Xall.n_cols;
-    const int N = Xall.n_rows;
-    const mat XpX = mspm_util::crossprod(Xall, Xall);
-  
-    // Update gammas with system double extremes
-    for (unsigned int target = 0; target < ntargets; ++target) {
-        gamma[target](0) = gammamin;
-        gamma[target](ncat[target]) = gammamax;
+        gamma[target](0) = -std::numeric_limits<double>::max();
+        gamma[target](ncat[target]) = std::numeric_limits<double>::max();
     }
   
   
     // Storage matrices
-    mat storebeta(nstore, Xall.n_cols, arma::fill::zeros);
+    mat storebeta(nstore, betaStart.n_rows, arma::fill::zeros);
     std::vector<mat> storegamma(ntargets);
-    
     for (unsigned int target = 0; target < ntargets; ++target) {
         storegamma[target] = mat(nstore, ncat(target)-1, arma::fill::zeros);
     }
@@ -122,7 +63,7 @@ Rcpp::List cpp_hprobit(
     colvec beta = betaStart;
   
     // Set Z vector starting point as OLS estimates
-    colvec Z(N, arma::fill::zeros);// = X * beta;
+    colvec Z(data.nobs, arma::fill::zeros);// = X * beta;
     colvec Xbeta;
   
     // Bookkeeping
@@ -139,35 +80,18 @@ Rcpp::List cpp_hprobit(
             int target = (iter+t) % ntargets;
 
             // Make proposal for gamma.
-            colvec gamma_p = propose_gamma(
+            bool accepted = mh_update_gamma(
                 gamma[target],
-                target,
-                tune(target),
+                beta,
+                data.X[target],
+                data.Y[target],
                 ncat(target),
+                tune(target),
+                1.0, // inv_temperature is 1.0 for the Gibbs sampler.
                 gen
             );
-
-            // Hastings acceptance/rejection step.
-            double log_likelihood_ratio = compute_log_likelihood_ratio(
-                gamma[target],
-                gamma_p,
-                X[target],
-                Y[target],
-                beta,
-                ncat(target)
-            );
-            double log_proposal_ratio = compute_log_proposal_ratio(
-                gamma[target],
-                gamma_p,
-                tune(target)
-            );
-            double accept_propability = std::exp(log_likelihood_ratio + log_proposal_ratio);
-            
-            if (gsl_ran_flat(gen, 0.0, 1.0) <= accept_propability){
-                gamma[target] = gamma_p;
-                if (iter >= burnin) {
-                    ++accepts(target);
-                }
+            if (accepted && iter >= burnin) {
+                ++accepts(target);
             }
         }
     
@@ -175,13 +99,13 @@ Rcpp::List cpp_hprobit(
         offset = 0;
         for (unsigned int target = 0; target < ntargets; ++target) {
             if (target > 0) {
-                offset = offset + sizes[target-1];
+                offset = offset + data.target_nobs[target-1];
             }
-            Xbeta = X[target] * beta;
-            for (unsigned int i=0; i<X[target].n_rows; ++i){
+            Xbeta = data.X[target] * beta;
+            for (unsigned int i=0; i<data.X[target].n_rows; ++i){
                 Z(offset+i) = rtnorm(gen,
-                    gamma[target](Y[target](i)-1),
-                    gamma[target](Y[target](i)),
+                    gamma[target](data.Y[target](i)-1),
+                    gamma[target](data.Y[target](i)),
                     Xbeta[i], 
                     1.0
                 ).first;
@@ -190,14 +114,14 @@ Rcpp::List cpp_hprobit(
     
     
         // Step 3: Update beta (beta | Z, gamma)
-        arma::mat XpZ = arma::trans(Xall)*Z;
-        beta = mspm_util::NormNormregress_beta_draw(gen, XpX, XpZ, meanPrior, precPrior, 1.0);
+        arma::mat XpZ = arma::trans(data.Xall)*Z;
+        beta = mspm_util::NormNormregress_beta_draw(gen, data.XpX, XpZ, meanPrior, precPrior, 1.0);
     
         // print output to stdout
         if(verbose > 0 && iter % verbose == 0){
             Rprintf("\n\noprobit_gibbs iteration %i of %i \n", (iter+1), tot_iter);
             Rprintf("beta = \n");
-            for (unsigned int j=0; j<k; ++j){
+            for (unsigned int j=0; j < data.npredictors; ++j){
                 Rprintf("%10.5f\n", beta[j]);
             }
             for (unsigned int target = 0; target < ntargets; ++target) {
@@ -208,7 +132,7 @@ Rcpp::List cpp_hprobit(
     
         // store values in matrices
         if (iter >= burnin && ((iter % thin)==0)){
-            for (unsigned int j=0; j<k; ++j) {
+            for (unsigned int j=0; j < data.npredictors; ++j) {
                 storebeta(count, j) = beta[j];
             }
             for (unsigned int target = 0; target < ntargets; ++target) {
@@ -233,86 +157,45 @@ Rcpp::List cpp_hprobit(
     );
 }
 
-colvec propose_gamma(
-    const colvec& gamma,
-    int target,
-    double sigma,
-    int ncategories,
-    gsl_rng *gen
-) {
-    colvec gamma_p(ncategories+1, arma::fill::zeros);
-    gamma_p.head(1) = -INFINITY;
-    gamma_p.tail(1) = INFINITY;
-    if (ncategories == 2) {
-        // Draw new split point
-        gamma_p(1) = rtnorm(
-            gen,
-            -INFINITY,
-            INFINITY,
-            gamma(1),
-            sigma
-        ).first;
-    } 
-    else {
-        for (int i=1; i < ncategories; ++i){
-            if (i == 1) { // If first gamma
-                gamma_p(i) = rtnorm(gen,
-                    gamma(i-1),
-                    gamma(i+1),
-                    gamma(i),
-                    sigma
-                ).first;
-            } 
-            else { // If any other gamma
-                gamma_p(i) = rtnorm(gen,
-                    gamma_p(i-1),
-                    gamma(i+1),
-                    gamma(i),
-                    sigma
-                ).first;
-            }//if first gamma
-        }//for each category of target
-    }//if-else ncat>2
-    return gamma_p;
-}
-
-double compute_log_likelihood_ratio(
-    const colvec& gamma,
-    const colvec& gamma_p,
-    const mat& X,
-    const colvec& Y,
-    const colvec& beta,
-    int ncategories
-) {
-    double loglikerat = 0.0;
-    colvec Xbeta = X * beta;
-    for (unsigned int i = 0; i < X.n_rows; ++i){
-        int y_val = Y(i);
-        if (y_val == ncategories){
-            loglikerat = loglikerat
-            + log(1.0 - gsl_cdf_ugaussian_P(gamma_p(y_val-1) - Xbeta[i]))
-            - log(1.0 - gsl_cdf_ugaussian_P(gamma(y_val-1) - Xbeta[i]));
-        }
-        else if (y_val == 1){
-            loglikerat = loglikerat 
-            + log(gsl_cdf_ugaussian_P(gamma_p(y_val) - Xbeta[i]))
-            - log(gsl_cdf_ugaussian_P(gamma(y_val) - Xbeta[i]));
-        }
-        else {
-            loglikerat = loglikerat
-            + log(gsl_cdf_ugaussian_P(gamma_p(y_val) - Xbeta[i]) -
-                gsl_cdf_ugaussian_P(gamma_p(y_val-1) - Xbeta[i]))
-            - log(gsl_cdf_ugaussian_P(gamma(y_val) - Xbeta[i]) -
-                gsl_cdf_ugaussian_P(gamma(y_val-1) - Xbeta[i]));
-        }
-    }
-    return loglikerat;
-}
-
-double compute_log_proposal_ratio(
-    const colvec& gamma,
-    const colvec& gamma_p,
-    double sigma
-) {
-    return 0;
-}
+// colvec propose_gamma(
+//     const colvec& gamma,
+//     int target,
+//     double sigma,
+//     int ncategories,
+//     gsl_rng *gen
+// ) {
+//     colvec gamma_p(ncategories+1, arma::fill::zeros);
+//     gamma_p.head(1) = -INFINITY;
+//     gamma_p.tail(1) = INFINITY;
+//     if (ncategories == 2) {
+//         // Draw new split point
+//         gamma_p(1) = rtnorm(
+//             gen,
+//             -INFINITY,
+//             INFINITY,
+//             gamma(1),
+//             sigma
+//         ).first;
+//     } 
+//     else {
+//         for (int i=1; i < ncategories; ++i){
+//             if (i == 1) { // If first gamma
+//                 gamma_p(i) = rtnorm(gen,
+//                     gamma(i-1),
+//                     gamma(i+1),
+//                     gamma(i),
+//                     sigma
+//                 ).first;
+//             } 
+//             else { // If any other gamma
+//                 gamma_p(i) = rtnorm(gen,
+//                     gamma_p(i-1),
+//                     gamma(i+1),
+//                     gamma(i),
+//                     sigma
+//                 ).first;
+//             }//if first gamma
+//         }//for each category of target
+//     }//if-else ncat>2
+//     return gamma_p;
+// }

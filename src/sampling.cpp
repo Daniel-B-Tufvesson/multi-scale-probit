@@ -1,21 +1,7 @@
 
 #include "sampling.hpp"
+// [[Rcpp::depends(RcppArmadillo)]]
 
-/**
- * Unpack the data from the input lists into a Data object containing the feature matrices, 
- * response vectors, and precomputed cross-product of the combined feature matrix. This 
- * function assumes that the input lists are properly formatted and contain the expected types 
- * and dimensions. It also computes the combined feature matrix for all targets and the 
- * cross-product of this matrix, which will be used in the Gibbs updates for the regression 
- * coefficients.
- * 
- * @param xlist The list of feature matrices for each target.
- * @param ylist The list of response vectors for each target.
- * 
- * @return A Data object containing the unpacked feature matrices, response vectors, combined 
- * feature matrix, cross-product of the combined feature matrix, and the number of observations 
- * for each target.
- */
 Data unpack_data(
     const Rcpp::List& xlist,
     const Rcpp::List& ylist
@@ -27,7 +13,9 @@ Data unpack_data(
         .Xall = arma::mat(),
         .XpX = arma::mat(),
         .target_nobs = std::vector<int>(ntargets),
-        .nobs = 10
+        .nobs = 10,
+        .ntargets = ntargets,
+        .npredictors = 10
     };
     for (unsigned int target = 0; target < ntargets; ++target) {
         data.X[target] = Rcpp::as<arma::mat>(xlist[target]);
@@ -42,5 +30,194 @@ Data unpack_data(
     }
     data.XpX = mspm_util::crossprod(data.Xall, data.Xall);
     data.nobs = data.Xall.n_rows;
+    data.npredictors = data.Xall.n_cols;
     return data;
+}
+
+
+double compute_log_likelihood_ratio(
+    const colvec& gamma,
+    const colvec& gamma_p,
+    const mat& X,
+    const colvec& Y,
+    const colvec& beta,
+    int ncategories
+) {
+    double log_likelihood_ratio = 0.0;
+    colvec y_star = X * beta;
+    auto cdf = gsl_cdf_ugaussian_P;
+    for (unsigned int i = 0; i < X.n_rows; ++i){
+        int y_val = Y(i);
+        // Handle last category.
+        if (y_val == ncategories){
+            log_likelihood_ratio = log_likelihood_ratio
+            + log(1.0 - cdf(gamma_p(y_val-1) - y_star[i]))
+            - log(1.0 - cdf(gamma(y_val-1) - y_star[i]));
+        }
+        // Handle first category.
+        else if (y_val == 1){
+            log_likelihood_ratio = log_likelihood_ratio 
+            + log(cdf(gamma_p(y_val) - y_star[i]))
+            - log(cdf(gamma(y_val) - y_star[i]));
+        }
+        // Handle categories inbetween.
+        else {
+            log_likelihood_ratio = log_likelihood_ratio
+            + log(cdf(gamma_p(y_val) - y_star[i]) - 
+                  cdf(gamma_p(y_val-1) - y_star[i]))
+            - log(cdf(gamma(y_val) - y_star[i]) - 
+                  cdf(gamma(y_val-1) - y_star[i]));
+        }
+    }
+    return log_likelihood_ratio;
+}
+
+/**
+ * Compute the log of the normalization constant for the truncated Gaussian distribution used 
+ * in the proposal distribution for the gammas.
+ * 
+ * @param x The value at which to compute the normalization constant.
+ * @param a The lower truncation point for the truncated Gaussian distribution.
+ * @param b The upper truncation point for the truncated Gaussian distribution.
+ * @param sigma The standard deviation of the truncated Gaussian distribution.
+ * @return The log of the normalization constant for the truncated Gaussian distribution at the 
+ * given value x.
+ */
+double compute_log_trunc_gauss_norm_constant(double x, double a, double b, double sigma) {
+    auto cdf = gsl_cdf_ugaussian_P;
+    double alpha = (a - x) / sigma;
+    double beta = (b - x) / sigma;
+    return log(cdf(beta) - cdf(alpha));
+}
+
+
+double compute_gamma_log_proposal_ratio(
+    const colvec& gamma,
+    const colvec& gamma_p,
+    int ncategories,
+    double sigma
+) {
+    double log_proposal_ratio = 0;
+    for (int i = 1; i < ncategories; i++) {
+        // Normalization term Z(gamma) 
+        double z_old = compute_log_trunc_gauss_norm_constant(
+            gamma(i), 
+            gamma(i-1), 
+            gamma(i+1), 
+            sigma
+        );
+
+        if (i == 1) { // If first gamma
+            // Normalization term Z(gamma_p)
+            double z_prop = compute_log_trunc_gauss_norm_constant(
+                gamma_p(i), 
+                gamma(i-1), 
+                gamma(i+1), 
+                sigma
+            );
+            
+            log_proposal_ratio += z_old - z_prop;
+        } 
+        else { // If any other gamma
+            // Normalization term Z(gamma_p)
+            double z_prop = compute_log_trunc_gauss_norm_constant(
+                gamma_p(i), 
+                gamma_p(i-1), 
+                gamma(i+1), 
+                sigma
+            );
+            log_proposal_ratio += z_old - z_prop;
+        }
+    }
+    return log_proposal_ratio;
+}
+
+
+arma::colvec propose_gamma(
+    const colvec& gamma,
+    int ncategories, 
+    double sigma,
+    gsl_rng* rng
+) {
+    arma::colvec gamma_prop(ncategories + 1, arma::fill::zeros);
+    gamma_prop.head(1) = -INFINITY;
+    gamma_prop.tail(1) = INFINITY;
+    // Note: probabilities are 0 for the edge thresholds.
+
+    if (ncategories == 2) {
+        // Draw new split point
+        gamma_prop(1) = rtnorm(
+            rng,
+            -INFINITY,
+            INFINITY,
+            gamma(1),
+            sigma
+        ).first;
+    } 
+    else {
+        for (unsigned int i = 1; i < ncategories; i++) {
+            if (i == 1) { // If first gamma
+                gamma_prop(i) = rtnorm(
+                    rng,
+                    gamma(i-1),
+                    gamma(i+1),
+                    gamma(i),
+                    sigma
+                ).first;
+            } 
+            else { // If any other gamma
+                gamma_prop(i) = rtnorm(
+                    rng,
+                    gamma_prop(i-1),    // a
+                    gamma(i+1), // b
+                    gamma(i),   //mu
+                    sigma
+                ).first;
+            }
+        }
+    }
+    return gamma_prop;
+}
+
+
+bool mh_update_gamma(
+    colvec& gamma,
+    const colvec& beta,
+    const mat& X,
+    const colvec& Y,
+    int ncategories,
+    double sigma,
+    double inv_temperature,
+    gsl_rng* rng
+) {
+    // Make proposal.
+    arma::colvec gamma_prop = propose_gamma(
+        gamma,
+        ncategories,
+        sigma,
+        rng
+    );
+    double log_likelihood_ratio = compute_log_likelihood_ratio(
+        gamma,
+        gamma_prop,
+        X,
+        Y,
+        beta,
+        ncategories
+    );
+    double log_proposal_ratio = compute_gamma_log_proposal_ratio(
+        gamma,
+        gamma_prop,
+        ncategories,
+        sigma
+    );
+
+    double log_accept_ratio = inv_temperature * log_likelihood_ratio + log_proposal_ratio;
+
+    // Do MH acceptance step.
+    if (gsl_ran_flat(rng, 0.0, 1.0) <= exp(log_accept_ratio)) {
+        gamma = gamma_prop;
+        return true;
+    }
+    return false;
 }
