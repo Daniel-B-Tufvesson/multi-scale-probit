@@ -13,20 +13,20 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // cpp_hprobit
-Rcpp::List cpp_hprobit(const Rcpp::List Xlist, const Rcpp::List Ylist, const arma::colvec meanPrior, const arma::mat precPrior, const int fixZero, const arma::ivec ncat, const Rcpp::List gammaStart, const arma::colvec betaStart, const arma::vec tune, const int iterations, const int burnin, const int thin, const int seed, const int verbose);
+Rcpp::List cpp_hprobit(const Rcpp::List& Xlist, const Rcpp::List& Ylist, const arma::colvec& meanPrior, const arma::mat& precPrior, const int fixZero, const arma::ivec& ncat, const Rcpp::List& gammaStart, const arma::colvec& betaStart, const arma::vec& tune, const int iterations, const int burnin, const int thin, const int seed, const int verbose);
 RcppExport SEXP _masteruppsatsr_cpp_hprobit(SEXP XlistSEXP, SEXP YlistSEXP, SEXP meanPriorSEXP, SEXP precPriorSEXP, SEXP fixZeroSEXP, SEXP ncatSEXP, SEXP gammaStartSEXP, SEXP betaStartSEXP, SEXP tuneSEXP, SEXP iterationsSEXP, SEXP burninSEXP, SEXP thinSEXP, SEXP seedSEXP, SEXP verboseSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const Rcpp::List >::type Xlist(XlistSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List >::type Ylist(YlistSEXP);
-    Rcpp::traits::input_parameter< const arma::colvec >::type meanPrior(meanPriorSEXP);
-    Rcpp::traits::input_parameter< const arma::mat >::type precPrior(precPriorSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type Xlist(XlistSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type Ylist(YlistSEXP);
+    Rcpp::traits::input_parameter< const arma::colvec& >::type meanPrior(meanPriorSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type precPrior(precPriorSEXP);
     Rcpp::traits::input_parameter< const int >::type fixZero(fixZeroSEXP);
-    Rcpp::traits::input_parameter< const arma::ivec >::type ncat(ncatSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List >::type gammaStart(gammaStartSEXP);
-    Rcpp::traits::input_parameter< const arma::colvec >::type betaStart(betaStartSEXP);
-    Rcpp::traits::input_parameter< const arma::vec >::type tune(tuneSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type ncat(ncatSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type gammaStart(gammaStartSEXP);
+    Rcpp::traits::input_parameter< const arma::colvec& >::type betaStart(betaStartSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type tune(tuneSEXP);
     Rcpp::traits::input_parameter< const int >::type iterations(iterationsSEXP);
     Rcpp::traits::input_parameter< const int >::type burnin(burninSEXP);
     Rcpp::traits::input_parameter< const int >::type thin(thinSEXP);
