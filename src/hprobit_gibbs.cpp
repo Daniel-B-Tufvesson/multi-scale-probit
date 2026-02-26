@@ -291,8 +291,8 @@ double compute_log_likelihood_ratio(
             loglikerat = loglikerat
             + log(gsl_cdf_ugaussian_P(gamma_p(y_val) - Xbeta[i]) -
                 gsl_cdf_ugaussian_P(gamma_p(y_val-1) - Xbeta[i]))
-            - log(gsl_cdf_ugaussian_P((y_val) - Xbeta[i]) -
-                gsl_cdf_ugaussian_P((y_val-1) - Xbeta[i]));
+            - log(gsl_cdf_ugaussian_P(gamma(y_val) - Xbeta[i]) -
+                gsl_cdf_ugaussian_P(gamma(y_val-1) - Xbeta[i]));
         }
     }
     return loglikerat;
