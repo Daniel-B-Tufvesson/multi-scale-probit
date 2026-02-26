@@ -1,7 +1,7 @@
 /**
  * @file hprobit_pt.cpp
  * @author Daniel Tufvesson
- * @version 1.0
+ * @version 2.0
  * @brief A Metropolis-Hastings-withing-Gibbs sampler for the Multi-Scale Probit model, 
  * that uses parallel tempering to improve mixing.
  */
@@ -194,10 +194,7 @@ public:
      * @param Xall The combined feature matrix for all targets.
      * @param rng The GSL random number generator to use for sampling.
      */
-    void do_step(
-        const Data& data,
-        gsl_rng* rng
-    ) {
+    void do_step(const Data& data, gsl_rng* rng) {
         step_gamma(data, rng);
         step_beta(data, rng);
         nsteps++;
@@ -212,10 +209,7 @@ private:
      * @param data The data object.
      * @param rng The GSL random number generator to use for sampling.
      */
-    void step_gamma(
-        const Data& data,
-        gsl_rng* rng
-    ) {
+    void step_gamma(const Data& data, gsl_rng* rng) {
         for (unsigned int t = 0; t < ntargets; t++) {
             int target = (nsteps+t) % ntargets;
             int ncats = ncategories(target); 
@@ -243,32 +237,15 @@ private:
      * @param data The data object.
      * @param rng The GSL random number generator to use for sampling.
      */
-    void step_beta(
-        const Data& data,
-        gsl_rng* rng
-    ) {
-        // First update latent y*.
-        int offset = 0;
-        for (unsigned int target = 0; target < ntargets; target++) {
-            if (target > 0) {
-                int nobs = data.Y[target-1].n_elem;
-                offset += nobs;
-            }
-            const colvec current_ystar = data.X[target] * beta;
-            for (unsigned int i = 0; i < data.X[target].n_rows; i++) {
-                ystar(offset + i) = rtnorm(
-                    rng,
-                    gamma[target](data.Y[target](i) - 1),
-                    gamma[target](data.Y[target](i)),
-                    current_ystar[i], 
-                    1.0
-                ).first;
-            }
-        }
-
-        // Then update beta.
-        arma::mat XpZ = arma::trans(data.Xall) * ystar;
-        beta = mspm_util::NormNormregress_beta_draw(rng, data.XpX, XpZ, mean_prior, prec_prior, 1.0);
+    void step_beta(const Data& data, gsl_rng* rng) {
+        gibbs_update_beta(
+            beta,
+            gamma,
+            data,
+            mean_prior,
+            prec_prior,
+            rng
+        );
     }
 };
 

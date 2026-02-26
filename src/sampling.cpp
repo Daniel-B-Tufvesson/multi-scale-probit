@@ -35,6 +35,19 @@ Data unpack_data(
 }
 
 
+/**
+ * Compute the log likelihood ratio between the current gammas and the proposed gammas.
+ * 
+ * @param gamma The current gamma thresholds for the target.
+ * @param gamma_p The proposed gamma thresholds for the target.
+ * @param X The feature matrix for the target.
+ * @param Y The response vector for the target.
+ * @param beta The current regression coefficients.
+ * @param ncategories The number of categories for the target.
+ * 
+ * @return The log likelihood ratio for the proposed gamma thresholds compared to the current 
+ * gamma thresholds.
+ */
 double compute_log_likelihood_ratio(
     const colvec& gamma,
     const colvec& gamma_p,
@@ -90,7 +103,23 @@ double compute_log_trunc_gauss_norm_constant(double x, double a, double b, doubl
     return log(cdf(beta) - cdf(alpha));
 }
 
-
+/**
+ * Compute the log probability ratio betweent the proposal distribution for the proposed gammas,
+ * i.e. the log of q(ɣ|ɣ') / q(ɣ'|ɣ), where ɣ is the old gamma, ɣ' is the proposed gamma and 
+ * q(.) is the truncated Gaussian proposal distribution.
+ * 
+ * Note that this is not the full proposal ratio, but only the part of the proposal ratio that
+ * depends on the proposed gammas. The full proposal ratio also includes the probabilities of the
+ * proposed gammas under the truncated normal distribution.
+ * 
+ * @param gamma The current gamma thresholds for the target.
+ * @param gamma_p The proposed new gamma thresholds for the target.
+ * @param ncategories The number of categories for the target.
+ * @param sigma The standard deviation of the truncated Gaussian distribution used for proposing 
+ * new gamma values.
+ * 
+ * @return The log of the proposal ratio for the proposed gammas.
+ */
 double compute_gamma_log_proposal_ratio(
     const colvec& gamma,
     const colvec& gamma_p,
@@ -132,7 +161,20 @@ double compute_gamma_log_proposal_ratio(
     return log_proposal_ratio;
 }
 
-
+/**
+ * Propose new threshold values for a given target using a truncated normal distribution. 
+ * 
+ * @param gamma The current gamma thresholds for the target.
+ * @param ncategories The number of categories for the target.
+ * @param sigma The standard deviation of the truncated Gaussian distribution used for proposing new
+ * gamma values. This controls the tuning of the proposal distribution.
+ * @param rng A pointer to a GSL random number generator object, which is used to draw random
+ * samples from the truncated normal distribution.
+ * 
+ * @return A colvec containing the proposed new gamma thresholds for the target. The length of the
+ * returned colvec will be equal to ncategories - 1, since there are ncategories - 1 thresholds 
+ * for a target with ncategories.
+ */
 arma::colvec propose_gamma(
     const colvec& gamma,
     int ncategories, 
@@ -220,4 +262,44 @@ bool mh_update_gamma(
         return true;
     }
     return false;
+}
+
+void gibbs_update_beta(
+    colvec& beta,
+    const std::vector<colvec>& gamma,
+    const Data& data,
+    const arma::colvec& beta_mean_prior,
+    const arma::mat& beta_prec_prior,
+    gsl_rng* rng
+) {
+    // Draw latent y*.
+    arma::colvec ystar = arma::colvec(data.nobs, arma::fill::zeros);
+    int offset = 0;
+    for (unsigned int target = 0; target < data.ntargets; target++) {
+        if (target > 0) {
+            int nobs = data.Y[target-1].n_elem;
+            offset += nobs;
+        }
+        const colvec current_ystar = data.X[target] * beta;
+        for (unsigned int i = 0; i < data.X[target].n_rows; i++) {
+            ystar(offset + i) = rtnorm(
+                rng,
+                gamma[target](data.Y[target](i) - 1),
+                gamma[target](data.Y[target](i)),
+                current_ystar[i], 
+                1.0
+            ).first;
+        }
+    }
+
+    // Draw new beta.
+    arma::mat XpZ = arma::trans(data.Xall) * ystar;
+    beta = mspm_util::NormNormregress_beta_draw(
+        rng, 
+        data.XpX, 
+        XpZ, 
+        beta_mean_prior, 
+        beta_prec_prior, 
+        1.0
+    );
 }

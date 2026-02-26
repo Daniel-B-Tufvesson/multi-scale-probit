@@ -69,74 +69,19 @@ Data unpack_data(
 
 
 /**
- * Compute the log likelihood ratio between the current gammas and the proposed gammas.
+ * Propose a new gamma via the Metropolis-Hastings method.
  * 
- * @param gamma The current gamma thresholds for the target.
- * @param gamma_p The proposed gamma thresholds for the target.
+ * @param gamma The current gamma thresholds for the target, which will be updated in place if the
+ * proposed gammas are accepted.
+ * @param beta The current regression coefficients for the target.
  * @param X The feature matrix for the target.
  * @param Y The response vector for the target.
- * @param beta The current regression coefficients.
- * @param ncategories The number of categories for the target.
- * 
- * @return The log likelihood ratio for the proposed gamma thresholds compared to the current 
- * gamma thresholds.
- */
-double compute_log_likelihood_ratio(
-    const colvec& gamma,
-    const colvec& gamma_p,
-    const mat& X,
-    const colvec& Y,
-    const colvec& beta,
-    int ncategories
-);
-
-/**
- * Compute the log probability ratio betweent the proposal distribution for the proposed gammas,
- * i.e. the log of q(ɣ|ɣ') / q(ɣ'|ɣ), where ɣ is the old gamma, ɣ' is the proposed gamma and 
- * q(.) is the truncated Gaussian proposal distribution.
- * 
- * Note that this is not the full proposal ratio, but only the part of the proposal ratio that
- * depends on the proposed gammas. The full proposal ratio also includes the probabilities of the
- * proposed gammas under the truncated normal distribution.
- * 
- * @param gamma The current gamma thresholds for the target.
- * @param gamma_p The proposed new gamma thresholds for the target.
- * @param ncategories The number of categories for the target.
- * @param sigma The standard deviation of the truncated Gaussian distribution used for proposing 
- * new gamma values.
- * 
- * @return The log of the proposal ratio for the proposed gammas.
- */
-double compute_gamma_log_proposal_ratio(
-    const colvec& gamma,
-    const colvec& gamma_p,
-    int ncategories,
-    double sigma
-);
-
-/**
- * Propose new threshold values for a given target using a truncated normal distribution. 
- * 
- * @param gamma The current gamma thresholds for the target.
  * @param ncategories The number of categories for the target.
  * @param sigma The standard deviation of the truncated Gaussian distribution used for proposing new
  * gamma values. This controls the tuning of the proposal distribution.
- * @param rng A pointer to a GSL random number generator object, which is used to draw random
- * samples from the truncated normal distribution.
- * 
- * @return A colvec containing the proposed new gamma thresholds for the target. The length of the
- * returned colvec will be equal to ncategories - 1, since there are ncategories - 1 thresholds 
- * for a target with ncategories.
- */
-arma::colvec propose_gamma(
-    const colvec& gamma,
-    int ncategories, 
-    double sigma,
-    gsl_rng* rng
-);
-
-/**
- * Propose a new gamma via the Metropolis-Hastings method.
+ * @param inv_temperature The inverse temperature (1/T) for the current chain. This is used to scale
+ * the log likelihood ratio in the acceptance probability for the proposed gammas.
+ * @param rng The GSL random number generator to use for sampling.
  * 
  * @return A boolean indicating whether the proposed gammas were accepted (true) or rejected (false).
  */
@@ -151,5 +96,27 @@ bool mh_update_gamma(
     gsl_rng* rng
 );
 
+/**
+ * Perform the Gibbs update for the regression coefficients. This involves first updating the
+ * latent variables y* based on the current thresholds and regression coefficients, and then
+ * drawing new regression coefficients from their full conditional distribution given the 
+ * updated latent variables and thresholds.
+ * 
+ * @param beta The current regression coefficients, which will be updated in place with the new 
+ * sampled values.
+ * @param gamma The current threshold parameters for each target.
+ * @param data The data object.
+ * @param beta_mean_prior The prior mean for the regression coefficients.
+ * @param beta_prec_prior The prior precision matrix for the regression coefficients.
+ * @param rng The GSL random number generator to use for sampling.
+ */
+void gibbs_update_beta(
+    colvec& beta,
+    const std::vector<colvec>& gamma,
+    const Data& data,
+    const arma::colvec& beta_mean_prior,
+    const arma::mat& beta_prec_prior,
+    gsl_rng* rng
+);
 
 #endif // __SAMPLING_HPP
