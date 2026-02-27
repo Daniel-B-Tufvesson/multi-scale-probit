@@ -28,8 +28,11 @@ run_all_cv_tests <- function() {
         nsplits = 3,
         prop = 0.7,
         ndraws = 10,
-        burnin = 10,
-        thin = 1,
+        sampler = fit_mspm,
+        samplerArgs = list(
+            burnin = 10,
+            thin = 1
+        ),
         seed = 42,
         nworkers = 1,
         meansOnly = FALSE
@@ -131,8 +134,11 @@ run_all_cv_tests <- function() {
         nsplits = 3,
         prop = 0.7,
         ndraws = 10,
-        burnin = 10,
-        thin = 1,
+        sampler = fit_mspm,
+        samplerArgs = list(
+            burnin = 10,
+            thin = 1
+        ),
         seed = 42,
         nworkers = 1,
         meansOnly = FALSE
@@ -143,8 +149,11 @@ run_all_cv_tests <- function() {
         nsplits = 3,
         prop = 0.7,
         ndraws = 10,
-        burnin = 10,
-        thin = 1,
+        sampler = fit_mspm,
+        samplerArgs = list(
+            burnin = 10,
+            thin = 1
+        ),
         seed = 42,
         nworkers = 1,
         meansOnly = FALSE
@@ -178,8 +187,11 @@ run_all_cv_tests <- function() {
         nsplits = 3,
         prop = 0.7,
         ndraws = 10,
-        burnin = 10,
-        thin = 1,
+        sampler = fit_mspm,
+        samplerArgs = list(
+            burnin = 10,
+            thin = 1
+        ),
         seed = 42,
         nworkers = 4,
         meansOnly = FALSE
@@ -190,8 +202,11 @@ run_all_cv_tests <- function() {
         nsplits = 3,
         prop = 0.7,
         ndraws = 10,
-        burnin = 10,
-        thin = 1,
+        sampler = fit_mspm,
+        samplerArgs = list(
+            burnin = 10,
+            thin = 1
+        ),
         seed = 42,
         nworkers = 4,
         meansOnly = FALSE
@@ -225,8 +240,11 @@ run_all_cv_tests <- function() {
         nsplits = 3,
         prop = 0.7,
         ndraws = 10,
-        burnin = 10,
-        thin = 1,
+        sampler = fit_mspm,
+        samplerArgs = list(
+            burnin = 10,
+            thin = 1
+        ),
         seed = 42,
         nworkers = 2,
         meansOnly = FALSE
@@ -237,8 +255,11 @@ run_all_cv_tests <- function() {
         nsplits = 3,
         prop = 0.7,
         ndraws = 10,
-        burnin = 10,
-        thin = 1,
+        sampler = fit_mspm,
+        samplerArgs = list(
+            burnin = 10,
+            thin = 1
+        ),
         seed = 42,
         nworkers = 4,
         meansOnly = FALSE

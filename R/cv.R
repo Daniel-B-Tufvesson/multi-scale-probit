@@ -23,11 +23,9 @@ library(coda)
 #' @param nsplits An integer specifying the number of random splits to perform.
 #' @param prop A numeric value between 0 and 1 indicating the proportion of data to be used for 
 #' training in each split. The rest will be used for testing.
+#' @param sampler A function that fits an mspm model and returns an object containing posterior draws.
+#' @param samplerArgs A list of additional arguments to pass to the sampler function, such
 #' @param ndraws An integer specifying the number of posterior draws to use when fitting the model.
-#' @param burnin An integer specifying the number of initial draws to discard as burn-in.
-#' @param thin An integer specifying the thinning interval for posterior draws.
-#' @param meanPrior A numeric vector specifying the prior mean for regression coefficients.
-#' @param precPrior A numeric vector specifying the prior precision for regression coefficients.
 #' @param seed An integer random seed for reproducibility. If NULL, a random seed will be generated.
 #' @param metrics A character vector specifying the evaluation metrics to compute. Default 
 #' is c("f1", "kendall").
@@ -46,12 +44,10 @@ cross_validate <- function(
     data,
     nsplits,
     prop,
+    sampler,
+    samplerArgs,
     ndraws,
-    burnin,
-    thin,
     ...,
-    meanPrior = NULL,
-    precPrior = NULL,
     seed = NULL,
     metrics = c("f1", "kendall"),
     nworkers = 1,
@@ -70,10 +66,8 @@ cross_validate <- function(
                 data = data,
                 prop = prop,
                 ndraws = ndraws,
-                burnin = burnin,
-                thin = thin,
-                meanPrior = meanPrior,
-                precPrior = precPrior,
+                sampler = sampler,
+                samplerArgs = samplerArgs,
                 seed = seed + i,
                 metrics = metrics,
                 meansOnly = meansOnly
@@ -107,10 +101,8 @@ cross_validate <- function(
                 data = data,
                 prop = prop,
                 ndraws = ndraws,
-                burnin = burnin,
-                thin = thin,
-                meanPrior = meanPrior,
-                precPrior = precPrior,
+                sampler = sampler,
+                samplerArgs = samplerArgs,
                 seed = seed + i, # Use different seed for each split.
                 metrics = metrics,
                 meansOnly = meansOnly
@@ -185,10 +177,8 @@ cross_validate <- function(
 #' @param prop A numeric value between 0 and 1 indicating the proportion of data to be used for 
 #' training in this trial. The rest will be used for testing.
 #' @param ndraws An integer specifying the number of posterior draws to use when fitting the model.
-#' @param burnin An integer specifying the number of initial draws to discard as burn-in.
-#' @param thin An integer specifying the thinning interval for posterior draws.
-#' @param meanPrior A numeric vector specifying the prior mean for regression coefficients.
-#' @param precPrior A numeric vector specifying the prior precision for regression coefficients.
+#' @param sampler A function that fits an mspm model and returns an object containing posterior draws.
+#' @param samplerArgs A list of additional arguments to pass to the sampler function.
 #' @param seed An integer random seed for reproducibility.
 #' @param metrics A character vector specifying the evaluation metrics to compute.
 #' @param meansOnly A logical value indicating whether to return only the mean evaluations for 
@@ -202,10 +192,8 @@ cross_validate <- function(
     data,
     prop,
     ndraws,
-    burnin,
-    thin,
-    meanPrior,
-    precPrior,
+    sampler,
+    samplerArgs,
     seed,
     metrics,
     meansOnly
@@ -216,15 +204,13 @@ cross_validate <- function(
     test_data <- splits$test
 
     # Fit model on training data.
-    fit <- fit_mspm(
+    args <- list(
         data = train_data,
         ndraws = ndraws,
-        burnin = burnin,
-        thin = thin,
-        meanPrior = meanPrior,
-        precPrior = precPrior,
         seed = seed
     )
+    args <- c(args, samplerArgs)
+    fit <- do.call(sampler, args)
 
     # Predict on test data.
     predictions <- predict_mspm(fit, newdata = test_data)
