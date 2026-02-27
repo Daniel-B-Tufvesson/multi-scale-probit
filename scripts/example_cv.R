@@ -14,7 +14,7 @@ data <- generate_synthetic_data(
     seed = 1234
 )
 
-# Perform cross-validation.
+# Perform cross-validation on the standard mh-within-gibbs sampler.
 cv_res1 <- cross_validate(
     data = data,
     nsplits = 50,
@@ -30,6 +30,7 @@ cv_res1 <- cross_validate(
     meansOnly = FALSE
 )
 
+# Perform cross-validation on the parallel tempering sampler.
 cv_res_pt <- cross_validate(
     data = data,
     nsplits = 50,
@@ -48,23 +49,9 @@ cv_res_pt <- cross_validate(
 
 print("done")
 
-# 
-# cv_res2 <- cross_validate(
-#     data = data,
-#     nsplits = 10,
-#     prop = 0.7,
-#     ndraws = 100,
-#     burnin = 100,
-#     thin = 1,
-#     seed = 123,
-#     nworkers = 10,
-#     meansOnly = FALSE
-# )
 
 # Plot difference.
 plot_cv_diff(cv_res1, cv_res_pt, title = "Means per split")
-# 
 # cvAllDraws(cv_res1)
 plot_cv_diff(cv_res1, cv_res_pt, plotData = "allDraws", title = "Total draws")
 
-# Todo: cross validate with total evaluations as well. 
