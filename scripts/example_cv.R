@@ -1,6 +1,7 @@
 # This script demonstrates how to perform cross-validation on an mspm model using synthetic data.
 
 source("R/data.R")
+source("R/fit.R")
 source("R/cv.R")
 source("R/plot.R")
 
@@ -13,35 +14,44 @@ data <- generate_synthetic_data(
     seed = 1234
 )
 
-# Perform cross-validation.
+# Perform cross-validation on the standard mh-within-gibbs sampler.
 cv_res1 <- cross_validate(
     data = data,
-    nsplits = 10,
-    prop = 0.7,
-    ndraws = 100,
-    burnin = 100,
-    thin = 1,
+    nsplits = 50,
+    prop = 0.66,
+    ndraws = 50000,
+    sampler = fit_mspm,
+    samplerArgs = list(
+        burnin = 50000,
+        thin = 10
+    ),
     seed = 42,
-    nworkers = 10,
+    nworkers = 5,
     meansOnly = FALSE
 )
-# 
-# cv_res2 <- cross_validate(
-#     data = data,
-#     nsplits = 10,
-#     prop = 0.7,
-#     ndraws = 100,
-#     burnin = 100,
-#     thin = 1,
-#     seed = 123,
-#     nworkers = 10,
-#     meansOnly = FALSE
-# )
+
+# Perform cross-validation on the parallel tempering sampler.
+cv_res_pt <- cross_validate(
+    data = data,
+    nsplits = 50,
+    prop = 0.66,
+    ndraws = 50000,
+    sampler = fit_mspm_pt,
+    samplerArgs = list(
+        burnin = 50000,
+        thin = 10,
+        ntemperatures = 5
+    ),
+    seed = 42,
+    nworkers = 5,
+    meansOnly = FALSE
+)
+
+print("done")
+
 
 # Plot difference.
-plot_cv_diff(cv_res1, cv_res2, title = "Means per split")
+plot_cv_diff(cv_res1, cv_res_pt, title = "Means per split")
+# cvAllDraws(cv_res1)
+plot_cv_diff(cv_res1, cv_res_pt, plotData = "allDraws", title = "Total draws")
 
-cvAllDraws(cv_res1)
-plot_cv_diff(cv_res1, cv_res2, plotData = "allDraws", title = "Total draws")
-
-# Todo: cross validate with total evaluations as well. 
