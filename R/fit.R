@@ -170,6 +170,8 @@ fit_mspm <- function(
         burninBeta,
         burninGammas,
         diagnostics = diagnostics,
+        samplingTime = sim$sampling_time,
+        burninTime = sim$burnin_time,
         call = match.call()
     )  
 }
@@ -274,6 +276,7 @@ fit_mspm <- function(
 #' @param gamma.initial Initial values for threshold parameters.
 #' @param verbose Verbosity level for output.
 #' @param computeDiagnostics Whether to compute diagnostics for the fitted model.
+#' @param saveBurninSamples Whether to save the burn-in samples in the returned model object.
 #' @return An object of class 'mspm' containing the fitted model.
 fit_mspm_pt <- function(
     data, 
@@ -296,7 +299,9 @@ fit_mspm_pt <- function(
     beta.initial = NULL,
     gamma.initial = NULL,
     verbose = 0,
-    computeDiagnostics = TRUE
+    computeDiagnostics = TRUE,
+    saveBurninSamples = FALSE
+
 ) {
     .validate_data(data)
 
@@ -363,6 +368,7 @@ fit_mspm_pt <- function(
             thin,
             seed,
             complete_param_swapping,
+            saveBurninSamples,
             verbose
         ) {
             devtools::load_all()
@@ -387,6 +393,7 @@ fit_mspm_pt <- function(
                 thin,
                 seed,
                 complete_param_swapping,
+                saveBurninSamples,
                 verbose
             )
         },
@@ -410,6 +417,7 @@ fit_mspm_pt <- function(
             thin,
             seed,
             complete_param_swapping,
+            saveBurninSamples,
             verbose
         ),
         show = FALSE # set to TRUE for debugging
@@ -440,6 +448,18 @@ fit_mspm_pt <- function(
         diagnostics <- .run_diagnostics(beta, gammas)
     }
 
+    # Get the burnin samples.
+    burninBeta <- NULL
+    burninGammas <- NULL
+    if (saveBurninSamples) {
+        colnames(sim$storebeta_burnin) <- c(data$predictorNames)
+        burninBeta <- mcmc(sim$storebeta_burnin, start = 1, end = burnin, thin = thin)
+        burninGammas <- list()
+        for (i in 1:ntargets) {
+            burninGammas[[i]] <- mcmc(sim$storegamma_burnin[[i]], start = 1, end = burnin, thin = thin)
+        }
+    }
+
     # Return fitted model.
     new_mspm_pt(
         data_spec = data_spec(data),
@@ -466,6 +486,10 @@ fit_mspm_pt <- function(
         initialWindowSize = temperature_window_size,
         windowGrowthFactor = tempperature_window_growth_factor,
         completeSwapping = complete_param_swapping,
+        burninBeta = burninBeta,
+        burninGammas = burninGammas,
+        samplingTime = sim$sampling_time,
+        burninTime = sim$burnin_time,
         call = match.call()
     )  
 }

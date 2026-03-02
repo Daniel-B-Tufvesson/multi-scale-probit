@@ -170,6 +170,8 @@ gewekeGammas.mspm_single_chain_diag <- function(object, ...) {
 # each target dataset.
 # diagnostics: An mspm_single_chain_diag object containing diagnostic information about the 
 # MCMC sampling, such as effective sample size (ess) and Geweke diagnostics for each parameter.
+# samplingTime: The time taken for the sampling phase of MCMC sampling.
+# burninTime: The time taken for the burn-in phase of MCMC sampling.
 # call: The original function call used to create the model.
 new_mspm <- function(
     data_spec,
@@ -185,6 +187,8 @@ new_mspm <- function(
     burninBeta,
     burninGammas,
     diagnostics,
+    samplingTime,
+    burninTime,
     call
 ) {
     structure(
@@ -203,7 +207,9 @@ new_mspm <- function(
             burnin = burnin,
             burninBeta = burninBeta, # May be null.
             burninGammas = burninGammas, # May be null.
-            diagnostics = diagnostics # May be null.
+            diagnostics = diagnostics, # May be null.
+            samplingTime = samplingTime,
+            burninTime = burninTime
         ),
         class = "mspm"
     )
@@ -273,6 +279,14 @@ thin.mspm <- function(object, ...) {
     object$thin
 }
 
+samplingTime.mspm <- function(object, ...) {
+    object$samplingTime
+}
+
+burninTime.mspm <- function(object, ...) {
+    object$burninTime
+}
+
 diagnostics.mspm <- function(object, ...) {
     object$diagnostics
 }
@@ -312,6 +326,8 @@ gewekeGammas.mspm <- function(object, ...) {
 #' parameters of each target dataset.
 #' @param diagnostics An mspm_single_chain_diag object containing diagnostic information about the 
 #' MCMC sampling, such as effective sample size (ess) and Geweke diagnostics for each parameter.
+#' @param samplingTime The time taken for the sampling phase of MCMC sampling.
+#' @param burninTime The time taken for the burn-in phase of MCMC sampling
 #' @param call The original function call used to create the model.
 new_mspm_pt <- function(
     data_spec,
@@ -328,6 +344,8 @@ new_mspm_pt <- function(
     burninBeta,
     burninGammas,
     diagnostics,
+    samplingTime,
+    burninTime,
     initialTemperatureLadder,
     adjustedTemperatureLadder,
     targetSwapAcceptRatio,
@@ -374,6 +392,8 @@ new_mspm_pt <- function(
             
             completeSwapping = completeSwapping,
 
+            samplingTime = samplingTime,
+            burninTime = burninTime,
             diagnostics = diagnostics
         ),
         class = c("mspm_pt", "mspm")

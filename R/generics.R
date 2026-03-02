@@ -165,6 +165,29 @@ thin <- function(object, ...) {
     UseMethod("thin")
 }
 
+#' The time taken for the sampling phase of MCMC sampling. This only encompasses the time taken for 
+#' sampling and does not include data preprocessing, model fitting setup, burn-in, or post-processing 
+#' steps. The time is measured in seconds.
+#'
+#' @param object An mspm object.
+#' @param ... Additional arguments (not used).
+#' @return A numeric value indicating the total time taken for the MCMC sampling process in seconds. 
+samplingTime <- function(object, ...) {
+    UseMethod("samplingTime")
+}
+
+#' The time taken for the burn-in phase of MCMC sampling. This only encompasses the time taken for
+#' the burn-in phase and does not include data preprocessing, model fitting setup, sampling, or
+#' post-processing steps. The time is measured in seconds.
+#'
+#' @param object An mspm object.
+#' @param ... Additional arguments (not used).
+#' @return A numeric value indicating the total time taken for the burn-in phase of MCMC sampling in
+#' seconds.
+burninTime <- function(object, ...) {
+    UseMethod("burninTime")
+}
+
 #' The predicted values of latent variable. This is also known as y* (y-star).
 #'
 #' @param object An mspm_labeled_prediction object.

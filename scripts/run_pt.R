@@ -13,7 +13,7 @@ data <- generate_synthetic_data(
 )
 
 # Fit using all the data.
-fit <- fit_mspm_pt(
+fit_pt <- fit_mspm_pt(
     data = data,
     ndraws = 500,
     burnin = 10000,
@@ -24,6 +24,6 @@ fit <- fit_mspm_pt(
     verbose = 100,
     temperature_ladder_learning_rate = 0.01,
     tempperature_window_growth_factor = 2,
-    complete_param_swapping = TRUE
+    complete_param_swapping = TRUE,
+    saveBurninSamples = TRUE
 )
-#fit

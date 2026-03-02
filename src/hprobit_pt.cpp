@@ -32,7 +32,10 @@ public:
     // Storage matrixes.
     arma::mat store_beta;
     std::vector<arma::mat> store_gamma;
+    arma::mat store_beta_burnin;
+    std::vector<arma::mat> store_gamma_burnin;
     int nstored = 0; // Number of samples stored so far.
+    int nstored_burnin = 0; // Number of burnin samples stored so far.
     int nsteps = 0; // Number of steps taken.
 
     /**
@@ -65,7 +68,9 @@ public:
         const arma::mat& prec_prior,
         const int nstore,
         const int total_nobs,
-        const int ntargets
+        const int ntargets,
+        bool store_burnin_samples,
+        const int nstore_burnin
     ) : inv_temperature(inv_temperature), beta(beta_start), gamma(gamma_start), 
         ncategories(ncategories), gamma_tune(gamma_tune), mean_prior(mean_prior), 
         prec_prior(prec_prior), ntargets(ntargets) {
@@ -74,8 +79,17 @@ public:
         // Initialize storage matrixes.
         store_beta = arma::mat(nstore, beta.n_rows, arma::fill::zeros);
         store_gamma = std::vector<arma::mat>(ntargets);
-        for (unsigned int target = 0; target < ntargets; target++) {
+        for (int target = 0; target < ntargets; target++) {
             store_gamma[target] = arma::mat(nstore, ncategories(target)-1, arma::fill::zeros);
+        }
+
+        // Initialize burnin storage.
+        if (store_burnin_samples) {
+            store_beta_burnin = arma::mat(nstore_burnin, beta.n_rows, arma::fill::zeros);
+            store_gamma_burnin = std::vector<arma::mat>(ntargets);
+            for (int target = 0; target < ntargets; target++) {
+                store_gamma_burnin[target] = arma::mat(nstore_burnin, ncategories(target)-1, arma::fill::zeros);
+            }
         }
 
         npredictors = beta.n_elem;
@@ -170,7 +184,7 @@ public:
     /**
      * Store the latest beta and gammas samples.
      */
-    void storeSample() {
+    void store_sample() {
         // Store beta.
         for (unsigned int j = 0; j < npredictors; j++) {
             store_beta(nstored, j) = beta[j];
@@ -184,6 +198,25 @@ public:
         }
 
         nstored++;
+    }
+
+    /**
+     * Store the latest beta and gammas samples during burnin.
+     */
+    void store_burnin_sample() {
+        // Store beta.
+        for (unsigned int j = 0; j < npredictors; j++) {
+            store_beta_burnin(nstored_burnin, j) = beta[j];
+        }
+
+        // Store gammas.
+        for (unsigned int target = 0; target < ntargets; target++) {
+            for (unsigned int j = 1; j < ncategories(target); j++) {
+                store_gamma_burnin[target](nstored_burnin, j-1) = gamma[target](j);
+            }
+        }
+
+        nstored_burnin++;
     }
 
     /**
@@ -268,6 +301,8 @@ void do_burnin(
     int ntemperatures,
     const Data& data,
     int burnin, 
+    bool save_burning_samples,
+    int thin,
     gsl_rng* rng
 );
 
@@ -282,6 +317,8 @@ void do_adaptive_burnin(
     double target_swap_ratio,
     double ladder_adjust_learning_rate,
     arma::vec& swap_rates,
+    bool save_burning_samples,
+    int thin,
     int verbose
 );
 
@@ -372,6 +409,7 @@ Rcpp::List cpp_hprobit_pt(
     const int thin,
     const int seed,
     bool complete_swapping,
+    bool save_burning_samples,
     const int verbose
 ) {
     if (verbose != 0){
@@ -386,6 +424,7 @@ Rcpp::List cpp_hprobit_pt(
     // Define constants and unpack data.
     const int total_iterations = iterations + burnin;
     const int nstore = iterations / thin;
+    const int nstore_bunin =  save_burning_samples ? burnin / thin : 0;
     const int ntargets = xlist.size();
     const Data data = unpack_data(xlist, ylist);
 
@@ -416,7 +455,9 @@ Rcpp::List cpp_hprobit_pt(
             prec_prior,
             nstore,
             nobs,
-            ntargets
+            ntargets,
+            save_burning_samples,
+            nstore_bunin
         );
     }
 
@@ -425,9 +466,11 @@ Rcpp::List cpp_hprobit_pt(
     }
 
     arma::vec adaptation_swap_rates(ntemperatures-1, arma::fill::zeros);
+    // Measure burnin sampling time.
+    auto start_time_burnin = std::chrono::high_resolution_clock::now();
     // Burn-in loop without temperature ladder adaptation.
     if (target_temp_swap_accept_ratio == -1) {
-        do_burnin(chains, ntemperatures, data, burnin, gen);
+        do_burnin(chains, ntemperatures, data, burnin, save_burning_samples, thin, gen);
     }
     else { // Do with adaptation.
         do_adaptive_burnin(
@@ -441,9 +484,14 @@ Rcpp::List cpp_hprobit_pt(
             target_temp_swap_accept_ratio,
             temp_ladder_learning_rate,
             adaptation_swap_rates,
+            save_burning_samples,
+            thin,
             verbose
         );
     }
+    // Measure burnin time in seconds.
+    auto end_time_burnin = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed_burnin = end_time_burnin - start_time_burnin;
     
     if (verbose != 0) {
         Rcpp::Rcout << "Burn-in complete. Starting sampling phase..." << std::endl;
@@ -453,6 +501,8 @@ Rcpp::List cpp_hprobit_pt(
     std::vector<int> nswap_accepts(ntemperatures-1, 0);
     std::vector<int> nswap_proposals(ntemperatures-1, 0);
     std::vector<double> swap_probabilities(ntemperatures-1, 0);
+    // Measure sampling time.
+    auto start_time = std::chrono::high_resolution_clock::now();
     for (unsigned int iter = 0; iter < iterations; iter++) {
         do_step(chains, ntemperatures, data, nswap_accepts, nswap_proposals, 
             &swap_probabilities, gen);
@@ -460,7 +510,7 @@ Rcpp::List cpp_hprobit_pt(
         // Store samples.
         if (iter % thin == 0) {
             for (auto& chain : chains) {
-                chain.storeSample();
+                chain.store_sample();
             }
         }
 
@@ -481,6 +531,9 @@ Rcpp::List cpp_hprobit_pt(
                         << std::endl;
         }
     }
+    // Measure sampling time in seconds.
+    auto end_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end_time - start_time;
 
     // Free pointers.
     gsl_rng_free(gen);
@@ -490,6 +543,14 @@ Rcpp::List cpp_hprobit_pt(
     Rcpp::List storegamma_list;
     for (size_t i = 0; i < chains[0].store_gamma.size(); ++i) {
         storegamma_list.push_back(chains[0].store_gamma[i]);
+    }
+
+    // Wrap burnin gammas too.
+    Rcpp::List storegamma_burnin_list;
+    if (save_burning_samples) {
+        for (size_t i = 0; i < chains[0].store_gamma_burnin.size(); ++i) {
+            storegamma_burnin_list.push_back(chains[0].store_gamma_burnin[i]);
+        }
     }
 
     // Store inverse temperatures.
@@ -508,7 +569,11 @@ Rcpp::List cpp_hprobit_pt(
         _["nswap_proposals"] = nswap_proposals,
         _["adapted_inv_temps"] = inv_temps,
         _["adapted_temps"] = adapted_temps,
-        _["adaptation_swap_rates"] = adaptation_swap_rates
+        _["adaptation_swap_rates"] = adaptation_swap_rates,
+        _["storebeta_burnin"] = chains[0].store_beta_burnin,
+        _["storegamma_burnin"] = storegamma_burnin_list,
+        _["sampling_time"] = elapsed.count(),
+        _["burnin_time"] = elapsed_burnin.count()
     );
 }
 
@@ -569,12 +634,21 @@ void do_burnin(
     int ntemperatures,
     const Data& data,
     int burnin, 
+    bool save_burning_samples,
+    int thin,
     gsl_rng* rng
 ) {
     std::vector<int> nswap_accepts(ntemperatures-1, 0);
     std::vector<int> nswap_proposals(ntemperatures-1, 0);
     for (unsigned int iter = 0; iter < burnin; iter++) {
         do_step(chains, ntemperatures, data, nswap_accepts, nswap_proposals, nullptr, rng);
+
+        // Store samples.
+        if (save_burning_samples && (iter % thin == 0)) {
+            for (auto& chain : chains) {
+                chain.store_burnin_sample();
+            }
+        }
     }
 }
 
@@ -601,6 +675,11 @@ void do_burnin(
  * @param ladder_adjust_learning_rate The learning rate for adjusting the ladder gaps. This controls
  * how aggressively the ladder is adjusted based on the difference between the observed swap rates
  * and the target swap ratio.
+ * @param swap_rates A vector where the computed swap rates for each pair of adjacent temperatures 
+ * will be stored. This should have a length of ntemperatures - 1, and is used to track the swap rates
+ * during the burn-in phase.
+ * @param save_burning_samples Whether to store the samples collected during the burn-in phase.
+ * @param thin The thinning interval for storing burn-in samples.
  */
 void do_adaptive_burnin(
     std::vector<TemperatureChain>& chains, 
@@ -613,6 +692,8 @@ void do_adaptive_burnin(
     double target_swap_ratio,
     double ladder_adjust_learning_rate,
     arma::vec& swap_rates,
+    bool save_burning_samples,
+    int thin,
     int verbose
 ) {
     std::vector<double> swap_probabilities(ntemperatures, 0);
@@ -625,7 +706,15 @@ void do_adaptive_burnin(
     for (unsigned int iter = 0; iter < burnin; iter++) {
         do_step(chains, ntemperatures, data, nswap_accepts, nswap_proposals, 
                 &swap_probabilities, rng);
+        
+        // Store samples.
+        if (save_burning_samples && (iter % thin == 0)) {
+            for (auto& chain : chains) {
+                chain.store_burnin_sample();
+            }
+        }
 
+        // Do ladder adaptation at the end of each window.
         window_step++;
         if (window_step == window_size) {
             
