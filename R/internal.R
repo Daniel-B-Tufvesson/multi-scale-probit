@@ -161,6 +161,13 @@ gewekeGammas.mspm_single_chain_diag <- function(object, ...) {
 # meanPrior: Prior mean for regression coefficients.
 # precPrior: Prior precision for regression coefficients.
 # seed: The random seed used for reproducibility.
+# ndraws: The number of posterior draws collected after thinning.
+# ndrawsNoThin: The number of posterior draws collected before thinning.
+# thin: The thinning interval used in MCMC sampling.
+# burnin: The number of burn-in iterations used in MCMC sampling.
+# burninBeta: An MCMC object containing the burn-in samples for the beta parameters.
+# burninGammas: A list of MCMC objects containing the burn-in samples for the gamma parameters of 
+# each target dataset.
 # diagnostics: An mspm_single_chain_diag object containing diagnostic information about the 
 # MCMC sampling, such as effective sample size (ess) and Geweke diagnostics for each parameter.
 # call: The original function call used to create the model.
@@ -175,6 +182,8 @@ new_mspm <- function(
     ndrawsNoThin,
     thin,
     burnin,
+    burninBeta,
+    burninGammas,
     diagnostics,
     call
 ) {
@@ -192,7 +201,9 @@ new_mspm <- function(
             ndrawsNoThin = ndrawsNoThin,
             thin = thin,
             burnin = burnin,
-            diagnostics = diagnostics
+            burninBeta = burninBeta, # May be null.
+            burninGammas = burninGammas, # May be null.
+            diagnostics = diagnostics # May be null.
         ),
         class = "mspm"
     )
@@ -250,6 +261,14 @@ burnin.mspm <- function(object, ...) {
     object$burnin
 }
 
+burninBeta.mspm <- function(object, ...) {
+    object$burninBeta
+}
+
+burninGammas.mspm <- function(object, ...) {
+    object$burninGammas
+}
+
 thin.mspm <- function(object, ...) {
     object$thin
 }
@@ -288,6 +307,9 @@ gewekeGammas.mspm <- function(object, ...) {
 #' @param ndrawsNoThin The number of posterior draws collected before thinning.
 #' @param thin The thinning interval used in MCMC sampling.
 #' @param burnin The number of burn-in iterations used in MCMC sampling.
+#' @param burninBeta An MCMC object containing the burn-in samples for the beta parameters.
+#' @param burninGammas A list of MCMC objects containing the burn-in samples for the gamma 
+#' parameters of each target dataset.
 #' @param diagnostics An mspm_single_chain_diag object containing diagnostic information about the 
 #' MCMC sampling, such as effective sample size (ess) and Geweke diagnostics for each parameter.
 #' @param call The original function call used to create the model.
@@ -303,6 +325,8 @@ new_mspm_pt <- function(
     thin,
     ntemperatures,
     burnin,
+    burninBeta,
+    burninGammas,
     diagnostics,
     initialTemperatureLadder,
     adjustedTemperatureLadder,
@@ -332,6 +356,8 @@ new_mspm_pt <- function(
             ndrawsNoThin = ndrawsNoThin,
             thin = thin,
             burnin = burnin,
+            burninBeta = burninBeta, # May be null.
+            burninGammas = burninGammas, # May be null.
 
             ntemperatures = ntemperatures,
             initialTemperatureLadder = initialTemperatureLadder,

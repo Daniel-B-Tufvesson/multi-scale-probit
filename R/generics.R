@@ -103,6 +103,29 @@ gammas <- function(object, ...) {
     UseMethod("gammas")
 }
 
+#' An MCMC object containing the burn-in samples for the beta parameters.
+#'
+#' @param object An mspm object.
+#' @param ... Additional arguments (not used).
+#' @return An MCMC object containing the burn-in samples for the beta parameters. Returns NULL if
+#' the object does not contain burn-in samples for beta.
+burninBeta <- function(object, ...) {
+    UseMethod("burninBeta")
+}
+
+#' A list of MCMC objects containing the burn-in samples for the gamma parameters for each target 
+#' dataset. 
+#'
+#' @param object An mspm object.
+#' @param ... Additional arguments (not used).
+#' @return A list of MCMC objects containing the burn-in samples for the gamma parameters for each
+#' target dataset. Each element of the list corresponds to a target dataset and contains an MCMC
+#' object with the burn-in samples for the gamma parameters of that target. Returns NULL if the
+#' object does not contain burn-in samples for gamma.
+burninGammas <- function(object, ...) {
+    UseMethod("burninGammas")
+}
+
 meanPrior <- function(object, ...) {
     UseMethod("meanPrior")
 }

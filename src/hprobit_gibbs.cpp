@@ -26,6 +26,7 @@ Rcpp::List cpp_hprobit(
     const int iterations,
     const int burnin,
     const int thin,
+    const bool save_burnin_samples,
     const int seed,
     const int verbose
 ) {
@@ -42,6 +43,7 @@ Rcpp::List cpp_hprobit(
     const int ntargets = data.ntargets;
     const int tot_iter = iterations+burnin;
     const int nstore = iterations/thin;
+    const int nstore_burnin = save_burnin_samples ? burnin : 0;
 
     // Unpack gamma.
     std::vector<colvec> gamma(ntargets);
@@ -57,6 +59,15 @@ Rcpp::List cpp_hprobit(
     for (unsigned int target = 0; target < ntargets; ++target) {
         storegamma[target] = mat(nstore, ncat(target)-1, arma::fill::zeros);
     }
+
+    // Storage matrices for burnin.
+    mat storebeta_burnin(nstore_burnin, betaStart.n_rows, arma::fill::zeros);
+    std::vector<mat> storegamma_burnin(ntargets);
+    if (save_burnin_samples) {
+        for (unsigned int target = 0; target < ntargets; ++target) {
+            storegamma_burnin[target] = mat(burnin, ncat(target)-1, arma::fill::zeros);
+        }
+    }
   
     // Set starting points
     colvec beta = betaStart;
@@ -67,6 +78,7 @@ Rcpp::List cpp_hprobit(
   
     // Bookkeeping
     unsigned int count = 0;
+    unsigned int count_burnin = 0;
     ivec accepts(ntargets+1, arma::fill::zeros);
     int offset;
 
@@ -128,17 +140,41 @@ Rcpp::List cpp_hprobit(
             }
             ++count;
         }
+
+        // Store burnin values.
+        if (save_burnin_samples && iter < burnin && ((iter % thin)==0)) {
+            for (unsigned int j=0; j < data.npredictors; ++j) {
+                storebeta_burnin(count_burnin, j) = beta[j];
+            }
+            for (unsigned int target = 0; target < ntargets; ++target) {
+                for (unsigned int j=1; j<(ncat[target]); ++j){
+                    storegamma_burnin[target](count_burnin, j-1) = gamma[target](j);
+                }
+            }
+            ++count_burnin;
+        }
     }
   
+    // Pack stored gammas.
     Rcpp::List gammas = Rcpp::List::create();
     for (unsigned int target = 0; target < ntargets; ++target) {
         gammas.push_back(storegamma[target]);
+    }
+
+    // Pack stored burnin gammas.
+    Rcpp::List storegamma_burnin_list = Rcpp::List::create();
+    if (save_burnin_samples) {
+        for (unsigned int target = 0; target < ntargets; ++target) {
+            storegamma_burnin_list.push_back(storegamma_burnin[target]);
+        }
     }
   
     return List::create(
         _["storebeta"] = storebeta,
         _["storegamma"] = gammas,
         _["accepts"] = accepts,
-        _["total_iter"] = tot_iter
+        _["total_iter"] = tot_iter,
+        _["storebeta_burnin"] = storebeta_burnin,
+        _["storegamma_burnin"] = storegamma_burnin_list
     );
 }
