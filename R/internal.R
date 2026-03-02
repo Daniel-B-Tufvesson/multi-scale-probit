@@ -161,8 +161,17 @@ gewekeGammas.mspm_single_chain_diag <- function(object, ...) {
 # meanPrior: Prior mean for regression coefficients.
 # precPrior: Prior precision for regression coefficients.
 # seed: The random seed used for reproducibility.
+# ndraws: The number of posterior draws collected after thinning.
+# ndrawsNoThin: The number of posterior draws collected before thinning.
+# thin: The thinning interval used in MCMC sampling.
+# burnin: The number of burn-in iterations used in MCMC sampling.
+# burninBeta: An MCMC object containing the burn-in samples for the beta parameters.
+# burninGammas: A list of MCMC objects containing the burn-in samples for the gamma parameters of 
+# each target dataset.
 # diagnostics: An mspm_single_chain_diag object containing diagnostic information about the 
 # MCMC sampling, such as effective sample size (ess) and Geweke diagnostics for each parameter.
+# samplingTime: The time taken for the sampling phase of MCMC sampling.
+# burninTime: The time taken for the burn-in phase of MCMC sampling.
 # call: The original function call used to create the model.
 new_mspm <- function(
     data_spec,
@@ -175,7 +184,11 @@ new_mspm <- function(
     ndrawsNoThin,
     thin,
     burnin,
+    burninBeta,
+    burninGammas,
     diagnostics,
+    samplingTime,
+    burninTime,
     call
 ) {
     structure(
@@ -192,7 +205,11 @@ new_mspm <- function(
             ndrawsNoThin = ndrawsNoThin,
             thin = thin,
             burnin = burnin,
-            diagnostics = diagnostics
+            burninBeta = burninBeta, # May be null.
+            burninGammas = burninGammas, # May be null.
+            diagnostics = diagnostics, # May be null.
+            samplingTime = samplingTime,
+            burninTime = burninTime
         ),
         class = "mspm"
     )
@@ -250,8 +267,24 @@ burnin.mspm <- function(object, ...) {
     object$burnin
 }
 
+burninBeta.mspm <- function(object, ...) {
+    object$burninBeta
+}
+
+burninGammas.mspm <- function(object, ...) {
+    object$burninGammas
+}
+
 thin.mspm <- function(object, ...) {
     object$thin
+}
+
+samplingTime.mspm <- function(object, ...) {
+    object$samplingTime
+}
+
+burninTime.mspm <- function(object, ...) {
+    object$burninTime
 }
 
 diagnostics.mspm <- function(object, ...) {
@@ -288,8 +321,13 @@ gewekeGammas.mspm <- function(object, ...) {
 #' @param ndrawsNoThin The number of posterior draws collected before thinning.
 #' @param thin The thinning interval used in MCMC sampling.
 #' @param burnin The number of burn-in iterations used in MCMC sampling.
+#' @param burninBeta An MCMC object containing the burn-in samples for the beta parameters.
+#' @param burninGammas A list of MCMC objects containing the burn-in samples for the gamma 
+#' parameters of each target dataset.
 #' @param diagnostics An mspm_single_chain_diag object containing diagnostic information about the 
 #' MCMC sampling, such as effective sample size (ess) and Geweke diagnostics for each parameter.
+#' @param samplingTime The time taken for the sampling phase of MCMC sampling.
+#' @param burninTime The time taken for the burn-in phase of MCMC sampling
 #' @param call The original function call used to create the model.
 new_mspm_pt <- function(
     data_spec,
@@ -303,7 +341,11 @@ new_mspm_pt <- function(
     thin,
     ntemperatures,
     burnin,
+    burninBeta,
+    burninGammas,
     diagnostics,
+    samplingTime,
+    burninTime,
     initialTemperatureLadder,
     adjustedTemperatureLadder,
     targetSwapAcceptRatio,
@@ -332,6 +374,8 @@ new_mspm_pt <- function(
             ndrawsNoThin = ndrawsNoThin,
             thin = thin,
             burnin = burnin,
+            burninBeta = burninBeta, # May be null.
+            burninGammas = burninGammas, # May be null.
 
             ntemperatures = ntemperatures,
             initialTemperatureLadder = initialTemperatureLadder,
@@ -348,6 +392,8 @@ new_mspm_pt <- function(
             
             completeSwapping = completeSwapping,
 
+            samplingTime = samplingTime,
+            burninTime = burninTime,
             diagnostics = diagnostics
         ),
         class = c("mspm_pt", "mspm")

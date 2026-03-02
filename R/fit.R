@@ -19,6 +19,7 @@ source("R/internal.R")
 # gamma.initial: Initial values for threshold parameters.
 # verbose: Verbosity level for output.
 # computeDiagnostics: Whether to compute diagnostics for the fitted model.
+# saveBurninSamples: Whether to save the burn-in samples in the returned model object. 
 # 
 # Returns:
 # An object of class 'mspm' containing the fitted model.
@@ -36,7 +37,8 @@ fit_mspm <- function(
     beta.initial = NULL,
     gamma.initial = NULL,
     verbose = 0,
-    computeDiagnostics = TRUE
+    computeDiagnostics = TRUE,
+    saveBurninSamples = FALSE
 ) {
     .validate_data(data)
 
@@ -93,7 +95,7 @@ fit_mspm <- function(
 
     # Tmp: start as subprocess for more robust development.
     sim <- tryCatch({callr::r(
-        function(data, meanPrior, precPrior, fix.zero, nlevels, gamma.initial, beta.initial, tune, ndraws, burnin, thin, seed, verbose) {
+        function(data, meanPrior, precPrior, fix.zero, nlevels, gamma.initial, beta.initial, tune, ndraws, burnin, thin, seed, verbose, saveBurninSamples) {
             devtools::load_all()
             cpp_hprobit(
                 data$Xlist,
@@ -108,11 +110,12 @@ fit_mspm <- function(
                 ndraws,
                 burnin,
                 thin,
+                saveBurninSamples,
                 seed,
                 verbose
             )
         },
-        args = list(data, meanPrior, precPrior, fix.zero, nlevels, gamma.initial, beta.initial, tune, ndraws, burnin, thin, seed, verbose),
+        args = list(data, meanPrior, precPrior, fix.zero, nlevels, gamma.initial, beta.initial, tune, ndraws, burnin, thin, seed, verbose, saveBurninSamples),
         show = FALSE # set to TRUE for debugging
     )}, error = function(e) {
         message("Error in cpp_hprobit: ", e$message)
@@ -135,6 +138,17 @@ fit_mspm <- function(
         gammas[[i]] <- mcmc(sim$storegamma[[i]], start = burnin + 1, thin = thin)
     }
 
+    # Format and store MCMC burnin results.
+    burninBeta <- NULL
+    burninGammas <- NULL
+    if (saveBurninSamples) {
+        burninBeta <- mcmc(sim$storebeta_burnin, start = 1, end = burnin, thin = thin)
+        burninGammas <- list()
+        for (i in 1:ntargets) {
+            burninGammas[[i]] <- mcmc(sim$storegamma_burnin[[i]], start = 1, end = burnin, thin = thin)
+        }
+    }
+
     # Compute diagnostics.
     diagnostics <- NULL
     if (computeDiagnostics) {
@@ -153,7 +167,11 @@ fit_mspm <- function(
         ndrawsNoThin = ndraws,
         thin = thin,
         burnin = burnin,
+        burninBeta,
+        burninGammas,
         diagnostics = diagnostics,
+        samplingTime = sim$sampling_time,
+        burninTime = sim$burnin_time,
         call = match.call()
     )  
 }
@@ -258,6 +276,7 @@ fit_mspm <- function(
 #' @param gamma.initial Initial values for threshold parameters.
 #' @param verbose Verbosity level for output.
 #' @param computeDiagnostics Whether to compute diagnostics for the fitted model.
+#' @param saveBurninSamples Whether to save the burn-in samples in the returned model object.
 #' @return An object of class 'mspm' containing the fitted model.
 fit_mspm_pt <- function(
     data, 
@@ -280,7 +299,9 @@ fit_mspm_pt <- function(
     beta.initial = NULL,
     gamma.initial = NULL,
     verbose = 0,
-    computeDiagnostics = TRUE
+    computeDiagnostics = TRUE,
+    saveBurninSamples = FALSE
+
 ) {
     .validate_data(data)
 
@@ -347,6 +368,7 @@ fit_mspm_pt <- function(
             thin,
             seed,
             complete_param_swapping,
+            saveBurninSamples,
             verbose
         ) {
             devtools::load_all()
@@ -371,6 +393,7 @@ fit_mspm_pt <- function(
                 thin,
                 seed,
                 complete_param_swapping,
+                saveBurninSamples,
                 verbose
             )
         },
@@ -394,6 +417,7 @@ fit_mspm_pt <- function(
             thin,
             seed,
             complete_param_swapping,
+            saveBurninSamples,
             verbose
         ),
         show = FALSE # set to TRUE for debugging
@@ -424,6 +448,18 @@ fit_mspm_pt <- function(
         diagnostics <- .run_diagnostics(beta, gammas)
     }
 
+    # Get the burnin samples.
+    burninBeta <- NULL
+    burninGammas <- NULL
+    if (saveBurninSamples) {
+        colnames(sim$storebeta_burnin) <- c(data$predictorNames)
+        burninBeta <- mcmc(sim$storebeta_burnin, start = 1, end = burnin, thin = thin)
+        burninGammas <- list()
+        for (i in 1:ntargets) {
+            burninGammas[[i]] <- mcmc(sim$storegamma_burnin[[i]], start = 1, end = burnin, thin = thin)
+        }
+    }
+
     # Return fitted model.
     new_mspm_pt(
         data_spec = data_spec(data),
@@ -450,6 +486,10 @@ fit_mspm_pt <- function(
         initialWindowSize = temperature_window_size,
         windowGrowthFactor = tempperature_window_growth_factor,
         completeSwapping = complete_param_swapping,
+        burninBeta = burninBeta,
+        burninGammas = burninGammas,
+        samplingTime = sim$sampling_time,
+        burninTime = sim$burnin_time,
         call = match.call()
     )  
 }
