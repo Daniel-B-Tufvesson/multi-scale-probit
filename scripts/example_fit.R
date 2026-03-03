@@ -24,7 +24,8 @@ fit <- fit_mspm(
     thin = 10,
     tune = 0.1,
     seed = 1234,
-    saveBurninSamples = TRUE
+    saveBurninSamples = TRUE,
+    verbose = 100
 )
 fit
 
