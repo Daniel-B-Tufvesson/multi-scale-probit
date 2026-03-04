@@ -243,6 +243,7 @@ private:
      * @param rng The GSL random number generator to use for sampling.
      */
     void step_gamma(const Data& data, gsl_rng* rng) {
+        arma::vec acceptance_probabilities(ntargets, arma::fill::zeros); // not used for now.
         for (unsigned int t = 0; t < ntargets; t++) {
             int target = (nsteps+t) % ntargets;
             int ncats = ncategories(target); 
@@ -256,6 +257,7 @@ private:
                 ncats,
                 gamma_tune(target),
                 inv_temperature,
+                acceptance_probabilities(target),
                 rng
             );
         }

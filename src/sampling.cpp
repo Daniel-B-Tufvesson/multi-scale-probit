@@ -230,6 +230,7 @@ bool mh_update_gamma(
     int ncategories,
     double sigma,
     double inv_temperature,
+    double& acceptance_probability,
     gsl_rng* rng
 ) {
     // Make proposal.
@@ -257,7 +258,8 @@ bool mh_update_gamma(
     double log_accept_ratio = inv_temperature * log_likelihood_ratio + log_proposal_ratio;
 
     // Do MH acceptance step.
-    if (gsl_ran_flat(rng, 0.0, 1.0) <= exp(log_accept_ratio)) {
+    acceptance_probability = std::min(1.0, std::exp(log_accept_ratio));
+    if (gsl_ran_flat(rng, 0.0, 1.0) <= acceptance_probability) {
         gamma = gamma_prop;
         return true;
     }

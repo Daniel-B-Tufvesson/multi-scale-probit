@@ -81,6 +81,7 @@ Data unpack_data(
  * gamma values. This controls the tuning of the proposal distribution.
  * @param inv_temperature The inverse temperature (1/T) for the current chain. This is used to scale
  * the log likelihood ratio in the acceptance probability for the proposed gammas.
+ * @param acceptance_probability The resulting acceptance probability for the proposed gammas.
  * @param rng The GSL random number generator to use for sampling.
  * 
  * @return A boolean indicating whether the proposed gammas were accepted (true) or rejected (false).
@@ -93,6 +94,7 @@ bool mh_update_gamma(
     int ncategories,
     double sigma,
     double inv_temperature,
+    double& acceptance_probability,
     gsl_rng* rng
 );
 

@@ -12,8 +12,10 @@ source("R/internal.R")
 # thin: Thinning interval for MCMC sampling.
 # meanPrior: Prior mean for regression coefficients.
 # precPrior: Prior precision for regression coefficients.
-# fix.zero: Index of the threshold to fix at zero.
 # tune: Tuning parameter for the sampler.
+# adapt_tune: Whether to adapt the tuning parameter during burn-in.
+# tuneWindowSize: Window size for computing acceptance rates for tuning adaptation.
+# targetAcceptanceRate: Target acceptance rate for tuning adaptation. 
 # seed: Random seed for reproducibility.
 # beta.initial: Initial values for regression coefficients.
 # gamma.initial: Initial values for threshold parameters.
@@ -31,8 +33,10 @@ fit_mspm <- function(
     ...,
     meanPrior = NULL,
     precPrior = NULL,
-    fix.zero = 1,
     tune = NULL,
+    adapt_tune = FALSE,
+    tuneWindowSize = 25,
+    targetAcceptanceRate = 0.234,
     seed = NA,
     beta.initial = NULL,
     gamma.initial = NULL,
@@ -71,7 +75,8 @@ fit_mspm <- function(
     # Set tuning parameter for the sampler
     if (is.null(tune)) {
         tune <- 0.05 / nlevels
-    } else if (length(tune) != ntargets) {
+    }
+    if (length(tune) != ntargets) {
         tune <- rep(tune, ntargets)
     }
 
@@ -95,18 +100,22 @@ fit_mspm <- function(
 
     # Tmp: start as subprocess for more robust development.
     sim <- tryCatch({callr::r(
-        function(data, meanPrior, precPrior, fix.zero, nlevels, gamma.initial, beta.initial, tune, ndraws, burnin, thin, seed, verbose, saveBurninSamples) {
+        function(data, meanPrior, precPrior, nlevels, gamma.initial, beta.initial, tune, 
+                 ndraws, burnin, thin, seed, verbose, saveBurninSamples, adapt_tune, tuneWindowSize, 
+                 targetAcceptanceRate) {
             devtools::load_all()
             cpp_hprobit(
                 data$Xlist,
                 data$ylist,
                 meanPrior,
                 precPrior,
-                fix.zero,
                 nlevels,
                 gamma.initial,
                 beta.initial,
                 tune,
+                adapt_tune,
+                tuneWindowSize,
+                targetAcceptanceRate,
                 ndraws,
                 burnin,
                 thin,
@@ -115,8 +124,10 @@ fit_mspm <- function(
                 verbose
             )
         },
-        args = list(data, meanPrior, precPrior, fix.zero, nlevels, gamma.initial, beta.initial, tune, ndraws, burnin, thin, seed, verbose, saveBurninSamples),
-        show = FALSE # set to TRUE for debugging
+        args = list(data, meanPrior, precPrior, nlevels, gamma.initial, beta.initial, 
+                    tune, ndraws, burnin, thin, seed, verbose, saveBurninSamples, adapt_tune,
+                    tuneWindowSize, targetAcceptanceRate),
+        show = verbose > 0
     )}, error = function(e) {
         message("Error in cpp_hprobit: ", e$message)
         if (!is.null(e$stdout)) {
@@ -162,6 +173,10 @@ fit_mspm <- function(
         gammas = gammas,
         meanPrior = meanPrior,
         precPrior = precPrior,
+        adaptTune = adapt_tune,
+        tune = sim$tune,
+        acceptanceRate = sim$acceptance_rate,
+        burninAcceptanceRate = sim$burnin_acceptance_rate,
         seed = seed,
         ndraws = ndraws / thin,
         ndrawsNoThin = ndraws,
@@ -420,7 +435,7 @@ fit_mspm_pt <- function(
             saveBurninSamples,
             verbose
         ),
-        show = FALSE # set to TRUE for debugging
+        show = verbose > 0
     )}, error = function(e) {
         message("Error in cpp_hprobit_pt: ", e$message)
         if (!is.null(e$stdout)) {
