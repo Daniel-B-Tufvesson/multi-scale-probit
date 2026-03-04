@@ -12,7 +12,6 @@ source("R/internal.R")
 # thin: Thinning interval for MCMC sampling.
 # meanPrior: Prior mean for regression coefficients.
 # precPrior: Prior precision for regression coefficients.
-# fix.zero: Index of the threshold to fix at zero.
 # tune: Tuning parameter for the sampler.
 # adapt_tune: Whether to adapt the tuning parameter during burn-in.
 # tuneWindowSize: Window size for computing acceptance rates for tuning adaptation.
@@ -34,7 +33,6 @@ fit_mspm <- function(
     ...,
     meanPrior = NULL,
     precPrior = NULL,
-    fix.zero = 1,
     tune = NULL,
     adapt_tune = FALSE,
     tuneWindowSize = 25,
@@ -102,7 +100,7 @@ fit_mspm <- function(
 
     # Tmp: start as subprocess for more robust development.
     sim <- tryCatch({callr::r(
-        function(data, meanPrior, precPrior, fix.zero, nlevels, gamma.initial, beta.initial, tune, 
+        function(data, meanPrior, precPrior, nlevels, gamma.initial, beta.initial, tune, 
                  ndraws, burnin, thin, seed, verbose, saveBurninSamples, adapt_tune, tuneWindowSize, 
                  targetAcceptanceRate) {
             devtools::load_all()
@@ -111,7 +109,6 @@ fit_mspm <- function(
                 data$ylist,
                 meanPrior,
                 precPrior,
-                fix.zero,
                 nlevels,
                 gamma.initial,
                 beta.initial,
@@ -127,10 +124,10 @@ fit_mspm <- function(
                 verbose
             )
         },
-        args = list(data, meanPrior, precPrior, fix.zero, nlevels, gamma.initial, beta.initial, 
+        args = list(data, meanPrior, precPrior, nlevels, gamma.initial, beta.initial, 
                     tune, ndraws, burnin, thin, seed, verbose, saveBurninSamples, adapt_tune,
                     tuneWindowSize, targetAcceptanceRate),
-        show = TRUE # set to TRUE for debugging
+        show = verbose > 0
     )}, error = function(e) {
         message("Error in cpp_hprobit: ", e$message)
         if (!is.null(e$stdout)) {
@@ -438,7 +435,7 @@ fit_mspm_pt <- function(
             saveBurninSamples,
             verbose
         ),
-        show = FALSE # set to TRUE for debugging
+        show = verbose > 0
     )}, error = function(e) {
         message("Error in cpp_hprobit_pt: ", e$message)
         if (!is.null(e$stdout)) {

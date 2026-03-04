@@ -65,14 +65,7 @@ void do_step(
     }
 
     // Step 2: Update beta with Gibbs.
-    gibbs_update_beta(
-        beta,
-        gamma,
-        data,
-        meanPrior,
-        precPrior,
-        gen
-    );
+    gibbs_update_beta(beta, gamma, data, meanPrior, precPrior, gen);
 }
 
 void store_sample(
@@ -136,13 +129,7 @@ void do_burnin_step(
 
     // Store burnin sample.
     if (save_burnin_samples && (iter % thin) == 0) {
-        store_sample(
-            beta,
-            gamma,
-            storebeta_burnin,
-            storegamma_burnin,
-            nstored
-        );
+        store_sample(beta, gamma, storebeta_burnin, storegamma_burnin, nstored);
     }
 }
 
@@ -340,18 +327,8 @@ double do_sampling(
     // Sampling loop.
     for (int iter = 0; iter < iterations; iter++) {
 
-        do_step(
-            iter,
-            ncategories,
-            beta,
-            gamma,
-            tune,
-            data,
-            acceptance_probabilites,
-            meanPrior,
-            precPrior,
-            gen
-        );
+        do_step(iter, ncategories, beta, gamma, tune, data, acceptance_probabilites,
+            meanPrior, precPrior, gen);
         
         // Print progress.
         if(verbose > 0 && iter % verbose == 0){
@@ -369,13 +346,7 @@ double do_sampling(
         }
 
         if ((iter % thin) == 0) {
-            store_sample(
-                beta,
-                gamma,
-                storebeta,
-                storegamma,
-                nstored
-            );
+            store_sample(beta, gamma, storebeta, storegamma, nstored);
         }
     }
 
@@ -389,6 +360,39 @@ double do_sampling(
 }
 
 
+/**
+ * The main function for the MCMC sampler, which is called from R. This function unpacks the input data,
+ * initializes the parameters and storage matrices, runs the burn-in and sampling phases of the MCMC
+ * sampler, and then packs the results into a list to return to R.
+ * 
+ * @param Xlist A list of design matrices for each target.
+ * @param Ylist A list of response vectors for each target.
+ * @param meanPrior The prior mean for the regression coefficients.
+ * @param precPrior The prior precision matrix for the regression coefficients.
+ * @param ncat A vector containing the number of categories for each target.
+ * @param gammaStart A list of initial values for the gamma parameters for each target.
+ * @param betaStart The initial values for the regression coefficients.
+ * @param tune_start The initial values for the tuning parameters for the proposal distribution 
+ * for the gammas.
+ * @param adapt_tune A boolean indicating whether to perform adaptive tuning of the proposal variance
+ * during burn-in.
+ * @param tune_window_size The window size for computing acceptance rates and adjusting the proposal
+ * variance during adaptive burn-in.
+ * @param target_acceptance_rate The target acceptance rate for the proposed gammas during adaptive
+ * burn-in.
+ * @param iterations The number of MCMC iterations to perform during the sampling phase.
+ * @param burnin The number of burn-in iterations to perform before the sampling phase.
+ * @param thin The thinning interval for storing samples. Only every `thin`-th sample will be stored
+ * in the storage matrices. To store all samples without thinning, set `thin` to 1.
+ * @param save_burnin_samples A boolean indicating whether to store the samples from the burn-in phase
+ * in the storage matrices.
+ * @param seed The random seed to use for the GSL random number generator.
+ * @param verbose The verbosity level for printing progress during burn-in and sampling. A value of
+ * 0 means no progress will be printed, while higher values will print progress every `verbose` 
+ * iterations.
+ * 
+ * @return An R list containing the results.
+ */
 // [[Rcpp::depends("RcppArmadillo")]]
 // [[Rcpp::export]]
 Rcpp::List cpp_hprobit(
@@ -396,7 +400,6 @@ Rcpp::List cpp_hprobit(
     const Rcpp::List& Ylist,
     const arma::colvec& meanPrior,
     const arma::mat& precPrior,
-    const int fixZero,
     const arma::ivec& ncat,
     const Rcpp::List& gammaStart,
     const arma::colvec& betaStart,
@@ -491,7 +494,7 @@ Rcpp::List cpp_hprobit(
     // Free pointer to GSL random generator.
     gsl_rng_free(gen);
   
-    return List::create(
+    return Rcpp::List::create(
         _["storebeta"] = storebeta,
         _["storegamma"] = gammas,
         _["tune"] = tune,

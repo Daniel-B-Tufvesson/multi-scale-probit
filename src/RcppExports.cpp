@@ -13,8 +13,8 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // cpp_hprobit
-Rcpp::List cpp_hprobit(const Rcpp::List& Xlist, const Rcpp::List& Ylist, const arma::colvec& meanPrior, const arma::mat& precPrior, const int fixZero, const arma::ivec& ncat, const Rcpp::List& gammaStart, const arma::colvec& betaStart, const arma::vec& tune_start, const bool adapt_tune, int tune_window_size, double target_acceptance_rate, const int iterations, const int burnin, const int thin, const bool save_burnin_samples, const int seed, const int verbose);
-RcppExport SEXP _masteruppsatsr_cpp_hprobit(SEXP XlistSEXP, SEXP YlistSEXP, SEXP meanPriorSEXP, SEXP precPriorSEXP, SEXP fixZeroSEXP, SEXP ncatSEXP, SEXP gammaStartSEXP, SEXP betaStartSEXP, SEXP tune_startSEXP, SEXP adapt_tuneSEXP, SEXP tune_window_sizeSEXP, SEXP target_acceptance_rateSEXP, SEXP iterationsSEXP, SEXP burninSEXP, SEXP thinSEXP, SEXP save_burnin_samplesSEXP, SEXP seedSEXP, SEXP verboseSEXP) {
+Rcpp::List cpp_hprobit(const Rcpp::List& Xlist, const Rcpp::List& Ylist, const arma::colvec& meanPrior, const arma::mat& precPrior, const arma::ivec& ncat, const Rcpp::List& gammaStart, const arma::colvec& betaStart, const arma::vec& tune_start, const bool adapt_tune, int tune_window_size, double target_acceptance_rate, const int iterations, const int burnin, const int thin, const bool save_burnin_samples, const int seed, const int verbose);
+RcppExport SEXP _masteruppsatsr_cpp_hprobit(SEXP XlistSEXP, SEXP YlistSEXP, SEXP meanPriorSEXP, SEXP precPriorSEXP, SEXP ncatSEXP, SEXP gammaStartSEXP, SEXP betaStartSEXP, SEXP tune_startSEXP, SEXP adapt_tuneSEXP, SEXP tune_window_sizeSEXP, SEXP target_acceptance_rateSEXP, SEXP iterationsSEXP, SEXP burninSEXP, SEXP thinSEXP, SEXP save_burnin_samplesSEXP, SEXP seedSEXP, SEXP verboseSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -22,7 +22,6 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const Rcpp::List& >::type Ylist(YlistSEXP);
     Rcpp::traits::input_parameter< const arma::colvec& >::type meanPrior(meanPriorSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type precPrior(precPriorSEXP);
-    Rcpp::traits::input_parameter< const int >::type fixZero(fixZeroSEXP);
     Rcpp::traits::input_parameter< const arma::ivec& >::type ncat(ncatSEXP);
     Rcpp::traits::input_parameter< const Rcpp::List& >::type gammaStart(gammaStartSEXP);
     Rcpp::traits::input_parameter< const arma::colvec& >::type betaStart(betaStartSEXP);
@@ -36,7 +35,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const bool >::type save_burnin_samples(save_burnin_samplesSEXP);
     Rcpp::traits::input_parameter< const int >::type seed(seedSEXP);
     Rcpp::traits::input_parameter< const int >::type verbose(verboseSEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_hprobit(Xlist, Ylist, meanPrior, precPrior, fixZero, ncat, gammaStart, betaStart, tune_start, adapt_tune, tune_window_size, target_acceptance_rate, iterations, burnin, thin, save_burnin_samples, seed, verbose));
+    rcpp_result_gen = Rcpp::wrap(cpp_hprobit(Xlist, Ylist, meanPrior, precPrior, ncat, gammaStart, betaStart, tune_start, adapt_tune, tune_window_size, target_acceptance_rate, iterations, burnin, thin, save_burnin_samples, seed, verbose));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -148,7 +147,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_masteruppsatsr_cpp_hprobit", (DL_FUNC) &_masteruppsatsr_cpp_hprobit, 18},
+    {"_masteruppsatsr_cpp_hprobit", (DL_FUNC) &_masteruppsatsr_cpp_hprobit, 17},
     {"_masteruppsatsr_cpp_hprobit_pt", (DL_FUNC) &_masteruppsatsr_cpp_hprobit_pt, 22},
     {"_masteruppsatsr_cpp_fmeasure_distribution", (DL_FUNC) &_masteruppsatsr_cpp_fmeasure_distribution, 3},
     {"_masteruppsatsr_cpp_classification_metric_distributions", (DL_FUNC) &_masteruppsatsr_cpp_classification_metric_distributions, 3},
