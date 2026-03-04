@@ -2,7 +2,7 @@
  * @file hprobit_gibbs.cpp
  * @author Johan Falkenjack
  * @author Daniel Tufvesson
- * @version 2.0
+ * @version 3.0
  * @brief A Metropolis-Hastings-withing-Gibbs sampler for the Multi-Scale Probit model.
  */
 
@@ -96,6 +96,9 @@ void store_sample(
     nstored++;
 }
 
+/**
+ * Do a single burnin step, which involves doing a MCMC step and then storing the sample if needed.
+ */
 void do_burnin_step(
     int iter,
     int burnin,
@@ -115,18 +118,8 @@ void do_burnin_step(
     gsl_rng* gen,
     int verbose
 ) {
-    do_step(
-        iter,
-        ncategories,
-        beta,
-        gamma,
-        tune,
-        data,
-        acceptance_probabilites,
-        meanPrior,
-        precPrior,
-        gen
-    );
+    do_step(iter, ncategories, beta, gamma, tune, data, acceptance_probabilites, meanPrior,
+        precPrior, gen);
 
     // Print progress.
     if(verbose > 0 && (iter % verbose) == 0){
@@ -153,6 +146,42 @@ void do_burnin_step(
     }
 }
 
+void compute_acceptance_rate(
+    const arma::vec& acceptance_probabilities,
+    int nsamples,
+    arma::vec& acceptance_rates
+) {
+    for (unsigned int target = 0; target < acceptance_probabilities.n_rows; ++target) {
+        acceptance_rates(target) = acceptance_probabilities(target) / static_cast<double>(nsamples);
+    }
+}
+
+/**
+ * Adjust the proposal variance for the gamma parameters based on the observed acceptance 
+ * probabilities for the proposed gamma values. This is done by comparing the observed acceptance 
+ * rates to a target acceptance rate, and adjusting the standard deviation of the truncated normal 
+ * proposal distribution for the gammas accordingly.
+ * 
+ * @param tune The current tuning parameters for the proposal distribution for the gammas, which 
+ * will be updated in place with the new tuned values. Each sigma element corresponds to a target.
+ * @param acceptance_probabilites The sum of the acceptance probabilities for the proposed gammas 
+ * for each target over the current window of burnin iterations. Each sum corresponed to a target.
+ * @param target_acceptance_rate The target acceptance rate for the proposed gammas.
+ * @param learning_rate The learning rate for adjusting the proposal variance.
+ */
+void adjust_proposal_variance(
+    arma::vec& tune,
+    const arma::vec& burnin_acceptance_rate,
+    double target_acceptance_rate,
+    double learning_rate
+) {
+    for (int i = 0; i < tune.n_rows; i++) {
+        double acceptance_rate = burnin_acceptance_rate(i);
+        double log_sigma = std::log(tune(i));
+        log_sigma += learning_rate * (acceptance_rate - target_acceptance_rate);
+        tune(i) = std::exp(log_sigma);
+    }
+}
 
 /**
  * Do adaptive burnin by running the MCMC sampler for a specified number of burnin iterations, and 
@@ -174,6 +203,9 @@ double do_adaptive_burnin(
     const Data& data,
     const arma::ivec& ncategories,
     arma::vec& tune,
+    arma::vec& burnin_acceptance_rate,
+    double target_acceptance_rate,
+    int window_size,
     const arma::colvec& meanPrior,
     const arma::mat& precPrior,
     bool save_burnin_samples,
@@ -185,33 +217,32 @@ double do_adaptive_burnin(
 ) {
     arma::vec acceptance_probabilites (data.ntargets, arma::fill::zeros);
     int nstored = 0;
+    int window_step = 0;
 
     // Measure burnin sampling time.
     auto start_time_burnin = std::chrono::high_resolution_clock::now();
 
     // Burnin loop.
     for (int iter = 0; iter < burnin; iter++) {
-        do_burnin_step(
-            iter,
-            burnin,
-            ncategories,
-            beta,
-            gamma,
-            tune,
-            data,
-            acceptance_probabilites,
-            meanPrior,
-            precPrior,
-            save_burnin_samples,
-            storebeta_burnin,
-            storegamma_burnin,
-            nstored,
-            thin,
-            gen,
-            verbose
-        );
+        do_burnin_step(iter, burnin, ncategories, beta, gamma, tune, data, acceptance_probabilites,
+            meanPrior, precPrior, save_burnin_samples, storebeta_burnin, storegamma_burnin, nstored,
+            thin, gen, verbose);
 
-        // Todo: tune the proposal variance.
+        // Tune the proposal variance.
+        window_step++;
+        if (window_step == window_size) {
+            window_step = 0;
+            double learning_rate = 1.0 / std::sqrt(iter);
+            compute_acceptance_rate(acceptance_probabilites, window_size, burnin_acceptance_rate);
+            adjust_proposal_variance(
+                tune,
+                burnin_acceptance_rate,
+                target_acceptance_rate,
+                learning_rate
+            );
+            acceptance_probabilites.zeros();
+        }
+
     }
     // Measure burnin time in seconds.
     auto end_time_burnin = std::chrono::high_resolution_clock::now();
@@ -229,6 +260,7 @@ double do_burnin(
     const Data& data,
     const arma::ivec& ncategories,
     arma::vec& tune,
+    arma::vec& burnin_acceptance_rate,
     const arma::colvec& meanPrior,
     const arma::mat& precPrior,
     bool save_burnin_samples,
@@ -246,31 +278,16 @@ double do_burnin(
 
     // Burnin loop.
     for (int iter = 0; iter < burnin; iter++) {
-        do_burnin_step(
-            iter,
-            burnin,
-            ncategories,
-            beta,
-            gamma,
-            tune,
-            data,
-            acceptance_probabilites,
-            meanPrior,
-            precPrior,
-            save_burnin_samples,
-            storebeta_burnin,
-            storegamma_burnin,
-            nstored,
-            thin,
-            gen,
-            verbose
-        );
-
-        // Todo: tune the proposal variance.
+        do_burnin_step(iter, burnin, ncategories, beta, gamma, tune, data, acceptance_probabilites,
+            meanPrior, precPrior, save_burnin_samples, storebeta_burnin, storegamma_burnin,
+            nstored, thin, gen, verbose);
     }
     // Measure burnin time in seconds.
     auto end_time_burnin = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_burnin = end_time_burnin - start_time_burnin;
+
+    compute_acceptance_rate(acceptance_probabilites, burnin, burnin_acceptance_rate);
+
     return elapsed_burnin.count();
 }
 
@@ -291,6 +308,7 @@ double do_burnin(
  * phase.
  * @param thin The thinning interval for storing samples. Only every `thin`-th sample will be stored
  * in the storage matrices. To store all samples without thinning, set `thin` to 1.
+ * @param acceptance_rate The vector to store the acceptance rates for the proposed gammas for each target.
  * @param gen The GSL random number generator to use for sampling.
  * @param verbose The verbosity level for printing progress during sampling. A value of 0 means
  * no progress will be printed, while higher values will print progress every `verbose` iterations.
@@ -309,11 +327,12 @@ double do_sampling(
     mat& storebeta,
     std::vector<mat>& storegamma,
     int thin,
-    arma::vec& acceptance_probabilites,
+    arma::vec& acceptance_rate,
     gsl_rng* gen,
     int verbose
 ) {
     int nstored = 0;
+    arma::vec acceptance_probabilites (data.ntargets, arma::fill::zeros);
 
     // Measure sampling time.
     auto start_time = std::chrono::high_resolution_clock::now();
@@ -358,24 +377,14 @@ double do_sampling(
                 nstored
             );
         }
-    
-        // Store sample in matrices
-        // if ((iter % thin)==0) {
-        //     for (unsigned int j=0; j < data.npredictors; ++j) {
-        //         storebeta(count, j) = beta[j];
-        //     }
-        //     for (unsigned int target = 0; target < ntargets; ++target) {
-        //         for (unsigned int j=1; j<(ncat[target]); ++j){
-        //             storegamma[target](count, j-1) = gamma[target](j);
-        //         }
-        //     }
-        //     ++count;
-        // }
     }
 
     // Measure sampling time in seconds.
     auto end_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end_time - start_time;
+
+    compute_acceptance_rate(acceptance_probabilites, iterations, acceptance_rate);
+
     return elapsed.count();
 }
 
@@ -393,6 +402,8 @@ Rcpp::List cpp_hprobit(
     const arma::colvec& betaStart,
     const arma::vec& tune_start,
     const bool adapt_tune,
+    int tune_window_size,
+    double target_acceptance_rate,
     const int iterations,
     const int burnin,
     const int thin,
@@ -444,21 +455,23 @@ Rcpp::List cpp_hprobit(
   
     // Do burnin.
     double burnin_duration = 0;
+    arma::vec burnin_acceptance_rate (data.ntargets, arma::fill::zeros);
     if (adapt_tune) {
-        burnin_duration = do_adaptive_burnin(burnin, beta, gamma, data, ncat, tune,
-            meanPrior, precPrior, save_burnin_samples, storebeta_burnin, storegamma_burnin,
+        burnin_duration = do_adaptive_burnin(burnin, beta, gamma, data, ncat, tune, 
+            burnin_acceptance_rate, target_acceptance_rate, tune_window_size, meanPrior, 
+            precPrior, save_burnin_samples, storebeta_burnin, storegamma_burnin, 
             thin, gen, verbose);
     }
     else {
-        burnin_duration = do_burnin(burnin, beta, gamma, data, ncat, tune, meanPrior,
-            precPrior, save_burnin_samples, storebeta_burnin, storegamma_burnin,
+        burnin_duration = do_burnin(burnin, beta, gamma, data, ncat, tune, burnin_acceptance_rate, 
+            meanPrior, precPrior, save_burnin_samples, storebeta_burnin, storegamma_burnin,
             thin, gen, verbose);
     }
 
     // Do sampling.
-    arma::vec acceptance_probabilites (data.ntargets, arma::fill::zeros);
+    arma::vec acceptance_rate (data.ntargets, arma::fill::zeros);
     double sampling_time = do_sampling(iterations, beta, gamma, data, ncat, tune,
-        meanPrior, precPrior, storebeta, storegamma, thin, acceptance_probabilites, 
+        meanPrior, precPrior, storebeta, storegamma, thin, acceptance_rate, 
         gen, verbose);
   
     // Pack stored gammas.
@@ -482,7 +495,8 @@ Rcpp::List cpp_hprobit(
         _["storebeta"] = storebeta,
         _["storegamma"] = gammas,
         _["tune"] = tune,
-        _["acceptance_probabilites"] = acceptance_probabilites,
+        _["acceptance_rate"] = acceptance_rate,
+        _["burnin_acceptance_rate"] = burnin_acceptance_rate,
         _["total_iter"] = iterations + burnin,
         _["storebeta_burnin"] = storebeta_burnin,
         _["storegamma_burnin"] = storegamma_burnin_list,

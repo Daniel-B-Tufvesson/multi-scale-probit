@@ -20,14 +20,15 @@ data <- generate_synthetic_data(
 fit <- fit_mspm(
     data = data,
     ndraws = 2000,
-    burnin = 2000,
-    thin = 10,
+    burnin = 60000,
+    thin = 1,
     tune = 0.1,
+    adapt_tune = TRUE,
     seed = 1234,
     saveBurninSamples = TRUE,
-    verbose = 100
+    verbose = 1000
 )
-fit
+#fit
 
 # Plot fit.
 #plot_posteriors_beta(fit)

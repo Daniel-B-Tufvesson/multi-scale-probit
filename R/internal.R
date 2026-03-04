@@ -162,7 +162,8 @@ gewekeGammas.mspm_single_chain_diag <- function(object, ...) {
 # precPrior: Prior precision for regression coefficients.
 # adaptTune: The tuning parameter used for adaptive tuning of the sampler.
 # tune: The final tuning parameter used for the sampler after adaptive tuning.
-# acceptanceProbabilities: A list of acceptance probability sums for each target during MCMC sampling.
+# acceptanceRate: The acceptance rate of the sampler for each target.
+# burninAcceptanceRate: The acceptance rate during burn-in for each target.
 # seed: The random seed used for reproducibility.
 # ndraws: The number of posterior draws collected after thinning.
 # ndrawsNoThin: The number of posterior draws collected before thinning.
@@ -184,7 +185,8 @@ new_mspm <- function(
     precPrior,
     adaptTune,
     tune,
-    acceptanceProbabilities,
+    acceptanceRate,
+    burninAcceptanceRate,
     seed,
     ndraws,
     ndrawsNoThin,
@@ -206,7 +208,8 @@ new_mspm <- function(
             precPrior = precPrior,
             adaptTune = adaptTune,
             tune = tune,
-            acceptanceProbabilities = acceptanceProbabilities,
+            acceptanceRate = acceptanceRate,
+            burninAcceptanceRate = burninAcceptanceRate,
             call = call,
             seed = seed,
             nobs = nrow(beta), # Why is nobs the number of rows in beta? Shouldn't this be ndraws?

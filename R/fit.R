@@ -15,6 +15,8 @@ source("R/internal.R")
 # fix.zero: Index of the threshold to fix at zero.
 # tune: Tuning parameter for the sampler.
 # adapt_tune: Whether to adapt the tuning parameter during burn-in.
+# tuneWindowSize: Window size for computing acceptance rates for tuning adaptation.
+# targetAcceptanceRate: Target acceptance rate for tuning adaptation. 
 # seed: Random seed for reproducibility.
 # beta.initial: Initial values for regression coefficients.
 # gamma.initial: Initial values for threshold parameters.
@@ -35,6 +37,8 @@ fit_mspm <- function(
     fix.zero = 1,
     tune = NULL,
     adapt_tune = FALSE,
+    tuneWindowSize = 25,
+    targetAcceptanceRate = 0.234,
     seed = NA,
     beta.initial = NULL,
     gamma.initial = NULL,
@@ -99,7 +103,8 @@ fit_mspm <- function(
     # Tmp: start as subprocess for more robust development.
     sim <- tryCatch({callr::r(
         function(data, meanPrior, precPrior, fix.zero, nlevels, gamma.initial, beta.initial, tune, 
-                 ndraws, burnin, thin, seed, verbose, saveBurninSamples, adapt_tune) {
+                 ndraws, burnin, thin, seed, verbose, saveBurninSamples, adapt_tune, tuneWindowSize, 
+                 targetAcceptanceRate) {
             devtools::load_all()
             cpp_hprobit(
                 data$Xlist,
@@ -112,6 +117,8 @@ fit_mspm <- function(
                 beta.initial,
                 tune,
                 adapt_tune,
+                tuneWindowSize,
+                targetAcceptanceRate,
                 ndraws,
                 burnin,
                 thin,
@@ -121,8 +128,9 @@ fit_mspm <- function(
             )
         },
         args = list(data, meanPrior, precPrior, fix.zero, nlevels, gamma.initial, beta.initial, 
-                    tune, ndraws, burnin, thin, seed, verbose, saveBurninSamples, adapt_tune),
-        show = FALSE # set to TRUE for debugging
+                    tune, ndraws, burnin, thin, seed, verbose, saveBurninSamples, adapt_tune,
+                    tuneWindowSize, targetAcceptanceRate),
+        show = TRUE # set to TRUE for debugging
     )}, error = function(e) {
         message("Error in cpp_hprobit: ", e$message)
         if (!is.null(e$stdout)) {
@@ -170,7 +178,8 @@ fit_mspm <- function(
         precPrior = precPrior,
         adaptTune = adapt_tune,
         tune = sim$tune,
-        acceptanceProbabilities = sim$acceptance_probabilities,
+        acceptanceRate = sim$acceptance_rate,
+        burninAcceptanceRate = sim$burnin_acceptance_rate,
         seed = seed,
         ndraws = ndraws / thin,
         ndrawsNoThin = ndraws,
