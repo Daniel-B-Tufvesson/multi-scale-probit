@@ -113,7 +113,6 @@ cross_validate <- function(
                 metrics = metrics,
                 meansOnly = meansOnly
             )
-            cat("Completed split ", i, "\n", sep = "", file = stdout(), flush = TRUE)
             result
         }
     }
@@ -186,6 +185,20 @@ cross_validate <- function(
         }
     }
 
+    # Save tune parameters.
+    tuneParamsList <- list()
+    for (i in 1:nsplits) {
+        tuneParamsList[[i]] <- res[[i]]$fit$tune
+    }
+
+    # Save sampling and burnin time.
+    allBurninTimes = c()
+    allSamplingTimes = c()
+    for (i in 1:nsplits) {
+        allBurninTimes <- c(allBurninTimes, res[[i]]$fit$burninTime)
+        allSamplingTimes <- c(allSamplingTimes, res[[i]]$fit$samplingTime)
+    }
+
     # Return result.
     new_mspm_cv_result(
         data_spec = data_spec(data),
@@ -201,6 +214,9 @@ cross_validate <- function(
         allGammas = gammasList,
         allBurninBetas = burninBetaList,
         allBurninGammas = burninGammasList,
+        allTuneParams = tuneParamsList,
+        allBurninTimes = allBurninTimes,
+        allSamplingTimes = allSamplingTimes,
         call = match.call()
     )
 }

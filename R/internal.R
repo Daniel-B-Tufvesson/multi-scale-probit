@@ -602,6 +602,9 @@ evalMetricMeans.mspm_labeled_evaluation <- function(object, ...) {
 #' for each split. This may be NULL.
 #' @param allBurninGammas A list of lists of MCMC objects containing the burn-in draws for the gamma 
 #' parameters for each target dataset for each split. This may be NULL.
+#' @param allTuneParams A list containing the proposal variances used for each split.
+#' @param allBurninTimes A vector containing the burn-in times for each split. Given in seconds.
+#' @param allSamplingTimes A vector containing the sampling times for each split. Given in seconds.
 new_mspm_cv_result <- function(
     data_spec,
     nsplits,
@@ -616,6 +619,9 @@ new_mspm_cv_result <- function(
     allGammas,
     allBurninBetas,
     allBurninGammas,
+    allTuneParams,
+    allBurninTimes = allBurninTimes,
+    allSamplingTimes = allSamplingTimes,
     call
 ) {
     structure(
@@ -633,6 +639,9 @@ new_mspm_cv_result <- function(
             allGammas = allGammas,
             allBurninBetas = allBurninBetas,
             allBurninGammas = allBurninGammas,
+            allTuneParams = allTuneParams,
+            allBurninTimes = allBurninTimes,
+            samplingTime = allSamplingTimes,
             call = call
         ),
         class = "mspm_cv_result"
