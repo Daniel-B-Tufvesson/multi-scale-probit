@@ -19,11 +19,12 @@ for (i in 1:nchains) {
     seed_i <- 1234 + i
     fit <- fit_mspm(
         data = data,
-        ndraws = 100000,
-        burnin = 100000,
+        ndraws = 50000,
+        burnin = 50000,
         thin = 100,
         seed = seed_i,
-        saveBurninSamples = TRUE
+        saveBurninSamples = TRUE,
+        adapt_tune = TRUE
     )
     results$chains[[i]] <- list(
         seed = seed_i,
@@ -32,11 +33,14 @@ for (i in 1:nchains) {
         beta = as.matrix(fit$beta),
         gammas = lapply(fit$gammas, as.matrix),
         burninBeta = as.matrix(fit$burninBeta),
-        burninGammas = lapply(fit$burninGammas, as.matrix)
-
+        burninGammas = lapply(fit$burninGammas, as.matrix),
+        tune = fit$tune,
+        acceptanceRate = fit$acceptanceRate,
+        burninAcceptanceRate = fit$burninAcceptanceRate
     )
+    cat(paste("Completed chain ", i, " with seed ", seed_i, "\n", sep = ""))
 }
 
 # Save samples to JSON
 json_data <- toJSON(results, pretty = TRUE, auto_unbox = TRUE)
-write(json_data, file = "gibbs_march01.json")
+write(json_data, file = "gibbs_march04.json")
