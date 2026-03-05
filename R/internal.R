@@ -590,6 +590,18 @@ evalMetricMeans.mspm_labeled_evaluation <- function(object, ...) {
 #' @param meansOnly A boolean indicating whether only the mean performance scores are included in 
 #' the result (TRUE) or if the full evaluation results for each split are included (FALSE).
 #' @param seed The random seed used for reproducibility.
+#' @param gelmanRhatBeta A numeric vector containing the Gelman-Rubin R-hat diagnostic for the beta
+#' parameters across all splits.
+#' @param gelmanRhatGammas A list of numeric vectors containing the Gelman-Rubin R-hat diagnostic for
+#' the gamma parameters for each target dataset across all splits.
+#' @param allBetas A list of MCMC objects containing the posterior draws for the beta parameters for
+#' each split. This may be NULL.
+#' @param allGammas A list of lists of MCMC objects containing the posterior draws for the gamma
+#' parameters for each target dataset for each split. This may be NULL.
+#' @param allBurninBetas A list of MCMC objects containing the burn-in draws for the beta parameters 
+#' for each split. This may be NULL.
+#' @param allBurninGammas A list of lists of MCMC objects containing the burn-in draws for the gamma 
+#' parameters for each target dataset for each split. This may be NULL.
 new_mspm_cv_result <- function(
     data_spec,
     nsplits,
@@ -600,6 +612,10 @@ new_mspm_cv_result <- function(
     seed,
     gelmanRhatBeta,
     gelmanRhatGammas,
+    allBetas,
+    allGammas,
+    allBurninBetas,
+    allBurninGammas,
     call
 ) {
     structure(
@@ -613,6 +629,10 @@ new_mspm_cv_result <- function(
             seed = seed,
             gelmanRhatBeta = gelmanRhatBeta,
             gelmanRhatGammas = gelmanRhatGammas,
+            allBetas = allBetas,
+            allGammas = allGammas,
+            allBurninBetas = allBurninBetas,
+            allBurninGammas = allBurninGammas,
             call = call
         ),
         class = "mspm_cv_result"

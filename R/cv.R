@@ -3,11 +3,12 @@ source("R/fit.R")
 source("R/eval.R")
 source("R/util.R")
 
+library(coda)
+
 # Libraries for parallelization.
 library(doParallel)
 library(foreach)
 
-library(coda)
 
 #' Cross-validate an mspm model using the specified data. This is a Monte Carlo cross-validation,
 #' also known as repeated random sub-sampling validation. 
@@ -36,6 +37,10 @@ library(coda)
 #' each target (TRUE) or to return the full evaluation objects for each split (FALSE).
 #' @param computeDiagnostics A logical value indicating whether to compute diagnostics for each 
 # fitted model.
+#' @param saveSamples A logical value indicating whether to save the MCMC samples for each fitted
+#' model. If the sampler function also saves the burnin samples, then these will be included in the 
+#' saved samples. Note that saving samples can consume a lot of memory, especially with many splits 
+#' and large numbers of draws.
 #'
 #' @return An object of class 'mspm_cv_result' containing the results of cross-validation, 
 #' including mean evaluation metrics for each target and, optionally, the full evaluation objects 
@@ -52,7 +57,8 @@ cross_validate <- function(
     metrics = c("f1", "kendall"),
     nworkers = 1,
     meansOnly = TRUE,
-    computeDiagnostics = TRUE
+    computeDiagnostics = TRUE,
+    saveSamples = FALSE
 ) {
     if (is.null(seed)) {
         seed <- sample.int(1e6, 1)
@@ -97,7 +103,7 @@ cross_validate <- function(
 
         # Run the cross-validation splits in parallel.
         res <- foreach(i = 1:nsplits, .combine = combine, .export = exportVars) %dopar% {
-            .do_cv_trial(
+            result <- .do_cv_trial(
                 data = data,
                 prop = prop,
                 ndraws = ndraws,
@@ -107,6 +113,8 @@ cross_validate <- function(
                 metrics = metrics,
                 meansOnly = meansOnly
             )
+            cat("Completed split ", i, "\n", sep = "", file = stdout(), flush = TRUE)
+            result
         }
     }
     else {
@@ -134,10 +142,8 @@ cross_validate <- function(
         }
     }
 
-    # Compute diagnostics if requested.
-    rhatBeta <- NULL
-    rhatGammas <- NULL
-    if (computeDiagnostics) {
+    # Collect chains.
+    if (computeDiagnostics || saveSamples) {
         betaList <- list()
         gammasList <- list()
 
@@ -146,6 +152,12 @@ cross_validate <- function(
             betaList[[i]] <- res[[i]]$fit$beta
             gammasList[[i]] <- res[[i]]$fit$gammas
         }
+    }
+
+    # Compute diagnostics if requested.
+    rhatBeta <- NULL
+    rhatGammas <- NULL
+    if (computeDiagnostics) {
 
         # Compute Gelman-Rubin R-hat diagnostics.
         rhatBeta <- gelman.diag(betaList)
@@ -153,6 +165,24 @@ cross_validate <- function(
         for (i in 1:ntargets(data)) {
             gammas_i <- lapply(gammasList, function(g) g[[i]])
             rhatGammas[[i]] <- gelman.diag(mcmc.list(gammas_i))
+        }
+    }
+
+    # Discard collected chains if we don't want to save them.
+    if (!saveSamples) {
+        betaList <- NULL
+        gammasList <- NULL
+    }
+
+    # Collect burnin samples.
+    burninBetaList <- NULL
+    burninGammasList <- NULL
+    if (saveSamples && !is.null(res[[1]]$fit$burninBeta)) {
+        burninBetaList <- list()
+        burninGammasList <- list()
+        for (i in 1:nsplits) {
+            burninBetaList[[i]] <- res[[i]]$fit$burninBeta
+            burninGammasList[[i]] <- res[[i]]$fit$burninGammas
         }
     }
 
@@ -167,6 +197,10 @@ cross_validate <- function(
         seed = seed,
         gelmanRhatBeta = rhatBeta,
         gelmanRhatGammas = rhatGammas,
+        allBetas = betaList,
+        allGammas = gammasList,
+        allBurninBetas = burninBetaList,
+        allBurninGammas = burninGammasList,
         call = match.call()
     )
 }
