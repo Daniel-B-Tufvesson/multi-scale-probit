@@ -17,6 +17,7 @@ all_burnin_betas <- lapply(1:n_beta_params, function(j) {
 # Unpack burnin gammas from all the splits into a list matrixes (grouped by target).
 n_targets <- length(cv_res$allBurninGammas[[1]])
 n_gammas <- lapply(1:n_targets, function(target_idx) ncol(cv_res$allBurninGammas[[1]][[target_idx]]))
+n_gamma_params <- sum(unlist(n_gammas))
 all_burnin_gammas <- lapply(1:n_targets, function(target_idx) {
     lapply(1:n_gammas[[target_idx]], function(gamma_idx) {
         do.call(cbind, lapply(cv_res$allBurninGammas, function(split_list) split_list[[target_idx]][, gamma_idx, drop = FALSE]))
@@ -37,7 +38,7 @@ all_sampled_gammas <- lapply(1:n_targets, function(target_idx) {
 
 
 ###################################################################################################
-# Compute the cumulative R-hat.
+# Compute the cumulative R-hat for burn-in samples.
 rhat_for_every = 50
 cum_rhat_burnin_beta <- list()
 for (j in 1:n_beta_params) {
@@ -53,16 +54,57 @@ for (j in 1:n_targets) {
     cum_rhat_burnin_gammas[[j]] <- cum_rhat
 }
 
+# Compute convergence time for burn-in beta samples.
+burnin_convergence_time_beta <- list()
+n_burnin_beta_convergences = 0 # Number of betas that converged.
+for (j in 1:n_beta_params) {
+    convergence_time <- first_convergence_index(cum_rhat_burnin_beta[[j]], step_size = rhat_for_every)
+    convergence_time_beta[[j]] <- convergence_time
+
+    if (!is.na(convergence_time)) {
+        n_burnin_beta_convergences <- n_burnin_beta_convergences + 1
+    }
+}
+# Compute convergence time for burn-in beta samples.
+burnin_convergence_time_gammas <- list()
+n_burnin_gamma_convergences = 0 # Number of gammas that converged.
+for (j in 1:n_targets) {
+    convergence_times <- list()
+    for (i in 1:n_gammas[[j]]) {
+        convergence_time <- first_convergence_index(cum_rhat_burnin_gammas[[j]][[i]], step_size = rhat_for_every)
+        convergence_times[[i]] <- convergence_time
+
+        if (!is.na(convergence_time)) {
+            n_burnin_gamma_convergences <- n_burnin_gamma_convergences + 1
+        }
+    }
+    burnin_convergence_time_gammas[[j]] <- convergence_times
+}
+
+# Compute median convergence time for burn-in betas and gammas.
+median_convergence_time_beta <- median(unlist(convergence_time_beta), na.rm = TRUE)
+median_convergence_time_gammas <- median(unlist(burnin_convergence_time_gammas), na.rm = TRUE)
+
 # Compute regular R-hat for sampled values.
 rhat_sampled_betas <- list()
+n_sampled_betas_convergences = 0 # Number of sampled betas that converged.
 for (j in 1:n_beta_params) {
     rhat_sampled_betas[[j]] <- gelman_rubin_rhat_single_param(all_sampled_betas[[j]])
+
+    if (rhat_sampled_betas[[j]] <= 1.01) {
+        n_sampled_betas_convergences <- n_sampled_betas_convergences + 1
+    }
 }
 rhat_sampled_gammas <- list()
+n_sampled_gammas_convergences = 0 # Number of sampled gammas that converged.
 for (j in 1:n_targets) {
     rhat_gammas <- list()
     for (i in 1:n_gammas[[j]]) {
         rhat_gammas[[i]] <- gelman_rubin_rhat_single_param(all_sampled_gammas[[j]][[i]])
+
+        if (rhat_gammas[[i]] <= 1.01) {
+            n_sampled_gammas_convergences <- n_sampled_gammas_convergences + 1
+        }
     }
     rhat_sampled_gammas[[j]] <- rhat_gammas
 }
@@ -86,6 +128,18 @@ for (j in 1:n_splits) {
     beta_min_ess_per_second[[j]] <- min(ess_values) / time_seconds
 }
 
+gamma_min_ess_per_second <- list() # One for each split.
+for (j in 1:n_splits) {
+    gammas_split <- cv_res$allGammas[[j]]
+    ess_values <- unlist(lapply(gammas_split, function(gamma_mat) effective_sample_size(gamma_mat, method = "acf")))
+    time_seconds <- cv_res$samplingTime[j]
+    gamma_min_ess_per_second[[j]] <- min(ess_values) / time_seconds
+}
+
+# Cpmpute meadin min ESS.
+median_min_ess_per_second_beta <- median(unlist(beta_min_ess_per_second))
+median_min_ess_per_second_gamma <- median(unlist(gamma_min_ess_per_second))
+
 ###################################################################################################
 # Some helper functions.
 is_rhat_ok <- function(rhat) {
@@ -98,27 +152,33 @@ is_rhat_ok <- function(rhat) {
     }
 }
 
+to_percent <- function(value) {
+    return(paste0(round(value * 100, 2), "%"))
+}
+
 
 ###################################################################################################
 # Print the final diagnostic report.
 print_diagnostic_report <- function() {
     cat("Diagnostic Report for Gibbs Sampling:\n")
     cat("1. Cumulative R-hat Analysis for Burn-in Beta:\n")
+    cat("   - ", n_burning_beta_convergences, "/", n_beta_params, "(",
+        to_percent(n_burning_beta_convergences / n_beta_params), ") burn-in betas converged.\n")
     for (j in 1:n_beta_params) {
         final_rhat <- tail(cum_rhat_burnin_beta[[j]], n = 1)
-        converged_at <- x_vals[which(cum_rhat_burnin_beta[[j]] <= 1.05)[1]]
-        converged_at <- ifelse(is.na(converged_at), "N/A", converged_at)
+        converged_at <- convergence_time_beta[[j]]
         rhat_ok <- is_rhat_ok(final_rhat)
         cat(paste0("   - ", rhat_ok, " Beta ", j, " converged at ", converged_at, "\n"))
     }
 
     cat("2. Cumulative R-hat Analysis for Burn-in Gammas:\n")
+    cat(paste0("      - ", n_burnin_gamma_convergences, "/", n_gamma_params, " (",
+            to_percent(n_burnin_gamma_convergences / n_gamma_params), ") burn-in gammas converged.\n"))
     for (j in 1:n_targets) {
         cat(paste0("   - Gammas for target ", j, ":\n"))
         for (i in 1:n_gammas[[j]]) {
             final_rhat <- tail(cum_rhat_burnin_gammas[[j]][[i]], n = 1)
-            converged_at <- x_vals[which(cum_rhat_burnin_gammas[[j]][[i]] <= 1.05)[1]]
-            converged_at <- ifelse(is.na(converged_at), "N/A", converged_at)
+            converged_at <- burnin_convergence_time_gammas[[j]][[i]]
             rhat_ok <- is_rhat_ok(final_rhat)
             cat(paste0("      - ", rhat_ok, " Gamma ", i, " converged at ", converged_at, "\n"))
         }
@@ -144,6 +204,24 @@ print_diagnostic_report <- function() {
     for (j in 1:n_splits) {
         cat(paste0("   - Split ", j, ": ", round(beta_min_ess_per_second[[j]], 4), " ESS/s\n"))
     }
+    cat("6. Minimum ESS per second for Sampled Gammas\n")
+    for (j in 1:n_splits) {
+        cat(paste0("   - Split ", j, ": ", round(gamma_min_ess_per_second[[j]], 4), " ESS/s\n"))
+    }
+
+    cat("7. Summary\n")
+    cat("   - ", n_burnin_beta_convergences, "/", n_beta_params, "(",
+        to_percent(n_burnin_beta_convergences / n_beta_params), ") burn-in betas converged.\n")
+    cat("   - ", n_burnin_gamma_convergences, "/", n_gamma_params, "(",
+        to_percent(n_burnin_gamma_convergences / n_gamma_params), ") burn-in gammas converged.\n")
+    cat("   - ", n_sampled_betas_convergences, "/", n_beta_params, "(",
+        to_percent(n_sampled_betas_convergences / n_beta_params), ") sampled betas converged.\n")
+    cat("   - ", n_sampled_gammas_convergences, "/", n_gamma_params, "(",
+        to_percent(n_sampled_gammas_convergences / n_gamma_params), ") sampled gammas converged.\n")
+    cat("   - Median convergence time for burn-in betas: ", median_convergence_time_beta, " samples\n")
+    cat("   - Median convergence time for burn-in gammas: ", median_convergence_time_gammas, " samples\n")
+    cat("   - Median minimum ESS/s for sampled betas: ", round(median_min_ess_per_second_beta, 4), " ESS/s\n")
+    cat("   - Median minimum ESS/s for sampled gammas: ", round(median_min_ess_per_second_gamma, 4), " ESS/s\n")
 }
 
 print_diagnostic_report()

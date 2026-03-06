@@ -118,6 +118,71 @@ gelman_rubin_rhat_single_param <- function(chains) {
   return(rhat)
 }
 
+#' Compute First Index of Convergence
+#'
+#' Determines the first sample index where MCMC convergence is achieved and maintained.
+#' Convergence is defined as R-hat <= 1.01, with no subsequent violations.
+#'
+#' @param rhat_cumulative A numeric vector of cumulative R-hat values, typically
+#'   produced by \code{\link{cumulative_gelman_rubin_rhat}}.
+#' @param threshold The R-hat threshold for convergence. Default is 1.01.
+#'
+#' @return An integer representing the first index where R-hat <= threshold and
+#'   all subsequent values remain <= threshold. Returns NA_integer_ if convergence
+#'   is never achieved (i.e., some later values exceed the threshold).
+#'
+#' @details
+#' This function searches for the first index where R-hat drops to the convergence
+#' threshold and remains below (or equal to) that threshold for all remaining samples.
+#' This is stricter than simply finding the first R-hat value below the threshold,
+#' as it requires sustained convergence.
+#'
+#' @examples
+#' \dontrun{
+#' # Example with synthetic R-hat values showing convergence
+#' rhat_values <- c(NA, NA, 1.5, 1.3, 1.15, 1.08, 1.05, 1.03, 1.02, 1.01, 
+#'                  1.00, 0.99, 1.00, 0.99, 0.98)
+#' convergence_idx <- first_convergence_index(rhat_values)
+#' print(convergence_idx)  # Should return 9 (first index with rhat <= 1.01 
+#'                         # where all later values also <= 1.01)
+#' }
+#'
+#' @export
+first_convergence_index <- function(rhat_cumulative, threshold = 1.01, step_size = 1) {
+  # Ensure vector format
+  rhat_cumulative <- as.numeric(rhat_cumulative)
+  
+  n <- length(rhat_cumulative)
+  
+  if (n == 0) {
+    return(NA_integer_)
+  }
+  
+  # Find all indices where R-hat <= threshold
+  converged_indices <- which(rhat_cumulative <= threshold)
+  
+  if (length(converged_indices) == 0) {
+    # Never converged
+    return(NA_integer_)
+  }
+  
+  # For each potential convergence index, check if all subsequent values are <= threshold
+  for (idx in converged_indices) {
+    # Check all values from idx onwards
+    subsequent_values <- rhat_cumulative[idx:n]
+    
+    # Check if all subsequent values (excluding NAs) are <= threshold
+    subsequent_valid <- subsequent_values[!is.na(subsequent_values)]
+    
+    if (all(subsequent_valid <= threshold)) {
+      return(as.integer(idx * step_size))
+    }
+  }
+  
+  # If no index satisfies the condition, return NA
+  return(NA_integer_)
+}
+
 
 #' Compute Effective Sample Size (ESS)
 #'
