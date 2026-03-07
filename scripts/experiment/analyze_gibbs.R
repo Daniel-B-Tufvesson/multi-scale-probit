@@ -1,14 +1,16 @@
 # Load experiment data from "experiment_gibbs.R" and analyze it.
 
 source("scripts/experiment/diagnostics.R")
+source("scripts/experiment/plotting.R")
 
-cv_res = readRDS("results/cv_gibbs_5000.rds")
+name <- "gibbs_5000"
+cv_res = readRDS(paste0("results/cv_", name, ".rds"))
 print("Loaded results")
 
 
 # Unpack burnin betas from all splits into a single matrix.
 n_splits = length(cv_res$allBurninBetas)
-n_samples = nrow(cv_res$allBurninBetas[[1]])
+n_burnin_sample = nrow(cv_res$allBurninBetas[[1]])
 n_beta_params = ncol(cv_res$allBurninBetas[[1]])
 all_burnin_betas <- lapply(1:n_beta_params, function(j) {
     do.call(cbind, lapply(cv_res$allBurninBetas, function(mat) mat[, j, drop = FALSE]))
@@ -25,6 +27,7 @@ all_burnin_gammas <- lapply(1:n_targets, function(target_idx) {
 })
 
 # Unpack sampled betas.
+n_samples <- nrow(cv_res$allBetas[[1]])
 all_sampled_betas <- lapply(1:n_beta_params, function(j) {
     do.call(cbind, lapply(cv_res$allBetas, function(mat) mat[, j, drop = FALSE]))
 })
@@ -110,6 +113,15 @@ for (j in 1:n_targets) {
 }
 
 ##################################################################################################
+# Plot convergence time distribution for burn-in betas and gammas.
+density_plot(unlist(convergence_time_beta),
+             title = "Density of Convergence Times for Burn-in Betas", 
+             xlabel = "Convergence Time (samples)")
+density_plot(unlist(burnin_convergence_time_gammas),
+             title = "Density of Convergence Times for Burn-in Gammas", 
+             xlabel = "Convergence Time (samples)")
+
+##################################################################################################
 # Plot rhat values.
 plot_cum_rhat <- function(){
     x_vals <- seq_along(cum_rhat_burnin_beta[[1]]) * rhat_for_every
@@ -120,25 +132,77 @@ plot_cum_rhat <- function(){
 }
 
 ##################################################################################################
-# Compute min ESS/second.
-beta_min_ess_per_second <- list() # One for each split.
+# Compute min ESS
+beta_min_ess <- list() # One for each split.
+beta_min_ess_per_second <- list() 
+beta_min_ess_per_iteration <- list()
 for (j in 1:n_splits) {
     ess_values <- effective_sample_size(cv_res$allBetas[[j]], method = "acf")
     time_seconds <- cv_res$samplingTime[j]
-    beta_min_ess_per_second[[j]] <- min(ess_values) / time_seconds
+    min_ess <- min(ess_values)
+    beta_min_ess[[j]] <- min_ess
+    beta_min_ess_per_second[[j]] <- min_ess / time_seconds
+    beta_min_ess_per_iteration[[j]] <- min_ess / n_samples
 }
 
-gamma_min_ess_per_second <- list() # One for each split.
+gamma_min_ess <- list() # One for each split.
+gamma_min_ess_per_second <- list()
+gamma_min_ess_per_iteration <- list()
 for (j in 1:n_splits) {
     gammas_split <- cv_res$allGammas[[j]]
     ess_values <- unlist(lapply(gammas_split, function(gamma_mat) effective_sample_size(gamma_mat, method = "acf")))
     time_seconds <- cv_res$samplingTime[j]
-    gamma_min_ess_per_second[[j]] <- min(ess_values) / time_seconds
+    min_ess <- min(ess_values)
+    gamma_min_ess[[j]] <- min_ess
+    gamma_min_ess_per_second[[j]] <- min_ess / time_seconds
+    gamma_min_ess_per_iteration[[j]] <- min_ess / n_samples
 }
 
-# Cpmpute meadin min ESS.
+# Cpmpute median min ESS.
+median_min_ess_beta <- median(unlist(beta_min_ess))
+median_min_ess_gamma <- median(unlist(gamma_min_ess))
 median_min_ess_per_second_beta <- median(unlist(beta_min_ess_per_second))
 median_min_ess_per_second_gamma <- median(unlist(gamma_min_ess_per_second))
+median_min_ess_per_iteration_beta <- median(unlist(beta_min_ess_per_iteration))
+median_min_ess_per_iteration_gamma <- median(unlist(gamma_min_ess_per_iteration))
+
+###################################################################################################
+# Plot distributions of ESS/per second.
+density_plot(unlist(beta_min_ess_per_second),
+             title = "Density of Minimum ESS/s for Sampled Betas", 
+             xlabel = "Minimum ESS/s")
+
+density_plot(unlist(gamma_min_ess_per_second),
+             title = "Density of Minimum ESS/s for Sampled Gammas", 
+             xlabel = "Minimum ESS/s")
+
+# Plot distributions of ESS/iteration.
+density_plot(unlist(beta_min_ess_per_iteration),
+             title = "Density of Minimum ESS/iteration for Sampled Betas", 
+             xlabel = "Minimum ESS/iteration")
+
+density_plot(unlist(gamma_min_ess_per_iteration),
+             title = "Density of Minimum ESS/iteration for Sampled Gammas", 
+             xlabel = "Minimum ESS/iteration")
+
+###################################################################################################
+# Save diagnostic results.
+diagnostic_results <- list(
+    cum_rhat_burnin_beta = cum_rhat_burnin_beta,
+    cum_rhat_burnin_gammas = cum_rhat_burnin_gammas,
+    burnin_convergence_time_beta = convergence_time_beta,
+    burnin_convergence_time_gammas = burnin_convergence_time_gammas,
+    rhat_sampled_betas = rhat_sampled_betas,
+    rhat_sampled_gammas = rhat_sampled_gammas,
+    beta_min_ess = beta_min_ess,
+    gamma_min_ess = gamma_min_ess,
+    beta_min_ess_per_second = beta_min_ess_per_second,
+    gamma_min_ess_per_second = gamma_min_ess_per_second,
+    beta_min_ess_per_iteration = beta_min_ess_per_iteration,
+    gamma_min_ess_per_iteration = gamma_min_ess_per_iteration
+)
+saveRDS(diagnostic_results, file = paste0("results/diagnostics_", name, ".rds"))
+cat("Saved diagnostic results to ", paste0("results/diagnostics_", name, ".rds"), "\n")
 
 ###################################################################################################
 # Some helper functions.
@@ -162,8 +226,8 @@ to_percent <- function(value) {
 print_diagnostic_report <- function() {
     cat("Diagnostic Report for Gibbs Sampling:\n")
     cat("1. Cumulative R-hat Analysis for Burn-in Beta:\n")
-    cat("   - ", n_burning_beta_convergences, "/", n_beta_params, "(",
-        to_percent(n_burning_beta_convergences / n_beta_params), ") burn-in betas converged.\n")
+    cat("   - ", n_burnin_beta_convergences, "/", n_beta_params, "(",
+        to_percent(n_burnin_beta_convergences / n_beta_params), ") burn-in betas converged.\n")
     for (j in 1:n_beta_params) {
         final_rhat <- tail(cum_rhat_burnin_beta[[j]], n = 1)
         converged_at <- convergence_time_beta[[j]]
@@ -200,16 +264,15 @@ print_diagnostic_report <- function() {
         }
     }
 
-    cat("5. Minimum ESS per second for Sampled Betas\n")
-    for (j in 1:n_splits) {
-        cat(paste0("   - Split ", j, ": ", round(beta_min_ess_per_second[[j]], 4), " ESS/s\n"))
-    }
-    cat("6. Minimum ESS per second for Sampled Gammas\n")
-    for (j in 1:n_splits) {
-        cat(paste0("   - Split ", j, ": ", round(gamma_min_ess_per_second[[j]], 4), " ESS/s\n"))
-    }
+    cat("5. ESS Analysis for joint Betas and Gammas\n")
+    cat("   - Median minimum ESS for sampled betas: ", round(median_min_ess_beta, 4), " ESS\n")
+    cat("   - Median minimum ESS for sampled gammas: ", round(median_min_ess_gamma, 4), " ESS\n")
+    cat("   - Median minimum ESS/s for sampled betas: ", round(median_min_ess_per_second_beta, 4), " ESS/s\n")
+    cat("   - Median minimum ESS/s for sampled gammas: ", round(median_min_ess_per_second_gamma, 4), " ESS/s\n")
+    cat("   - Median minimum ESS/iteration for sampled betas: ", round(median_min_ess_per_iteration_beta, 4), " ESS/iteration\n")
+    cat("   - Median minimum ESS/iteration for sampled gammas: ", round(median_min_ess_per_iteration_gamma, 4), " ESS/iteration\n")
 
-    cat("7. Summary\n")
+    cat("6. Summary\n")
     cat("   - ", n_burnin_beta_convergences, "/", n_beta_params, "(",
         to_percent(n_burnin_beta_convergences / n_beta_params), ") burn-in betas converged.\n")
     cat("   - ", n_burnin_gamma_convergences, "/", n_gamma_params, "(",
@@ -220,8 +283,7 @@ print_diagnostic_report <- function() {
         to_percent(n_sampled_gammas_convergences / n_gamma_params), ") sampled gammas converged.\n")
     cat("   - Median convergence time for burn-in betas: ", median_convergence_time_beta, " samples\n")
     cat("   - Median convergence time for burn-in gammas: ", median_convergence_time_gammas, " samples\n")
-    cat("   - Median minimum ESS/s for sampled betas: ", round(median_min_ess_per_second_beta, 4), " ESS/s\n")
-    cat("   - Median minimum ESS/s for sampled gammas: ", round(median_min_ess_per_second_gamma, 4), " ESS/s\n")
+
 }
 
 print_diagnostic_report()
