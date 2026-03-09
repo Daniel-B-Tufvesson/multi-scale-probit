@@ -589,6 +589,13 @@ evalMetricMeans.mspm_labeled_evaluation <- function(object, ...) {
 #' element is a matrix where each row is a split and each column is a metric. 
 #' @param meansOnly A boolean indicating whether only the mean performance scores are included in 
 #' the result (TRUE) or if the full evaluation results for each split are included (FALSE).
+#' @param gelmanRhatBeta A numeric value representing the Gelman-Rubin R-hat diagnostic for the beta
+#' parameters across the splits.
+#' @param gelmanRhatGammas A list of numeric values representing the Gelman-Rubin R-hat diagnostic for
+#' the gamma parameters across the splits, with one value for each target dataset.
+#' @param add_tune_results A list containing the tuning results for each split, if tuning was 
+#' performed as part of the cross-validation process. Each element is an mspm_tune_results object.
+#' Can be NULL if tuning was not done.
 #' @param seed The random seed used for reproducibility.
 new_mspm_cv_result <- function(
     data_spec,
@@ -600,6 +607,7 @@ new_mspm_cv_result <- function(
     seed,
     gelmanRhatBeta,
     gelmanRhatGammas,
+    all_tune_results,
     call
 ) {
     structure(
@@ -613,6 +621,7 @@ new_mspm_cv_result <- function(
             seed = seed,
             gelmanRhatBeta = gelmanRhatBeta,
             gelmanRhatGammas = gelmanRhatGammas,
+            all_tune_results = all_tune_results,
             call = call
         ),
         class = "mspm_cv_result"

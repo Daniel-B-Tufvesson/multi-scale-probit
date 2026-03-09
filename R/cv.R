@@ -48,6 +48,8 @@ cross_validate <- function(
     samplerArgs,
     ndraws,
     ...,
+    pretune_function = NULL,
+    pretune_args = NULL,
     seed = NULL,
     metrics = c("f1", "kendall"),
     nworkers = 1,
@@ -68,6 +70,8 @@ cross_validate <- function(
                 ndraws = ndraws,
                 sampler = sampler,
                 samplerArgs = samplerArgs,
+                pretune_function = pretune_function,
+                pretune_args = pretune_args,
                 seed = seed + i,
                 metrics = metrics,
                 meansOnly = meansOnly
@@ -103,6 +107,8 @@ cross_validate <- function(
                 ndraws = ndraws,
                 sampler = sampler,
                 samplerArgs = samplerArgs,
+                pretune_function = pretune_function,
+                pretune_args = pretune_args,
                 seed = seed + i, # Use different seed for each split.
                 metrics = metrics,
                 meansOnly = meansOnly
@@ -156,6 +162,15 @@ cross_validate <- function(
         }
     }
 
+    # Aggregate tune results as list.
+    all_tune_results <- NULL
+    if (!is.null(pretune_function)) {
+        all_tune_results <- list()
+        for (i in 1:nsplits) {
+            all_tune_results[[i]] <- res[[i]]$tune_results
+        }
+    }
+
     # Return result.
     new_mspm_cv_result(
         data_spec = data_spec(data),
@@ -167,6 +182,7 @@ cross_validate <- function(
         seed = seed,
         gelmanRhatBeta = rhatBeta,
         gelmanRhatGammas = rhatGammas,
+        all_tune_results = all_tune_results,
         call = match.call()
     )
 }
@@ -194,6 +210,8 @@ cross_validate <- function(
     ndraws,
     sampler,
     samplerArgs,
+    pretune_function,
+    pretune_args,
     seed,
     metrics,
     meansOnly
@@ -202,6 +220,22 @@ cross_validate <- function(
     splits <- split_data(data, prop = prop, seed = seed)
     train_data <- splits$train
     test_data <- splits$test
+
+    # Pre-tune the sampler.
+    tune_results <- NULL
+    if (!is.null(pretune_function)) {
+        pretune_args <- c(list(data = train_data, seed = seed), pretune_args)
+        tune_results <- do.call(pretune_function, pretune_args)
+
+        # Ugly unpacking of the params. We may fix this later. 
+        if (class(tune_results) == "mspm_tune_results") {
+            samplerArgs <- c(samplerArgs, tune_results$final_tune)
+        }
+        else if (class(tune_results) == "mspm_tune_results_pt") {
+            samplerArgs <- c(samplerArgs, tune_results$final_tune)
+            # Todo: extract the tuned temperature ladder as well.
+        }
+    }
 
     # Fit model on training data.
     args <- list(
@@ -252,7 +286,8 @@ cross_validate <- function(
         return(list(
             results = results,
             means = means,
-            fit = fit
+            fit = fit,
+            tune_results = tune_results
         ))
     }
 }
