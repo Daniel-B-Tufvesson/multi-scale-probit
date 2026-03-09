@@ -19,13 +19,13 @@ data <- generate_synthetic_data(
 
 cv_res = cross_validate(
     data = data,
-    nsplits = 50,
-    ndraws = 5000,
+    nsplits = 10,
+    ndraws = 50000,
     prop = 0.66,
     sampler = fit_mspm,
     samplerArgs = list(
-        burnin = 5000,
-        thin = 1,
+        burnin = 50000,
+        thin = 10,
         saveBurninSamples = TRUE,
         adapt_tune = TRUE
     ),
@@ -35,8 +35,8 @@ cv_res = cross_validate(
     saveSamples = TRUE
 )
 
-saveRDS(cv_res, file = "results/cv_gibbs_5000_50.rds")
+saveRDS(cv_res, file = "results/cv_gibbs_50000_10.rds")
 print("Saved results")
 
-cv_loaded = readRDS("results/cv_gibbs_5000_50.rds")
-print("Loaded results")
+# cv_loaded = readRDS("results/cv_gibbs_50000_10.rds")
+# print("Loaded results")

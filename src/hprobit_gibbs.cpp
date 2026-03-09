@@ -426,7 +426,7 @@ Rcpp::List cpp_hprobit(
     const Data data = unpack_data(Xlist, Ylist);
     const int ntargets = data.ntargets;
     const int nstore = iterations/thin;
-    const int nstore_burnin = save_burnin_samples ? burnin : 0;
+    const int nstore_burnin = save_burnin_samples ? burnin/thin : 0;
 
     // Unpack gamma.
     std::vector<colvec> gamma(ntargets);
@@ -448,7 +448,7 @@ Rcpp::List cpp_hprobit(
     std::vector<mat> storegamma_burnin(ntargets);
     if (save_burnin_samples) {
         for (unsigned int target = 0; target < ntargets; ++target) {
-            storegamma_burnin[target] = mat(burnin, ncat(target)-1, arma::fill::zeros);
+            storegamma_burnin[target] = mat(nstore_burnin, ncat(target)-1, arma::fill::zeros);
         }
     }
   
