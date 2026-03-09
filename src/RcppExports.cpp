@@ -39,6 +39,31 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_hprobit_tune
+Rcpp::List cpp_hprobit_tune(const Rcpp::List& x_list, const Rcpp::List& y_list, const arma::colvec& mean_prior, const arma::mat& prec_prior, const arma::ivec& ncategories, const Rcpp::List& gamma_start, const arma::colvec& beta_start, const arma::vec& tune_start, double target_acceptance_rate, double target_epsilon, bool stop_early, int max_iterations, int window_size, const int seed, int verbose);
+RcppExport SEXP _masteruppsatsr_cpp_hprobit_tune(SEXP x_listSEXP, SEXP y_listSEXP, SEXP mean_priorSEXP, SEXP prec_priorSEXP, SEXP ncategoriesSEXP, SEXP gamma_startSEXP, SEXP beta_startSEXP, SEXP tune_startSEXP, SEXP target_acceptance_rateSEXP, SEXP target_epsilonSEXP, SEXP stop_earlySEXP, SEXP max_iterationsSEXP, SEXP window_sizeSEXP, SEXP seedSEXP, SEXP verboseSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type x_list(x_listSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type y_list(y_listSEXP);
+    Rcpp::traits::input_parameter< const arma::colvec& >::type mean_prior(mean_priorSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type prec_prior(prec_priorSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type ncategories(ncategoriesSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type gamma_start(gamma_startSEXP);
+    Rcpp::traits::input_parameter< const arma::colvec& >::type beta_start(beta_startSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type tune_start(tune_startSEXP);
+    Rcpp::traits::input_parameter< double >::type target_acceptance_rate(target_acceptance_rateSEXP);
+    Rcpp::traits::input_parameter< double >::type target_epsilon(target_epsilonSEXP);
+    Rcpp::traits::input_parameter< bool >::type stop_early(stop_earlySEXP);
+    Rcpp::traits::input_parameter< int >::type max_iterations(max_iterationsSEXP);
+    Rcpp::traits::input_parameter< int >::type window_size(window_sizeSEXP);
+    Rcpp::traits::input_parameter< const int >::type seed(seedSEXP);
+    Rcpp::traits::input_parameter< int >::type verbose(verboseSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_hprobit_tune(x_list, y_list, mean_prior, prec_prior, ncategories, gamma_start, beta_start, tune_start, target_acceptance_rate, target_epsilon, stop_early, max_iterations, window_size, seed, verbose));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_hprobit_pt
 Rcpp::List cpp_hprobit_pt(const Rcpp::List& xlist, const Rcpp::List& ylist, const arma::colvec& mean_prior, const arma::mat& prec_prior, const int fix_zero, const arma::ivec& ncategories, const Rcpp::List& gamma_start, const arma::colvec& beta_start, const Rcpp::List& tune, const int ntemperatures, const arma::ivec temperature_ladder, const double target_temp_swap_accept_ratio, const int temp_window_size, const double temp_window_size_growth_factor, const double temp_ladder_learning_rate, const int iterations, const int burnin, const int thin, const int seed, bool complete_swapping, bool save_burning_samples, const int verbose);
 RcppExport SEXP _masteruppsatsr_cpp_hprobit_pt(SEXP xlistSEXP, SEXP ylistSEXP, SEXP mean_priorSEXP, SEXP prec_priorSEXP, SEXP fix_zeroSEXP, SEXP ncategoriesSEXP, SEXP gamma_startSEXP, SEXP beta_startSEXP, SEXP tuneSEXP, SEXP ntemperaturesSEXP, SEXP temperature_ladderSEXP, SEXP target_temp_swap_accept_ratioSEXP, SEXP temp_window_sizeSEXP, SEXP temp_window_size_growth_factorSEXP, SEXP temp_ladder_learning_rateSEXP, SEXP iterationsSEXP, SEXP burninSEXP, SEXP thinSEXP, SEXP seedSEXP, SEXP complete_swappingSEXP, SEXP save_burning_samplesSEXP, SEXP verboseSEXP) {
@@ -148,6 +173,7 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_masteruppsatsr_cpp_hprobit", (DL_FUNC) &_masteruppsatsr_cpp_hprobit, 17},
+    {"_masteruppsatsr_cpp_hprobit_tune", (DL_FUNC) &_masteruppsatsr_cpp_hprobit_tune, 15},
     {"_masteruppsatsr_cpp_hprobit_pt", (DL_FUNC) &_masteruppsatsr_cpp_hprobit_pt, 22},
     {"_masteruppsatsr_cpp_fmeasure_distribution", (DL_FUNC) &_masteruppsatsr_cpp_fmeasure_distribution, 3},
     {"_masteruppsatsr_cpp_classification_metric_distributions", (DL_FUNC) &_masteruppsatsr_cpp_classification_metric_distributions, 3},

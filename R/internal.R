@@ -672,3 +672,43 @@ gelmanRhatBeta.mspm_cv_result <- function(object, ...) {
 gelmanRhatGammas.mspm_cv_result <- function(object, ...) {
     object$gelmanRhatGammas
 }
+
+
+#' Constructor for creating a new multi-scale probit model tuning results object.
+#'
+#' @param data_spec The data specification object containing information about the predictors,
+#' responses, levels, etc.
+#' @param final_tune The final approximation of the tuning parameter.
+#' @param final_acceptance_rates A vector of the final acceptance rates for each target dataset.
+#' @param target_acceptance_rate The target acceptance rate used for tuning.
+#' @param target_epsilon The target epsilon used for tuning.
+#' @param max_iterations The maximum number of iterations used for tuning.
+#' @param final_iteration The final iteration number reached during tuning.
+#' @param seed The random seed used for reproducibility.
+#' @param call The original function call used to create the tuning results object.
+new_mspm_tune_results <- function(
+    data_spec,
+    final_tune,
+    final_acceptance_rates,
+    target_acceptance_rate,
+    target_epsilon,
+    max_iterations,
+    final_iteration,
+    seed,
+    call
+) {
+    structure(
+        list(
+            data_spec = data_spec,
+            final_tune = final_tune,
+            final_acceptance_rates = final_acceptance_rates,
+            target_acceptance_rate = target_acceptance_rate,
+            target_epsilon = target_epsilon,
+            max_iterations = max_iterations,
+            final_iteration = final_iteration,
+            seed = seed,
+            call = call
+        ),
+        class = "mspm_tune_results"
+    )
+}

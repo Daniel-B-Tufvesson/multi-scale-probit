@@ -3,6 +3,113 @@ library(callr)
 
 source("R/internal.R")
 
+tune_mspm <- function(
+    data,
+    iterations,
+    ...,
+    target_acceptance_rate = 0.234,
+    target_epsilon = 0.05,
+    stop_early = FALSE,
+    window_size = 25,
+    seed = NA,
+    mean_prior = NULL,
+    prec_prior = NULL,
+    start_tune = NULL,
+    beta_initial = NULL,
+    gamma_initial = NULL,
+    verbose = 0
+) {
+    .validate_data(data)
+
+    nlevels = nlevels(data)
+    ntargets = ntargets(data)
+    npredictors = length(predictorNames(data))
+
+    # Set the seed.
+    if (is.na(seed)) {
+        seed <- sample.int(.Machine$integer.max, 1)
+    }
+    set.seed(seed)
+
+    # Set default priors.
+    if (is.null(mean_prior)) {
+        mean_prior <- rep(0, npredictors)
+    }
+    if (is.null(prec_prior)) {
+        prec_prior <- .create_prec_prior(npredictors)
+    }
+
+    # Set starting values for gamma and beta if not provided
+    if (is.null(gamma_initial)) {
+        gamma_initial <- .create_inital_gammas(ntargets, nlevels)
+    }
+    if (is.null(beta_initial)) {
+        beta_initial <- rep(0, npredictors)
+    }
+
+    # Set tuning parameter for the sampler
+    if (is.null(start_tune)) {
+        start_tune <- 0.05 / nlevels
+    }
+    if (length(start_tune) != ntargets) {
+        start_tune <- rep(start_tune, ntargets)
+    }
+
+    # Tmp: start as subprocess for more robust development.
+    tune_results <- tryCatch({callr::r(
+        function(data, mean_prior, prec_prior, nlevels, gamma_initial, beta_initial, start_tune, 
+                 target_acceptance_rate, target_epsilon, stop_early, iterations, window_size, seed, 
+                 verbose) {
+            devtools::load_all()
+            cpp_hprobit_tune(
+                data$Xlist,
+                data$ylist,
+                mean_prior,
+                prec_prior,
+                nlevels,
+                gamma_initial,
+                beta_initial,
+                start_tune,
+                target_acceptance_rate,
+                target_epsilon,
+                stop_early,
+                iterations,
+                window_size,
+                seed,
+                verbose
+            )
+        },
+        args = list(data, mean_prior, prec_prior, nlevels, gamma_initial, beta_initial, start_tune, 
+                    target_acceptance_rate, target_epsilon, stop_early, iterations, window_size, 
+                    seed, verbose),
+        show = verbose > 0
+    )}, error = function(e) {
+        message("Error in cpp_hprobit: ", e$message)
+        if (!is.null(e$stdout)) {
+            cat("---- STDOUT ----\n")
+            cat(e$stdout, sep = "\n")
+        }
+        if (!is.null(e$stderr)) {
+            cat("---- STDERR ----\n")
+            cat(e$stderr, sep = "\n")
+        }
+        stop(e)
+    })
+
+    # Return tuning results.
+    return(new_mspm_tune_results(
+        data_spec = data_spec(data),
+        final_tune = tune_results$final_tune,
+        final_acceptance_rates = tune_results$final_acceptance_rates,
+        target_acceptance_rate = target_acceptance_rate,
+        target_epsilon = target_epsilon,
+        max_iterations = iterations,
+        final_iteration = tune_results$final_iteration,
+        seed = seed,
+        call = match.call()
+    ))
+}
+
 # Fit a multi-scale probit model (MSPM) to the data.  
 # 
 # Arguments:

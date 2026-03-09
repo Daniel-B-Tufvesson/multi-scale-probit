@@ -133,6 +133,17 @@ void do_burnin_step(
     }
 }
 
+/**
+ * Compute the acceptance rates for the proposed gammas for each target based on the observed 
+ * acceptance probabilities for the proposed gammas.
+ * 
+ * @param acceptance_probabilities The vector containing the sum of the acceptance probabilities for 
+ * the proposed gammas for each target.
+ * @param nsamples The number of samples (iterations) over which the acceptance probabilities were
+ * accumulated.
+ * @param acceptance_rates The vector to store the computed acceptance rates for each target. This will
+ * be updated in place with the computed acceptance rates for each target.
+ */
 void compute_acceptance_rate(
     const arma::vec& acceptance_probabilities,
     int nsamples,
@@ -359,6 +370,24 @@ double do_sampling(
     return elapsed.count();
 }
 
+/**
+ * Unpack gamma thresholds from Rcpp::List and set boundary values.
+ * 
+ * @param gammaStart Rcpp::List of initial gamma vectors for each target.
+ * @param ncat arma::ivec with number of categories for each target.
+ * @return std::vector<colvec> with boundary values set.
+ */
+std::vector<colvec> unpack_gamma(const Rcpp::List& gammaStart, const arma::ivec& ncat) {
+    int ntargets = gammaStart.size();
+    std::vector<colvec> gamma(ntargets);
+    for (int target = 0; target < ntargets; ++target) {
+        gamma[target] = Rcpp::as<colvec>(gammaStart[target]);
+        gamma[target](0) = -std::numeric_limits<double>::max();
+        gamma[target](ncat[target]) = std::numeric_limits<double>::max();
+    }
+    return gamma;
+}
+
 
 /**
  * The main function for the MCMC sampler, which is called from R. This function unpacks the input data,
@@ -429,12 +458,7 @@ Rcpp::List cpp_hprobit(
     const int nstore_burnin = save_burnin_samples ? burnin : 0;
 
     // Unpack gamma.
-    std::vector<colvec> gamma(ntargets);
-    for (unsigned int target = 0; target < ntargets; ++target) {
-        gamma[target] = Rcpp::as<colvec>(gammaStart[target]);
-        gamma[target](0) = -std::numeric_limits<double>::max();
-        gamma[target](ncat[target]) = std::numeric_limits<double>::max();
-    }
+    std::vector<colvec> gamma = unpack_gamma(gammaStart, ncat);
   
     // Storage matrices
     mat storebeta(nstore, betaStart.n_rows, arma::fill::zeros);
@@ -505,5 +529,135 @@ Rcpp::List cpp_hprobit(
         _["storegamma_burnin"] = storegamma_burnin_list,
         _["sampling_time"] = sampling_time,
         _["burnin_time"] = burnin_duration
+    );
+}
+
+/**
+ * Tune the gibbs sampler by finding the optimal proposal variance for the gamma parameters. 
+ * 
+ * @param x_list A list of feature matrices for each target.
+ * @param y_list A list of response vectors for each target.
+ * @param mean_prior The prior mean for the regression coefficients.
+ * @param prec_prior The prior precision matrix for the regression coefficients.
+ * @param ncategories A vector containing the number of categories for each target.
+ * @param gamma_start A list of initial values for the gamma parameters for each target.
+ * @param beta_start The initial values for the regression coefficients.
+ * @param tune_start The initial values for the tuning parameters for the proposal distribution
+ * for the gammas.
+ * @param target_acceptance_rate The target acceptance rate for the proposed gammas during tuning.
+ * @param target_epsilon The epsilon threshold for early stopping during tuning. If the acceptance 
+ * rates for all targets are within `target_epsilon` of the `target_acceptance_rate`, tuning will 
+ * stop early.
+ * @param stop_early A boolean indicating whether to stop tuning early if the acceptance rates for 
+ * all targets are within `target_epsilon` of the `target_acceptance_rate`.
+ * @param max_iterations The maximum number of tuning iterations to perform. The tuning process 
+ * will stop after this many iterations even if the acceptance rates have not yet converged to the 
+ * target.
+ * @param window_size The window size for computing acceptance rates and adjusting the proposal 
+ * variance during tuning.
+ * @param seed The random seed to use for the GSL random number generator during tuning.
+ * @param verbose The verbosity level for printing progress during tuning. A value of 0 means no
+ * progress will be printed, while higher values will print progress every `verbose` iterations.
+ * 
+ * @return An R list containing the tuned proposal variances and acceptance rates for each target, 
+ * as well as information about the tuning process such as the number of iterations performed and 
+ * whether early stopping was triggered.
+ */
+// [[Rcpp::depends("RcppArmadillo")]]
+// [[Rcpp::export]]
+Rcpp::List cpp_hprobit_tune(
+    const Rcpp::List& x_list,
+    const Rcpp::List& y_list,
+    const arma::colvec& mean_prior,
+    const arma::mat& prec_prior,
+    const arma::ivec& ncategories,
+    const Rcpp::List& gamma_start,
+    const arma::colvec& beta_start,
+    const arma::vec& tune_start,
+    double target_acceptance_rate,
+    double target_epsilon,
+    bool stop_early,
+    int max_iterations,
+    int window_size,
+    const int seed,
+    int verbose
+) {
+
+    //--- GSL random init ---
+    // Used to take efficient samples from truncated normal.
+    gsl_rng_env_setup();                          // Read variable environnement
+    const gsl_rng_type* type = gsl_rng_default;   // Default algorithm 'twister'
+    gsl_rng *gen = gsl_rng_alloc (type);          // Rand generator allocation
+    gsl_rng_set(gen, seed);
+  
+    // Unpack data and define constants.
+    const Data data = unpack_data(x_list, y_list);
+    const int ntargets = data.ntargets;
+
+    // Set starting points
+    arma::colvec beta = beta_start;
+    arma::vec tune = tune_start;
+    std::vector<colvec> gamma = unpack_gamma(gamma_start, ncategories);
+
+    arma::vec acceptance_probabilites (data.ntargets, arma::fill::zeros);
+    arma::vec acceptance_rates (data.ntargets, arma::fill::zeros);
+    int window_step = 0;
+
+    // Tuning loop.
+    int iter = 0;
+    int last_print = 0;
+    for (; iter < max_iterations; iter++) {
+        do_step(iter, ncategories, beta, gamma, tune, data, acceptance_probabilites, mean_prior,
+            prec_prior, gen);
+
+        // Tune the proposal variance.
+        window_step++;
+        if (window_step == window_size) {
+            window_step = 0;
+            double learning_rate = 1.0 / std::sqrt(iter);
+            compute_acceptance_rate(acceptance_probabilites, window_size, acceptance_rates);
+            adjust_proposal_variance(tune, acceptance_rates, target_acceptance_rate, learning_rate);
+            acceptance_probabilites.zeros();
+
+            if (verbose > 0 && (iter - last_print) >= verbose) {
+                last_print = iter;
+                Rcpp::Rcout << "Tuning iteration " << (iter+1) << " of " << max_iterations << " ";
+
+                double mean_accept_rate = arma::mean(acceptance_rates);
+                Rcpp::Rcout << "Mean acceptance rate = " << mean_accept_rate << std::endl;
+            }
+
+            // Check for early stopping.
+            if (stop_early) {
+                bool all_close = true;
+                for (int target = 0; target < ntargets; target++) {
+                    if (std::abs(acceptance_rates(target) - target_acceptance_rate) > target_epsilon) {
+                        all_close = false;
+                        break;
+                    }
+                }
+                if (all_close) {
+                    if (verbose > 0) {
+                        double mean_accept_rate = arma::mean(acceptance_rates);
+                        Rcpp::Rcout << "Early stopping at iteration " << (iter+1) 
+                            << " as acceptance rates are within epsilon of target. " 
+                            << "Mean acceptance rate = " << mean_accept_rate << std::endl;
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    // Free pointer to GSL random generator.
+    gsl_rng_free(gen);
+
+    return Rcpp::List::create(
+        _["target_acceptance_rate"] = target_acceptance_rate,
+        _["target_epsilon"] = target_epsilon,
+        _["max_iterations"] = max_iterations,
+        _["final_iteration"] = iter,
+        _["final_tune"] = tune,
+        _["final_acceptance_rates"] = acceptance_rates
     );
 }

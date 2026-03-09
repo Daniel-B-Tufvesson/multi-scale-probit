@@ -5,6 +5,10 @@ cpp_hprobit <- function(Xlist, Ylist, meanPrior, precPrior, ncat, gammaStart, be
     .Call(`_masteruppsatsr_cpp_hprobit`, Xlist, Ylist, meanPrior, precPrior, ncat, gammaStart, betaStart, tune_start, adapt_tune, tune_window_size, target_acceptance_rate, iterations, burnin, thin, save_burnin_samples, seed, verbose)
 }
 
+cpp_hprobit_tune <- function(x_list, y_list, mean_prior, prec_prior, ncategories, gamma_start, beta_start, tune_start, target_acceptance_rate, target_epsilon, stop_early, max_iterations, window_size, seed, verbose) {
+    .Call(`_masteruppsatsr_cpp_hprobit_tune`, x_list, y_list, mean_prior, prec_prior, ncategories, gamma_start, beta_start, tune_start, target_acceptance_rate, target_epsilon, stop_early, max_iterations, window_size, seed, verbose)
+}
+
 cpp_hprobit_pt <- function(xlist, ylist, mean_prior, prec_prior, fix_zero, ncategories, gamma_start, beta_start, tune, ntemperatures, temperature_ladder, target_temp_swap_accept_ratio, temp_window_size, temp_window_size_growth_factor, temp_ladder_learning_rate, iterations, burnin, thin, seed, complete_swapping, save_burning_samples, verbose) {
     .Call(`_masteruppsatsr_cpp_hprobit_pt`, xlist, ylist, mean_prior, prec_prior, fix_zero, ncategories, gamma_start, beta_start, tune, ntemperatures, temperature_ladder, target_temp_swap_accept_ratio, temp_window_size, temp_window_size_growth_factor, temp_ladder_learning_rate, iterations, burnin, thin, seed, complete_swapping, save_burning_samples, verbose)
 }
