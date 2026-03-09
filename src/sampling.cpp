@@ -34,6 +34,16 @@ Data unpack_data(
     return data;
 }
 
+std::vector<colvec> unpack_gamma(const Rcpp::List& gammaStart, const arma::ivec& ncat) {
+    int ntargets = gammaStart.size();
+    std::vector<colvec> gamma(ntargets);
+    for (int target = 0; target < ntargets; ++target) {
+        gamma[target] = Rcpp::as<colvec>(gammaStart[target]);
+        gamma[target](0) = -std::numeric_limits<double>::max();
+        gamma[target](ncat[target]) = std::numeric_limits<double>::max();
+    }
+    return gamma;
+}
 
 /**
  * Compute the log likelihood ratio between the current gammas and the proposed gammas.
@@ -304,4 +314,30 @@ void gibbs_update_beta(
         beta_prec_prior, 
         1.0
     );
+}
+
+
+void compute_acceptance_rate(
+    const arma::vec& acceptance_probabilities,
+    int nsamples,
+    arma::vec& acceptance_rates
+) {
+    for (unsigned int target = 0; target < acceptance_probabilities.n_rows; ++target) {
+        acceptance_rates(target) = acceptance_probabilities(target) / static_cast<double>(nsamples);
+    }
+}
+
+
+void adjust_proposal_variance(
+    arma::vec& tune,
+    const arma::vec& burnin_acceptance_rate,
+    double target_acceptance_rate,
+    double learning_rate
+) {
+    for (int i = 0; i < tune.n_rows; i++) {
+        double acceptance_rate = burnin_acceptance_rate(i);
+        double log_sigma = std::log(tune(i));
+        log_sigma += learning_rate * (acceptance_rate - target_acceptance_rate);
+        tune(i) = std::exp(log_sigma);
+    }
 }

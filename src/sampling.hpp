@@ -67,6 +67,15 @@ Data unpack_data(
     const Rcpp::List& ylist
 );
 
+/**
+ * Unpack gamma thresholds from Rcpp::List and set boundary values.
+ * 
+ * @param gammaStart Rcpp::List of initial gamma vectors for each target.
+ * @param ncat arma::ivec with number of categories for each target.
+ * @return std::vector<colvec> with boundary values set.
+ */
+std::vector<colvec> unpack_gamma(const Rcpp::List& gammaStart, const arma::ivec& ncat);
+
 
 /**
  * Propose a new gamma via the Metropolis-Hastings method.
@@ -119,6 +128,44 @@ void gibbs_update_beta(
     const arma::colvec& beta_mean_prior,
     const arma::mat& beta_prec_prior,
     gsl_rng* rng
+);
+
+
+/**
+ * Compute the acceptance rates for the proposed gammas for each target based on the observed 
+ * acceptance probabilities for the proposed gammas.
+ * 
+ * @param acceptance_probabilities The vector containing the sum of the acceptance probabilities for 
+ * the proposed gammas for each target.
+ * @param nsamples The number of samples (iterations) over which the acceptance probabilities were
+ * accumulated.
+ * @param acceptance_rates The vector to store the computed acceptance rates for each target. This will
+ * be updated in place with the computed acceptance rates for each target.
+ */
+void compute_acceptance_rate(
+    const arma::vec& acceptance_probabilities,
+    int nsamples,
+    arma::vec& acceptance_rates
+);
+
+/**
+ * Adjust the proposal variance for the gamma parameters based on the observed acceptance 
+ * probabilities for the proposed gamma values. This is done by comparing the observed acceptance 
+ * rates to a target acceptance rate, and adjusting the standard deviation of the truncated normal 
+ * proposal distribution for the gammas accordingly.
+ * 
+ * @param tune The current tuning parameters for the proposal distribution for the gammas, which 
+ * will be updated in place with the new tuned values. Each sigma element corresponds to a target.
+ * @param acceptance_probabilites The sum of the acceptance probabilities for the proposed gammas 
+ * for each target over the current window of burnin iterations. Each sum corresponed to a target.
+ * @param target_acceptance_rate The target acceptance rate for the proposed gammas.
+ * @param learning_rate The learning rate for adjusting the proposal variance.
+ */
+void adjust_proposal_variance(
+    arma::vec& tune,
+    const arma::vec& burnin_acceptance_rate,
+    double target_acceptance_rate,
+    double learning_rate
 );
 
 #endif // __SAMPLING_HPP

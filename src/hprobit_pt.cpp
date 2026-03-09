@@ -38,6 +38,9 @@ public:
     int nstored_burnin = 0; // Number of burnin samples stored so far.
     int nsteps = 0; // Number of steps taken.
 
+    // The MH proposal probabilities will be added to this for each target.
+    arma::vec cumulative_acceptance_probabilities;
+
     /**
      * Constructor for the TemperatureChain class. Initializes the chain with the given starting 
      * values and sets up the storage matrixes for the samples.
@@ -101,6 +104,8 @@ public:
             gamma[target](0) = -std::numeric_limits<double>::max();
             gamma[target](ncategories[target]) = std::numeric_limits<double>::max();
         }
+
+        cumulative_acceptance_probabilities = arma::vec(ntargets, arma::fill::zeros);
     }
 
     /**
@@ -243,7 +248,7 @@ private:
      * @param rng The GSL random number generator to use for sampling.
      */
     void step_gamma(const Data& data, gsl_rng* rng) {
-        arma::vec acceptance_probabilities(ntargets, arma::fill::zeros); // not used for now.
+        // arma::vec acceptance_probabilities(ntargets, arma::fill::zeros); // not used for now.
         for (unsigned int t = 0; t < ntargets; t++) {
             int target = (nsteps+t) % ntargets;
             int ncats = ncategories(target); 
@@ -257,7 +262,7 @@ private:
                 ncats,
                 gamma_tune(target),
                 inv_temperature,
-                acceptance_probabilities(target),
+                cumulative_acceptance_probabilities(target),
                 rng
             );
         }
@@ -284,300 +289,6 @@ private:
     }
 };
 
-// Function declarations. -----------------------------------------------------------------------
-
-
-
-void do_step(
-    std::vector<TemperatureChain>& chains, 
-    int ntemperatures,
-    const Data& data,
-    std::vector<int>& nswap_accepts,
-    std::vector<int>& nswap_proposals,
-    std::vector<double>* swap_probabilities,
-    gsl_rng* rng
-);
-
-void do_burnin(
-    std::vector<TemperatureChain>& chains, 
-    int ntemperatures,
-    const Data& data,
-    int burnin, 
-    bool save_burning_samples,
-    int thin,
-    gsl_rng* rng
-);
-
-void do_adaptive_burnin(
-    std::vector<TemperatureChain>& chains, 
-    int ntemperatures,
-    const Data& data,
-    int burnin, 
-    gsl_rng* rng,
-    int window_size,
-    double window_growth_factor,
-    double target_swap_ratio,
-    double ladder_adjust_learning_rate,
-    arma::vec& swap_rates,
-    bool save_burning_samples,
-    int thin,
-    int verbose
-);
-
-void adjust_ladder(
-    std::vector<TemperatureChain>& chains, 
-    int ntemperatures,
-    std::vector<double>& swap_probabilities,
-    arma::vec& swap_rates,
-    std::vector<int>& nswap_proposals,
-    double target_swap_ratio,
-    double ladder_adjust_learning_rate,
-    double min_gap
-);
-
-
-// Function definitions. -------------------------------------------------------------------------
-
-/**
- * Sample a probit model using parallel tempering.
- * 
- * This implementation uses Constant Swap-Acceptance Adaptation to determine the temperature 
- * ladder during the burn-in.
- * 
- * @param xlist The feature matrices for each target. Each element of the list should be a matrix 
- * of size (n_samples, n_features).
- * @param ylist The response vectors for each target. Each element of the list should be a vector
- * of size (n_samples,).
- * @param mean_prior The prior mean for the regression coefficients.
- * @param prec_prior The prior precision matrix for the regression coefficients.
- * @param fix_zero Whether to fix the first threshold to zero.
- * @param ncategories A vector containing the number of categories for each target.
- * @param gamma_start The starting values for the thresholds for each target. Each element of the 
- * list should be a vector of size (n_categories - 1,).
- * @param beta_start The starting values for the regression coefficients.
- * @param tune The tuning parameters for the Metropolis-Hastings updates for the thresholds. This 
- * list can either contain one vector of tuning parameters, or a one vector for each temperature. 
- * Each vector should be of size (n_categories - 1,).
- * @param ntemperatures The number of temperatures to use in the parallel tempering algorithm.
- * @param temperature_ladder The ladder of temperatures to use in the parallel tempering algorithm. 
- * This should be a vector of size (ntemperatures,).
- * @param target_temp_swap_accept_ratio The target swap acceptance ratio to achieve during the 
- * burn-in. Set this to -1 to disable temperature ladder adaptation and use the provided temperature 
- * ladder as is.
- * @param temp_window_size The window size for computing the swap acceptance ratio during the 
- * burn-in. This controls how frequently the temperature ladder is updated during the burn-in phase 
- * to achieve the target swap acceptance ratio.
- * @param temp_window_size_growth_factor The growth factor for the window size during the burn-in. 
- * This controls how the window size changes over time during the burn-in phase. A value greater 
- * than 1 will cause the window size to grow over time, which can help stabilize the temperature 
- * ladder adaptation as more samples are collected.
- * @param temp_ladder_learning_rate The learning rate for adjusting the temperature ladder during 
- * the burn-in. This controls how aggressively the temperature ladder is updated to achieve the 
- * target swap acceptance ratio.
- * @param iterations The total number of iterations to run the sampler for (excluding burn-in).
- * @param burnin The number of burn-in iterations to discard.
- * @param thin The thinning interval for storing samples.
- * @param seed The random seed for reproducibility.
- * @param complete_swapping Whether to perform complete swapping (i.e., swapping both beta and gamma 
- * parameters) or partial swapping (i.e., swapping only the gamma parameters).
- * @param verbose The frequency (in iterations) at which to print progress updates. Set to 0 to 
- * disable.
- * 
- * @return A list containing the stored samples for the regression coefficients and thresholds for 
- * each target. The regression coefficients will be stored in a matrix of size (n_samples, 
- * n_features) for each temperature, and the thresholds will be stored in a list of matrices, 
- * where each matrix is of size (n_samples, n_categories - 1) for each temperature.
- */
-// [[Rcpp::depends("RcppArmadillo")]]
-// [[Rcpp::export]]
-Rcpp::List cpp_hprobit_pt(
-    const Rcpp::List& xlist,
-    const Rcpp::List& ylist,
-    const arma::colvec& mean_prior,
-    const arma::mat& prec_prior,
-    const int fix_zero,
-    const arma::ivec& ncategories,
-    const Rcpp::List& gamma_start,
-    const arma::colvec& beta_start,
-    const Rcpp::List& tune,
-    const int ntemperatures,
-    const arma::ivec temperature_ladder,
-    const double target_temp_swap_accept_ratio,
-    const int temp_window_size,
-    const double temp_window_size_growth_factor,
-    const double temp_ladder_learning_rate,
-    const int iterations,
-    const int burnin,
-    const int thin,
-    const int seed,
-    bool complete_swapping,
-    bool save_burning_samples,
-    const int verbose
-) {
-    if (verbose != 0){
-        Rcpp::Rcout << "Starting parallel tempering sampler for multi-scale probit model..." << std::endl;
-    }
-    // Initialize GSL random number generator.
-    gsl_rng_env_setup();                          // Read variable environnement
-    const gsl_rng_type* type = gsl_rng_default;   // Default algorithm 'twister'
-    gsl_rng* gen = gsl_rng_alloc(type);           // Rand generator allocation
-    gsl_rng_set(gen, seed);
-
-    // Define constants and unpack data.
-    const int total_iterations = iterations + burnin;
-    const int nstore = iterations / thin;
-    const int nstore_bunin =  save_burning_samples ? burnin / thin : 0;
-    const int ntargets = xlist.size();
-    const Data data = unpack_data(xlist, ylist);
-
-    const int npredictors = data.Xall.n_cols;
-    const int nobs = data.Xall.n_rows;
-
-    // Unpack gammas.
-    std::vector<arma::colvec> gamma_start_vec(ntargets);
-    for (unsigned int target = 0; target < ntargets; target++) {
-        gamma_start_vec[target] = Rcpp::as<arma::colvec>(gamma_start[target]);
-    }
-
-    if (verbose != 0){
-        Rcpp::Rcout << "Data unpacked. Starting parallel tempering sampler with " << ntemperatures << " temperatures." << std::endl;
-    }
-
-    // Create chains.
-    std::vector<TemperatureChain> chains;
-    for (int i = 0; i < ntemperatures; i++) {
-        double inv_temperature = 1.0 / temperature_ladder(i);
-        chains.emplace_back(
-            inv_temperature,
-            beta_start,
-            gamma_start_vec,
-            ncategories,
-            arma::vec(ntargets, arma::fill::ones), // Todo: we need to unpack the tuning parameters here.
-            mean_prior,
-            prec_prior,
-            nstore,
-            nobs,
-            ntargets,
-            save_burning_samples,
-            nstore_bunin
-        );
-    }
-
-    if (verbose != 0) {
-        Rcpp::Rcout << "Starting burn-in phase..." << std::endl;
-    }
-
-    arma::vec adaptation_swap_rates(ntemperatures-1, arma::fill::zeros);
-    // Measure burnin sampling time.
-    auto start_time_burnin = std::chrono::high_resolution_clock::now();
-    // Burn-in loop without temperature ladder adaptation.
-    if (target_temp_swap_accept_ratio == -1) {
-        do_burnin(chains, ntemperatures, data, burnin, save_burning_samples, thin, gen);
-    }
-    else { // Do with adaptation.
-        do_adaptive_burnin(
-            chains, 
-            ntemperatures, 
-            data, 
-            burnin, 
-            gen, 
-            temp_window_size, 
-            temp_window_size_growth_factor, 
-            target_temp_swap_accept_ratio,
-            temp_ladder_learning_rate,
-            adaptation_swap_rates,
-            save_burning_samples,
-            thin,
-            verbose
-        );
-    }
-    // Measure burnin time in seconds.
-    auto end_time_burnin = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed_burnin = end_time_burnin - start_time_burnin;
-    
-    if (verbose != 0) {
-        Rcpp::Rcout << "Burn-in complete. Starting sampling phase..." << std::endl;
-    }
-
-    // Sampling loop.
-    std::vector<int> nswap_accepts(ntemperatures-1, 0);
-    std::vector<int> nswap_proposals(ntemperatures-1, 0);
-    std::vector<double> swap_probabilities(ntemperatures-1, 0);
-    // Measure sampling time.
-    auto start_time = std::chrono::high_resolution_clock::now();
-    for (unsigned int iter = 0; iter < iterations; iter++) {
-        do_step(chains, ntemperatures, data, nswap_accepts, nswap_proposals, 
-            &swap_probabilities, gen);
-
-        // Store samples.
-        if (iter % thin == 0) {
-            for (auto& chain : chains) {
-                chain.store_sample();
-            }
-        }
-
-        // Print progress updates.
-        if (verbose > 0 && iter > 0 && (iter % verbose == 0 || iter == iterations - 1)) {
-
-            // Compute mean swap ratio.
-            double mean_swap_ratio = 0;
-            for (int i = 0; i < ntemperatures - 1; i++) {
-                mean_swap_ratio += swap_probabilities[i] 
-                    / (nswap_proposals[i] == 0 ? 1 : nswap_proposals[i]);
-            }
-            mean_swap_ratio /= (ntemperatures - 1);
-
-            // Print progress.
-            Rcpp::Rcout << "Iteration " << (iter+1) << "/" << iterations 
-                        << ", Mean swap acceptance ratio: " << mean_swap_ratio
-                        << std::endl;
-        }
-    }
-    // Measure sampling time in seconds.
-    auto end_time = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = end_time - start_time;
-
-    // Free pointers.
-    gsl_rng_free(gen);
-
-    // Wrap gammas into Rcpp::List for output. This prevents R from automatically converting the 
-    // matrices to vectors, which causes issues when we have multiple targets.
-    Rcpp::List storegamma_list;
-    for (size_t i = 0; i < chains[0].store_gamma.size(); ++i) {
-        storegamma_list.push_back(chains[0].store_gamma[i]);
-    }
-
-    // Wrap burnin gammas too.
-    Rcpp::List storegamma_burnin_list;
-    if (save_burning_samples) {
-        for (size_t i = 0; i < chains[0].store_gamma_burnin.size(); ++i) {
-            storegamma_burnin_list.push_back(chains[0].store_gamma_burnin[i]);
-        }
-    }
-
-    // Store inverse temperatures.
-    arma::vec inv_temps(ntemperatures);
-    arma::vec adapted_temps(ntemperatures);
-    for (int i = 0; i < ntemperatures; i++) {
-        inv_temps(i) = chains[i].inv_temperature;
-        adapted_temps(i) = 1.0 / chains[i].inv_temperature;
-    }
-
-    // Return results.
-    return Rcpp::List::create(
-        _["storebeta"] = chains[0].store_beta,
-        _["storegamma"] = storegamma_list,
-        _["nswap_accepts"] = nswap_accepts,
-        _["nswap_proposals"] = nswap_proposals,
-        _["adapted_inv_temps"] = inv_temps,
-        _["adapted_temps"] = adapted_temps,
-        _["adaptation_swap_rates"] = adaptation_swap_rates,
-        _["storebeta_burnin"] = chains[0].store_beta_burnin,
-        _["storegamma_burnin"] = storegamma_burnin_list,
-        _["sampling_time"] = elapsed.count(),
-        _["burnin_time"] = elapsed_burnin.count()
-    );
-}
 
 /**
  * Helper function to perform one step of the parallel tempering sampler, including 
@@ -832,4 +543,377 @@ void adjust_ladder(
     }
 }
 
+void adjust_proposal_variances(
+    std::vector<TemperatureChain>& chains,
 
+) {
+    for(auto& chain : chains) {
+        compute_acceptance_rate(acceptance_probabilites, window_size, acceptance_rates);
+        adjust_proposal_variance(tune, acceptance_rates, target_acceptance_rate, learning_rate);
+        chain.cumulative_acceptance_probabilities.zeros();
+    }
+    
+}
+
+/**
+ * Create and initialize a vector of TemperatureChain objects for parallel tempering.
+ * 
+ * @param ntemperatures Number of temperatures (chains) to create.
+ * @param temperature_ladder Vector of temperatures (length ntemperatures).
+ * @param beta_start Starting values for regression coefficients.
+ * @param gamma_start_vec Starting values for gamma thresholds (vector of colvec).
+ * @param ncategories Number of categories for each target.
+ * @param gamma_tune_list List of tuning parameters for each chain (Rcpp::List of arma::vec).
+ * @param mean_prior Prior mean for regression coefficients.
+ * @param prec_prior Prior precision matrix for regression coefficients.
+ * @param nstore Number of samples to store per chain.
+ * @param nobs Total number of observations.
+ * @param ntargets Number of targets.
+ * @param save_burnin_samples Whether to store burn-in samples.
+ * @param nstore_burnin Number of burn-in samples to store.
+ * @return std::vector<TemperatureChain> with all chains initialized.
+ */
+std::vector<TemperatureChain> create_temperature_chains(
+    int ntemperatures,
+    const arma::vec& temperature_ladder,
+    const arma::colvec& beta_start,
+    const std::vector<arma::colvec>& gamma_start_vec,
+    const arma::ivec& ncategories,
+    const Rcpp::List& gamma_tune_list,
+    const arma::colvec& mean_prior,
+    const arma::mat& prec_prior,
+    int nstore,
+    int nobs,
+    int ntargets,
+    bool save_burnin_samples,
+    int nstore_burnin
+) {
+    std::vector<TemperatureChain> chains;
+    for (int i = 0; i < ntemperatures; i++) {
+        double inv_temperature = 1.0 / temperature_ladder(i);
+        arma::vec gamma_tune = Rcpp::as<arma::vec>(gamma_tune_list[i]);
+        chains.emplace_back(
+            inv_temperature,
+            beta_start,
+            gamma_start_vec,
+            ncategories,
+            gamma_tune,
+            mean_prior,
+            prec_prior,
+            nstore,
+            nobs,
+            ntargets,
+            save_burnin_samples,
+            nstore_burnin
+        );
+    }
+    return chains;
+}
+
+
+/**
+ * Sample a probit model using parallel tempering.
+ * 
+ * This implementation uses Constant Swap-Acceptance Adaptation to determine the temperature 
+ * ladder during the burn-in.
+ * 
+ * @param xlist The feature matrices for each target. Each element of the list should be a matrix 
+ * of size (n_samples, n_features).
+ * @param ylist The response vectors for each target. Each element of the list should be a vector
+ * of size (n_samples,).
+ * @param mean_prior The prior mean for the regression coefficients.
+ * @param prec_prior The prior precision matrix for the regression coefficients.
+ * @param fix_zero Whether to fix the first threshold to zero.
+ * @param ncategories A vector containing the number of categories for each target.
+ * @param gamma_start The starting values for the thresholds for each target. Each element of the 
+ * list should be a vector of size (n_categories - 1,).
+ * @param beta_start The starting values for the regression coefficients.
+ * @param tune The tuning parameters for the Metropolis-Hastings updates for the thresholds. This 
+ * list can either contain one vector of tuning parameters, or a one vector for each temperature. 
+ * Each vector should be of size (n_categories - 1,).
+ * @param ntemperatures The number of temperatures to use in the parallel tempering algorithm.
+ * @param temperature_ladder The ladder of temperatures to use in the parallel tempering algorithm. 
+ * This should be a vector of size (ntemperatures,).
+ * @param target_temp_swap_accept_ratio The target swap acceptance ratio to achieve during the 
+ * burn-in. Set this to -1 to disable temperature ladder adaptation and use the provided temperature 
+ * ladder as is.
+ * @param temp_window_size The window size for computing the swap acceptance ratio during the 
+ * burn-in. This controls how frequently the temperature ladder is updated during the burn-in phase 
+ * to achieve the target swap acceptance ratio.
+ * @param temp_window_size_growth_factor The growth factor for the window size during the burn-in. 
+ * This controls how the window size changes over time during the burn-in phase. A value greater 
+ * than 1 will cause the window size to grow over time, which can help stabilize the temperature 
+ * ladder adaptation as more samples are collected.
+ * @param temp_ladder_learning_rate The learning rate for adjusting the temperature ladder during 
+ * the burn-in. This controls how aggressively the temperature ladder is updated to achieve the 
+ * target swap acceptance ratio.
+ * @param iterations The total number of iterations to run the sampler for (excluding burn-in).
+ * @param burnin The number of burn-in iterations to discard.
+ * @param thin The thinning interval for storing samples.
+ * @param seed The random seed for reproducibility.
+ * @param complete_swapping Whether to perform complete swapping (i.e., swapping both beta and gamma 
+ * parameters) or partial swapping (i.e., swapping only the gamma parameters).
+ * @param verbose The frequency (in iterations) at which to print progress updates. Set to 0 to 
+ * disable.
+ * 
+ * @return A list containing the stored samples for the regression coefficients and thresholds for 
+ * each target. The regression coefficients will be stored in a matrix of size (n_samples, 
+ * n_features) for each temperature, and the thresholds will be stored in a list of matrices, 
+ * where each matrix is of size (n_samples, n_categories - 1) for each temperature.
+ */
+// [[Rcpp::depends("RcppArmadillo")]]
+// [[Rcpp::export]]
+Rcpp::List cpp_hprobit_pt(
+    const Rcpp::List& xlist,
+    const Rcpp::List& ylist,
+    const arma::colvec& mean_prior,
+    const arma::mat& prec_prior,
+    const arma::ivec& ncategories,
+    const Rcpp::List& gamma_start,
+    const arma::colvec& beta_start,
+    const Rcpp::List& tune,
+    const int ntemperatures,
+    const arma::vec temperature_ladder,
+    const double target_temp_swap_accept_ratio,
+    const int temp_window_size,
+    const double temp_window_size_growth_factor,
+    const double temp_ladder_learning_rate,
+    const int iterations,
+    const int burnin,
+    const int thin,
+    const int seed,
+    const bool complete_swapping,
+    const bool save_burning_samples,
+    const int verbose
+) {
+    if (verbose != 0){
+        Rcpp::Rcout << "Starting parallel tempering sampler for multi-scale probit model..." << std::endl;
+    }
+    // Initialize GSL random number generator.
+    gsl_rng_env_setup();                          // Read variable environnement
+    const gsl_rng_type* type = gsl_rng_default;   // Default algorithm 'twister'
+    gsl_rng* gen = gsl_rng_alloc(type);           // Rand generator allocation
+    gsl_rng_set(gen, seed);
+
+    // Define constants and unpack data.
+    const int total_iterations = iterations + burnin;
+    const int nstore = iterations / thin;
+    const int nstore_bunin =  save_burning_samples ? burnin / thin : 0;
+    const int ntargets = xlist.size();
+    const Data data = unpack_data(xlist, ylist);
+
+    const int npredictors = data.Xall.n_cols;
+    const int nobs = data.Xall.n_rows;
+
+    const std::vector<colvec> gamma_start_vec = unpack_gamma(gamma_start, ncategories);
+
+    if (verbose != 0){
+        Rcpp::Rcout << "Data unpacked. Starting parallel tempering sampler with " << ntemperatures << " temperatures." << std::endl;
+    }
+
+    // Create chains.
+    std::vector<TemperatureChain> chains = create_temperature_chains(ntemperatures, 
+        temperature_ladder, beta_start, gamma_start_vec, ncategories, tune, mean_prior, prec_prior,
+        nstore, nobs, ntargets, save_burning_samples, nstore_bunin);
+
+    if (verbose != 0) {
+        Rcpp::Rcout << "Starting burn-in phase..." << std::endl;
+    }
+
+    arma::vec adaptation_swap_rates(ntemperatures-1, arma::fill::zeros);
+    // Measure burnin sampling time.
+    auto start_time_burnin = std::chrono::high_resolution_clock::now();
+    // Burn-in loop without temperature ladder adaptation.
+    if (target_temp_swap_accept_ratio == -1) {
+        do_burnin(chains, ntemperatures, data, burnin, save_burning_samples, thin, gen);
+    }
+    else { // Do with adaptation.
+        do_adaptive_burnin(
+            chains, 
+            ntemperatures, 
+            data, 
+            burnin, 
+            gen, 
+            temp_window_size, 
+            temp_window_size_growth_factor, 
+            target_temp_swap_accept_ratio,
+            temp_ladder_learning_rate,
+            adaptation_swap_rates,
+            save_burning_samples,
+            thin,
+            verbose
+        );
+    }
+    // Measure burnin time in seconds.
+    auto end_time_burnin = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed_burnin = end_time_burnin - start_time_burnin;
+    
+    if (verbose != 0) {
+        Rcpp::Rcout << "Burn-in complete. Starting sampling phase..." << std::endl;
+    }
+
+    // Sampling loop.
+    std::vector<int> nswap_accepts(ntemperatures-1, 0);
+    std::vector<int> nswap_proposals(ntemperatures-1, 0);
+    std::vector<double> swap_probabilities(ntemperatures-1, 0);
+    // Measure sampling time.
+    auto start_time = std::chrono::high_resolution_clock::now();
+    for (unsigned int iter = 0; iter < iterations; iter++) {
+        do_step(chains, ntemperatures, data, nswap_accepts, nswap_proposals, 
+            &swap_probabilities, gen);
+
+        // Store samples.
+        if (iter % thin == 0) {
+            for (auto& chain : chains) {
+                chain.store_sample();
+            }
+        }
+
+        // Print progress updates.
+        if (verbose > 0 && iter > 0 && (iter % verbose == 0 || iter == iterations - 1)) {
+
+            // Compute mean swap ratio.
+            double mean_swap_ratio = 0;
+            for (int i = 0; i < ntemperatures - 1; i++) {
+                mean_swap_ratio += swap_probabilities[i] 
+                    / (nswap_proposals[i] == 0 ? 1 : nswap_proposals[i]);
+            }
+            mean_swap_ratio /= (ntemperatures - 1);
+
+            // Print progress.
+            Rcpp::Rcout << "Iteration " << (iter+1) << "/" << iterations 
+                        << ", Mean swap acceptance ratio: " << mean_swap_ratio
+                        << std::endl;
+        }
+    }
+    // Measure sampling time in seconds.
+    auto end_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end_time - start_time;
+
+    // Free pointers.
+    gsl_rng_free(gen);
+
+    // Wrap gammas into Rcpp::List for output. This prevents R from automatically converting the 
+    // matrices to vectors, which causes issues when we have multiple targets.
+    Rcpp::List storegamma_list;
+    for (size_t i = 0; i < chains[0].store_gamma.size(); ++i) {
+        storegamma_list.push_back(chains[0].store_gamma[i]);
+    }
+
+    // Wrap burnin gammas too.
+    Rcpp::List storegamma_burnin_list;
+    if (save_burning_samples) {
+        for (size_t i = 0; i < chains[0].store_gamma_burnin.size(); ++i) {
+            storegamma_burnin_list.push_back(chains[0].store_gamma_burnin[i]);
+        }
+    }
+
+    // Store inverse temperatures.
+    arma::vec inv_temps(ntemperatures);
+    arma::vec adapted_temps(ntemperatures);
+    for (int i = 0; i < ntemperatures; i++) {
+        inv_temps(i) = chains[i].inv_temperature;
+        adapted_temps(i) = 1.0 / chains[i].inv_temperature;
+    }
+
+    // Return results.
+    return Rcpp::List::create(
+        _["storebeta"] = chains[0].store_beta,
+        _["storegamma"] = storegamma_list,
+        _["nswap_accepts"] = nswap_accepts,
+        _["nswap_proposals"] = nswap_proposals,
+        _["adapted_inv_temps"] = inv_temps,
+        _["adapted_temps"] = adapted_temps,
+        _["adaptation_swap_rates"] = adaptation_swap_rates,
+        _["storebeta_burnin"] = chains[0].store_beta_burnin,
+        _["storegamma_burnin"] = storegamma_burnin_list,
+        _["sampling_time"] = elapsed.count(),
+        _["burnin_time"] = elapsed_burnin.count()
+    );
+}
+
+
+
+Rcpp::List cpp_hprobit_tune_pt(
+    const Rcpp::List& x_list,
+    const Rcpp::List& y_list,
+    const arma::colvec& mean_prior,
+    const arma::mat& prec_prior,
+    const arma::ivec& ncategories,
+    const Rcpp::List& gamma_start,
+    const arma::colvec& beta_start,
+    const Rcpp::List& tune_start,
+    const bool tune_proposal_variance,
+    const double target_acceptance_rate,
+    const int proposal_window_size,
+    const arma::vec temperature_ladder_start,
+    const bool tune_ladder,
+    const double target_temp_swap_accept_rate,
+    const int temp_window_size,
+    const double temp_window_size_growth_factor,
+    const double temp_ladder_learning_rate,
+    const int iterations,
+    const bool stop_early,
+    const double target_epsilon,
+    const int seed,
+    const bool complete_swapping,
+    const int verbose
+){
+    if (verbose != 0){
+        Rcpp::Rcout << "Starting parallel tempering sampler for multi-scale probit model..." << std::endl;
+    }
+    // Initialize GSL random number generator.
+    gsl_rng_env_setup();                          // Read variable environnement
+    const gsl_rng_type* type = gsl_rng_default;   // Default algorithm 'twister'
+    gsl_rng* gen = gsl_rng_alloc(type);           // Rand generator allocation
+    gsl_rng_set(gen, seed);
+
+    // Unpack data and define constants.
+    const Data data = unpack_data(x_list, y_list);
+    const int ntargets = data.ntargets;
+    const int ntemperatures = temperature_ladder_start.size();
+    const int nobs = data.nobs;
+    std::vector<colvec> gamma_start_vec = unpack_gamma(gamma_start, ncategories);
+
+    // Create chains.
+    std::vector<TemperatureChain> chains = create_temperature_chains(ntemperatures, 
+        temperature_ladder_start, beta_start, gamma_start_vec, ncategories, tune_start, mean_prior, 
+        prec_prior, 0, nobs, ntargets, false, 0);
+
+    std::vector<int> nswap_accepts(ntemperatures-1, 0);
+    std::vector<int> nswap_proposals(ntemperatures-1, 0);
+    std::vector<double> swap_probabilities(ntemperatures-1, 0);
+
+    int proposal_window_step = 0;
+    int temperature_window_step = 0;
+    
+    // Tuning loop.
+    int iter = 0;
+    for (; iter < iterations; iter++) {
+        do_step(chains, ntemperatures, data, nswap_accepts, nswap_proposals, 
+            &swap_probabilities, gen);
+        
+        // Tune the proposal variance.
+        if (tune_proposal_variance) {
+            proposal_window_step++;
+            if (proposal_window_step == proposal_window_size) {
+                proposal_window_step = 0;
+                double learning_rate = 1.0 / std::sqrt(iter);
+                adjust_
+            }
+        }
+        
+        // Tune the temperature ladder.
+        if (tune_ladder) {
+
+        }
+    }
+
+    // Free pointer.
+    gsl_rng_free(gen);
+
+    return Rcpp::List::create(
+        _["adapted_inv_temps"] = arma::vec(), // placeholder
+        _["adapted_temps"] = arma::vec() // placeholder
+    );
+}
