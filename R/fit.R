@@ -55,46 +55,64 @@ tune_mspm <- function(
         start_tune <- rep(start_tune, ntargets)
     }
 
+    tune_results <- cpp_hprobit_tune(
+        data$Xlist,
+        data$ylist,
+        mean_prior,
+        prec_prior,
+        nlevels,
+        gamma_initial,
+        beta_initial,
+        start_tune,
+        target_acceptance_rate,
+        target_epsilon,
+        stop_early,
+        iterations,
+        window_size,
+        seed,
+        verbose
+    )
+
     # Tmp: start as subprocess for more robust development.
-    tune_results <- tryCatch({callr::r(
-        function(data, mean_prior, prec_prior, nlevels, gamma_initial, beta_initial, start_tune, 
-                 target_acceptance_rate, target_epsilon, stop_early, iterations, window_size, seed, 
-                 verbose) {
-            devtools::load_all()
-            cpp_hprobit_tune(
-                data$Xlist,
-                data$ylist,
-                mean_prior,
-                prec_prior,
-                nlevels,
-                gamma_initial,
-                beta_initial,
-                start_tune,
-                target_acceptance_rate,
-                target_epsilon,
-                stop_early,
-                iterations,
-                window_size,
-                seed,
-                verbose
-            )
-        },
-        args = list(data, mean_prior, prec_prior, nlevels, gamma_initial, beta_initial, start_tune, 
-                    target_acceptance_rate, target_epsilon, stop_early, iterations, window_size, 
-                    seed, verbose),
-        show = verbose > 0
-    )}, error = function(e) {
-        message("Error in cpp_hprobit: ", e$message)
-        if (!is.null(e$stdout)) {
-            cat("---- STDOUT ----\n")
-            cat(e$stdout, sep = "\n")
-        }
-        if (!is.null(e$stderr)) {
-            cat("---- STDERR ----\n")
-            cat(e$stderr, sep = "\n")
-        }
-        stop(e)
-    })
+    # tune_results <- tryCatch({callr::r(
+    #     function(data, mean_prior, prec_prior, nlevels, gamma_initial, beta_initial, start_tune, 
+    #              target_acceptance_rate, target_epsilon, stop_early, iterations, window_size, seed, 
+    #              verbose) {
+    #         devtools::load_all()
+    #         cpp_hprobit_tune(
+    #             data$Xlist,
+    #             data$ylist,
+    #             mean_prior,
+    #             prec_prior,
+    #             nlevels,
+    #             gamma_initial,
+    #             beta_initial,
+    #             start_tune,
+    #             target_acceptance_rate,
+    #             target_epsilon,
+    #             stop_early,
+    #             iterations,
+    #             window_size,
+    #             seed,
+    #             verbose
+    #         )
+    #     },
+    #     args = list(data, mean_prior, prec_prior, nlevels, gamma_initial, beta_initial, start_tune, 
+    #                 target_acceptance_rate, target_epsilon, stop_early, iterations, window_size, 
+    #                 seed, verbose),
+    #     show = verbose > 0
+    # )}, error = function(e) {
+    #     message("Error in cpp_hprobit: ", e$message)
+    #     if (!is.null(e$stdout)) {
+    #         cat("---- STDOUT ----\n")
+    #         cat(e$stdout, sep = "\n")
+    #     }
+    #     if (!is.null(e$stderr)) {
+    #         cat("---- STDERR ----\n")
+    #         cat(e$stderr, sep = "\n")
+    #     }
+    #     stop(e)
+    # })
 
     # Return tuning results.
     return(new_mspm_tune_results(
@@ -188,65 +206,68 @@ fit_mspm <- function(
     }
 
     # Run CPP backend sampler.
-    # sim <- cpp_hprobit(
-    #     data$Xlist,
-    #     data$ylist,
-    #     meanPrior,
-    #     precPrior,
-    #     fix.zero,
-    #     nlevels,
-    #     gamma.initial,
-    #     beta.initial,
-    #     tune,
-    #     ndraws,
-    #     burnin,
-    #     thin,
-    #     seed,
-    #     verbose
-    # )
+    sim <- cpp_hprobit(
+        data$Xlist,
+        data$ylist,
+        meanPrior,
+        precPrior,
+        nlevels,
+        gamma.initial,
+        beta.initial,
+        tune,
+        adapt_tune,
+        tuneWindowSize,
+        targetAcceptanceRate,
+        ndraws,
+        burnin,
+        thin,
+        saveBurninSamples,
+        seed,
+        verbose
+    )
 
     # Tmp: start as subprocess for more robust development.
-    sim <- tryCatch({callr::r(
-        function(data, meanPrior, precPrior, nlevels, gamma.initial, beta.initial, tune, 
-                 ndraws, burnin, thin, seed, verbose, saveBurninSamples, adapt_tune, tuneWindowSize, 
-                 targetAcceptanceRate) {
-            devtools::load_all()
-            cpp_hprobit(
-                data$Xlist,
-                data$ylist,
-                meanPrior,
-                precPrior,
-                nlevels,
-                gamma.initial,
-                beta.initial,
-                tune,
-                adapt_tune,
-                tuneWindowSize,
-                targetAcceptanceRate,
-                ndraws,
-                burnin,
-                thin,
-                saveBurninSamples,
-                seed,
-                verbose
-            )
-        },
-        args = list(data, meanPrior, precPrior, nlevels, gamma.initial, beta.initial, 
-                    tune, ndraws, burnin, thin, seed, verbose, saveBurninSamples, adapt_tune,
-                    tuneWindowSize, targetAcceptanceRate),
-        show = verbose > 0
-    )}, error = function(e) {
-        message("Error in cpp_hprobit: ", e$message)
-        if (!is.null(e$stdout)) {
-            cat("---- STDOUT ----\n")
-            cat(e$stdout, sep = "\n")
-        }
-        if (!is.null(e$stderr)) {
-            cat("---- STDERR ----\n")
-            cat(e$stderr, sep = "\n")
-        }
-        stop(e)
-    })
+    # sim <- tryCatch({callr::r(
+    #     function(data, meanPrior, precPrior, nlevels, gamma.initial, beta.initial, tune, 
+    #              ndraws, burnin, thin, seed, verbose, saveBurninSamples, adapt_tune, tuneWindowSize, 
+    #              targetAcceptanceRate) {
+    #         devtools::load_all()
+    #         cpp_hprobit(
+    #             data$Xlist,
+    #             data$ylist,
+    #             meanPrior,
+    #             precPrior,
+    #             nlevels,
+    #             gamma.initial,
+    #             beta.initial,
+    #             tune,
+    #             adapt_tune,
+    #             tuneWindowSize,
+    #             targetAcceptanceRate,
+    #             ndraws,
+    #             burnin,
+    #             thin,
+    #             saveBurninSamples,
+    #             seed,
+    #             verbose
+    #         )
+    #     },
+    #     args = list(data, meanPrior, precPrior, nlevels, gamma.initial, beta.initial, 
+    #                 tune, ndraws, burnin, thin, seed, verbose, saveBurninSamples, adapt_tune,
+    #                 tuneWindowSize, targetAcceptanceRate),
+    #     show = verbose > 0
+    # )}, error = function(e) {
+    #     message("Error in cpp_hprobit: ", e$message)
+    #     if (!is.null(e$stdout)) {
+    #         cat("---- STDOUT ----\n")
+    #         cat(e$stdout, sep = "\n")
+    #     }
+    #     if (!is.null(e$stderr)) {
+    #         cat("---- STDERR ----\n")
+    #         cat(e$stderr, sep = "\n")
+    #     }
+    #     stop(e)
+    # })
 
     # Format and store MCMC results
     colnames(sim$storebeta) <- c(data$predictorNames)
