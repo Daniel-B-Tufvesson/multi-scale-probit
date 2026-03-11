@@ -258,6 +258,10 @@ precPrior.mspm <- function(object, ...) {
     object$precPrior
 }
 
+proposal_variance.mspm <- function(object, ...) {
+    object$proposal_variance
+}
+
 ndraws.mspm <- function(object, ...) {
     object$ndraws
 }
@@ -683,4 +687,8 @@ new_mspm_tune_results <- function(
         ),
         class = "mspm_tune_results"
     )
+}
+
+proposal_variance.mspm_tune_results <- function(object, ...) {
+    object$proposal_variance
 }

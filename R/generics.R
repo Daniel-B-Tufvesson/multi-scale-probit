@@ -165,6 +165,25 @@ thin <- function(object, ...) {
     UseMethod("thin")
 }
 
+#' The proposal variance used in the MCMC sampling for a multi-scale probit model object.
+#' 
+#' @param object One of:
+#' \itemize{
+#'   \item An mspm object.
+#'   \item An mspm_tune_results object.
+#' }
+#' @param ... Additional arguments (not used).
+#' @return The proposal variance on the form of:
+#' \itemize{
+#'   \item A vector of numerical values for each target gamma group if the sampler is the MH-Gibbs
+#'   sampler.
+#'   \item A list of numerical vectors for each temperature if the sampler is a parallel tempering 
+#'   sampler.
+#' }
+proposal_variance <- function(object, ...) {
+    UseMethod("proposal_variance")
+}
+
 #' The time taken for the sampling phase of MCMC sampling. This only encompasses the time taken for 
 #' sampling and does not include data preprocessing, model fitting setup, burn-in, or post-processing 
 #' steps. The time is measured in seconds.
