@@ -117,8 +117,8 @@ tune_mspm <- function(
     # Return tuning results.
     return(new_mspm_tune_results(
         data_spec = data_spec(data),
-        final_proposal_variance = tune_results$final_tune,
-        final_acceptance_rates = tune_results$final_acceptance_rates,
+        proposal_variance = tune_results$final_tune,
+        acceptance_rates = tune_results$final_acceptance_rates,
         target_acceptance_rate = target_acceptance_rate,
         target_epsilon = target_epsilon,
         max_iterations = iterations,
@@ -194,7 +194,7 @@ fit_mspm <- function(
 
     # Set proposal variance parameter for the sampler
     if (is.null(proposal_variance)) {
-        proposal_variance <- 0.05 / nlevels
+        proposal_variance <- 0.05
     }
     if (length(proposal_variance) != ntargets) {
         proposal_variance <- rep(proposal_variance, ntargets)
@@ -281,7 +281,7 @@ fit_mspm <- function(
         gammas = gammas,
         meanPrior = mean_prior,
         precPrior = prec_prior,
-        proposal_variance = sim$proposal_variance,
+        proposal_variance = proposal_variance,
         acceptanceRate = sim$acceptance_rate,
         seed = seed,
         ndraws = ndraws / thin,

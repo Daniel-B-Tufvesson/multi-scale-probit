@@ -193,7 +193,6 @@ Rcpp::List cpp_hprobit(
     return Rcpp::List::create(
         _["storebeta"] = sampling_storage.store_beta,
         _["storegamma"] = sampling_storage.gamma_to_r_list(),
-        _["tune"] = chain.proposal_variance,
         _["acceptance_rate"] = acceptance_rate,
         _["total_iter"] = iterations + burnin,
         _["sampling_time"] = sampling_time,

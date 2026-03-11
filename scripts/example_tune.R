@@ -27,7 +27,7 @@ fit <- fit_mspm(
     ndraws = 2000,
     burnin = 2000,
     thin = 10,
-    tune = tune_results$final_tune,
+    proposal_variance = tune_results$proposal_variance,
     seed = 1234,
     verbose = 1000
 )

@@ -363,7 +363,7 @@ new_mspm_pt <- function(
             ndrawsNoThin = ndrawsNoThin,
             thin = thin,
             burnin = burnin,
-            
+
             ntemperatures = ntemperatures,
             completeSwapping = completeSwapping,
 
@@ -650,8 +650,8 @@ gelmanRhatGammas.mspm_cv_result <- function(object, ...) {
 #'
 #' @param data_spec The data specification object containing information about the predictors,
 #' responses, levels, etc.
-#' @param final_proposal_variance The final approximation of the tuning parameter.
-#' @param final_acceptance_rates A vector of the final acceptance rates for each target dataset.
+#' @param proposal_variance The final approximation of the tuning parameter.
+#' @param acceptance_rates A vector of the final acceptance rates for each target dataset.
 #' @param target_acceptance_rate The target acceptance rate used for tuning.
 #' @param target_epsilon The target epsilon used for tuning.
 #' @param max_iterations The maximum number of iterations used for tuning.
@@ -660,8 +660,8 @@ gelmanRhatGammas.mspm_cv_result <- function(object, ...) {
 #' @param call The original function call used to create the tuning results object.
 new_mspm_tune_results <- function(
     data_spec,
-    final_proposal_variance,
-    final_acceptance_rates,
+    proposal_variance,
+    acceptance_rates,
     target_acceptance_rate,
     target_epsilon,
     max_iterations,
@@ -672,8 +672,8 @@ new_mspm_tune_results <- function(
     structure(
         list(
             data_spec = data_spec,
-            final_proposal_variance = final_proposal_variance,
-            final_acceptance_rates = final_acceptance_rates,
+            proposal_variance = proposal_variance,
+            acceptance_rates = acceptance_rates,
             target_acceptance_rate = target_acceptance_rate,
             target_epsilon = target_epsilon,
             max_iterations = max_iterations,
