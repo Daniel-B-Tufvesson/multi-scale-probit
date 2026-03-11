@@ -15,10 +15,6 @@ library(coda)
 #' Note that this function can be computationally intensive, especially with a large number of 
 #' splits and posterior draws.
 #'
-#' Also note that parallel and serial cross-validation may yield different results due to 
-#' differences in random number generation and execution order. This is despite using the same 
-#' random seed, because of how parallelization works in R.
-#'
 #' @param data An mspm_data object containing the dataset to be used for cross-validation.
 #' @param nsplits An integer specifying the number of random splits to perform.
 #' @param prop A numeric value between 0 and 1 indicating the proportion of data to be used for 
@@ -26,7 +22,6 @@ library(coda)
 #' @param sampler A function that fits an mspm model and returns an object containing posterior draws.
 #' @param samplerArgs A list of additional arguments to pass to the sampler function, such
 #' @param ndraws An integer specifying the number of posterior draws to use when fitting the model.
-#' @param seed An integer random seed for reproducibility. If NULL, a random seed will be generated.
 #' @param metrics A character vector specifying the evaluation metrics to compute. Default 
 #' is c("f1", "kendall").
 #' @param nworkers An integer specifying the number of worker processes to use for parallelization.
@@ -50,15 +45,18 @@ cross_validate <- function(
     ...,
     pretune_function = NULL,
     pretune_args = NULL,
-    seed = NULL,
     metrics = c("f1", "kendall"),
     nworkers = 1,
     meansOnly = TRUE,
     computeDiagnostics = TRUE
 ) {
-    if (is.null(seed)) {
-        seed <- sample.int(1e6, 1)
-    }
+    # Use random seed. Note, however, that we cannot guarantee perfect reproducibility, even for
+    # when nworkers = 0. This is most likely caused by underlying parallelization of the math
+    # libraries used by the sampler. We will investigate this issue further and try to find a 
+    # solution. For cross-validation, however, we usually only care about average performance
+    # rather than specific performance, so lack of seeding should not be negatively impact the 
+    # utility of this function.
+    seed <- sample.int(1e6, 1)
     
     # 1 worker -> no parallelization, run sequentially.
     if (nworkers == 1) {

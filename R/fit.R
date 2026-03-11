@@ -454,8 +454,6 @@ fit_mspm_pt <- function(
         }
         proposal_variance <- proposal_variance_list
     }
-    cat("Proposal variance for each temperature:\n")
-    print(proposal_variance)
 
     # Set default temperature ladder if not provided.
     if (is.null(inv_temperature_ladder)) {
@@ -466,92 +464,92 @@ fit_mspm_pt <- function(
     }
 
     # Call the backend parallel tempering sampler.
-    # sim <- cpp_hprobit_pt(
-    #     data$Xlist,
-    #     data$ylist,
-    #     mean_prior,
-    #     prec_prior,
-    #     nlevels,
-    #     gamma_start,
-    #     beta_start,
-    #     proposal_variance,
-    #     inv_temperature_ladder,
-    #     ndraws,
-    #     burnin,
-    #     thin,
-    #     seed,
-    #     complete_param_swapping,
-    #     verbose
-    # )
+    sim <- cpp_hprobit_pt(
+        data$Xlist,
+        data$ylist,
+        mean_prior,
+        prec_prior,
+        nlevels,
+        gamma_start,
+        beta_start,
+        proposal_variance,
+        inv_temperature_ladder,
+        ndraws,
+        burnin,
+        thin,
+        seed,
+        complete_param_swapping,
+        verbose
+    )
 
     # Call the backend parallel tempering sampler.
     # Tmp: start as subprocess for more robust development.
-    sim <- tryCatch({callr::r(
-        function(
-            data, 
-            mean_prior,
-            prec_prior,
-            nlevels,
-            gamma_start,
-            beta_start,
-            proposal_variance,
-            inv_temperature_ladder,
-            ndraws,
-            burnin,
-            thin,
-            seed,
-            complete_param_swapping,
-            verbose
+    # sim <- tryCatch({callr::r(
+    #     function(
+    #         data, 
+    #         mean_prior,
+    #         prec_prior,
+    #         nlevels,
+    #         gamma_start,
+    #         beta_start,
+    #         proposal_variance,
+    #         inv_temperature_ladder,
+    #         ndraws,
+    #         burnin,
+    #         thin,
+    #         seed,
+    #         complete_param_swapping,
+    #         verbose
             
-        ) {
-            devtools::load_all()
-            cpp_hprobit_pt(
-                data$Xlist,
-                data$ylist,
-                mean_prior,
-                prec_prior,
-                nlevels,
-                gamma_start,
-                beta_start,
-                proposal_variance,
-                inv_temperature_ladder,
-                ndraws,
-                burnin,
-                thin,
-                seed,
-                complete_param_swapping,
-                verbose
-            )
-        },
-        args = list(
-            data, 
-            mean_prior,
-            prec_prior,
-            nlevels,
-            gamma_start,
-            beta_start,
-            proposal_variance,
-            inv_temperature_ladder,
-            ndraws,
-            burnin,
-            thin,
-            seed,
-            complete_param_swapping,
-            verbose
-        ),
-        show = verbose > 0
-    )}, error = function(e) {
-        message("Error in cpp_hprobit_pt: ", e$message)
-        if (!is.null(e$stdout)) {
-            cat("---- STDOUT ----\n")
-            cat(e$stdout, sep = "\n")
-        }
-        if (!is.null(e$stderr)) {
-            cat("---- STDERR ----\n")
-            cat(e$stderr, sep = "\n")
-        }
-        stop(e)
-    })
+    #     ) {
+    #         devtools::load_all()
+    #         cpp_hprobit_pt(
+    #             data$Xlist,
+    #             data$ylist,
+    #             mean_prior,
+    #             prec_prior,
+    #             nlevels,
+    #             gamma_start,
+    #             beta_start,
+    #             proposal_variance,
+    #             inv_temperature_ladder,
+    #             ndraws,
+    #             burnin,
+    #             thin,
+    #             seed,
+    #             complete_param_swapping,
+    #             verbose
+    #         )
+    #     },
+    #     args = list(
+    #         data, 
+    #         mean_prior,
+    #         prec_prior,
+    #         nlevels,
+    #         gamma_start,
+    #         beta_start,
+    #         proposal_variance,
+    #         inv_temperature_ladder,
+    #         ndraws,
+    #         burnin,
+    #         thin,
+    #         seed,
+    #         complete_param_swapping,
+    #         verbose
+    #     ),
+    #     show = verbose > 0
+    # )}, error = function(e) {
+    #     message("Error in cpp_hprobit_pt: ", e$message)
+    #     if (!is.null(e$stdout)) {
+    #         cat("---- STDOUT ----\n")
+    #         cat(e$stdout, sep = "\n")
+    #     }
+    #     if (!is.null(e$stderr)) {
+    #         cat("---- STDERR ----\n")
+    #         cat(e$stderr, sep = "\n")
+    #     }
+    #     stop(e)
+    # })
 
     # Format and store MCMC results
     colnames(sim$storebeta) <- c(data$predictorNames)
