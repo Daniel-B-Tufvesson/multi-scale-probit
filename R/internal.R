@@ -183,17 +183,13 @@ new_mspm <- function(
     gammas,
     meanPrior,
     precPrior,
-    adaptTune,
-    tune,
+    proposal_variance,
     acceptanceRate,
-    burninAcceptanceRate,
     seed,
     ndraws,
     ndrawsNoThin,
     thin,
     burnin,
-    burninBeta,
-    burninGammas,
     diagnostics,
     samplingTime,
     burninTime,
@@ -206,19 +202,14 @@ new_mspm <- function(
             gammas = gammas,
             meanPrior = meanPrior,
             precPrior = precPrior,
-            adaptTune = adaptTune,
-            tune = tune,
+            proposal_variance = proposal_variance,
             acceptanceRate = acceptanceRate,
-            burninAcceptanceRate = burninAcceptanceRate,
             call = call,
             seed = seed,
-            nobs = nrow(beta), # Why is nobs the number of rows in beta? Shouldn't this be ndraws?
             ndraws = ndraws,
             ndrawsNoThin = ndrawsNoThin,
             thin = thin,
             burnin = burnin,
-            burninBeta = burninBeta, # May be null.
-            burninGammas = burninGammas, # May be null.
             diagnostics = diagnostics, # May be null.
             samplingTime = samplingTime,
             burninTime = burninTime
@@ -345,30 +336,17 @@ new_mspm_pt <- function(
     data_spec,
     beta,
     gammas,
-    meanPrior,
-    precPrior,
+    mean_prior,
+    prec_prior,
     seed,
     ndraws,
     ndrawsNoThin,
     thin,
     ntemperatures,
     burnin,
-    burninBeta,
-    burninGammas,
     diagnostics,
     samplingTime,
     burninTime,
-    initialTemperatureLadder,
-    adjustedTemperatureLadder,
-    targetSwapAcceptRatio,
-    actualSwapAcceptRatio,
-    swapRatios,
-    samplingSwapAcceptRatio,
-    nacceptedSwaps,
-    nproposedSwaps,
-    ladderLearningRate,
-    initialWindowSize,
-    windowGrowthFactor,
     completeSwapping,
     call
 ) {
@@ -377,31 +355,16 @@ new_mspm_pt <- function(
             data_spec = data_spec,
             beta = beta,
             gammas = gammas,
-            meanPrior = meanPrior,
-            precPrior = precPrior,
+            mean_prior = mean_prior,
+            prec_prior = prec_prior,
             call = call,
             seed = seed,
-            nobs = nrow(beta), # Why is nobs the number of rows in beta? Shouldn't this be ndraws?
             ndraws = ndraws,
             ndrawsNoThin = ndrawsNoThin,
             thin = thin,
             burnin = burnin,
-            burninBeta = burninBeta, # May be null.
-            burninGammas = burninGammas, # May be null.
-
-            ntemperatures = ntemperatures,
-            initialTemperatureLadder = initialTemperatureLadder,
-            adjustedTemperatureLadder = adjustedTemperatureLadder,
-            targetSwapAcceptRatio = targetSwapAcceptRatio,
-            actualSwapAcceptRatio = actualSwapAcceptRatio,
-            swapRatios = swapRatios,
-            samplingSwapAcceptRatio = samplingSwapAcceptRatio,
-            nacceptedSwaps = nacceptedSwaps,
-            nproposedSwaps = nproposedSwaps,
-            ladderLearningRate = ladderLearningRate,
-            initialWindowSize = initialWindowSize,
-            windowGrowthFactor = windowGrowthFactor,
             
+            ntemperatures = ntemperatures,
             completeSwapping = completeSwapping,
 
             samplingTime = samplingTime,
@@ -687,7 +650,7 @@ gelmanRhatGammas.mspm_cv_result <- function(object, ...) {
 #'
 #' @param data_spec The data specification object containing information about the predictors,
 #' responses, levels, etc.
-#' @param final_tune The final approximation of the tuning parameter.
+#' @param final_proposal_variance The final approximation of the tuning parameter.
 #' @param final_acceptance_rates A vector of the final acceptance rates for each target dataset.
 #' @param target_acceptance_rate The target acceptance rate used for tuning.
 #' @param target_epsilon The target epsilon used for tuning.
@@ -697,7 +660,7 @@ gelmanRhatGammas.mspm_cv_result <- function(object, ...) {
 #' @param call The original function call used to create the tuning results object.
 new_mspm_tune_results <- function(
     data_spec,
-    final_tune,
+    final_proposal_variance,
     final_acceptance_rates,
     target_acceptance_rate,
     target_epsilon,
@@ -709,7 +672,7 @@ new_mspm_tune_results <- function(
     structure(
         list(
             data_spec = data_spec,
-            final_tune = final_tune,
+            final_proposal_variance = final_proposal_variance,
             final_acceptance_rates = final_acceptance_rates,
             target_acceptance_rate = target_acceptance_rate,
             target_epsilon = target_epsilon,

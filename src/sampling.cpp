@@ -328,16 +328,4 @@ void compute_acceptance_rate(
 }
 
 
-void adjust_proposal_variance(
-    arma::vec& tune,
-    const arma::vec& burnin_acceptance_rate,
-    double target_acceptance_rate,
-    double learning_rate
-) {
-    for (int i = 0; i < tune.n_rows; i++) {
-        double acceptance_rate = burnin_acceptance_rate(i);
-        double log_sigma = std::log(tune(i));
-        log_sigma += learning_rate * (acceptance_rate - target_acceptance_rate);
-        tune(i) = std::exp(log_sigma);
-    }
-}
+
