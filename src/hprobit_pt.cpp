@@ -74,11 +74,7 @@ public:
 
         double swap_probability = chain1.compute_swap_probability(chain2, data, rng);
         if (gsl_ran_flat(rng, 0.0, 1.0) <= swap_probability) {
-            if (complete_swapping) {
-                chain1.swap_beta(chain2);
-            }
-            chain1.swap_gammas(chain2);
-            
+            chain1.swap(chain2, data, complete_swapping);
         }
         cumulative_swap_probabilities(swap_index) += swap_probability;
         nswap_proposals(swap_index) += 1;

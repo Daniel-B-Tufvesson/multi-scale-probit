@@ -81,7 +81,6 @@ public:
     /** The proposal variance for the gamma proposal distribution. */
     arma::vec proposal_variance;
 
-
     /** The prior mean for the beta. */
     arma::colvec beta_mean_prior;
 
@@ -106,7 +105,8 @@ public:
     /** The number of target gamma groups. */
     const int ntargets;
 
-    /** The cached log likelihood for each target for the current state. */
+    /** The cached log likelihood for each target for the current state. These are unscaled
+     * by temperature. */
     arma::vec log_likelihood;
 
     MspmChain(
@@ -158,13 +158,17 @@ public:
     void simulate_step(const Data& data, gsl_rng* rng) {
         if (nsteps == 0) {
             // Compute initial log likelihoods.
-            for (int target = 0; target < ntargets; target++) {
-                log_likelihood(target) = compute_log_likelihood(gammas[target], data, target);
-            }
+            refresh_log_likelihood(data);
         }
         step_gamma(data, rng);
         step_beta(data, rng);
         nsteps++;
+    }
+
+    void refresh_log_likelihood(const Data& data) {
+        for (int target = 0; target < ntargets; target++) {
+            log_likelihood(target) = compute_log_likelihood(gammas[target], data, target);
+        }
     }
 
 private:
@@ -413,17 +417,8 @@ public:
 
     // Parallel tempering logic. -----------------------------------------------------------------
 
-
-    /**
-     * Partially swap the state of this chain with another chain. This involves swapping only the 
-     * gamma parameters between the two chains, while keeping the beta parameters unchanged.
-     * Note that only the latest values of the parameters are swapped, and the stored samples in 
-     * the storage matrixes are not swapped.
-     * 
-     * @param other_chain The other MspmChain instance with which to swap the gamma 
-     * parameters.
-     */
-    void swap_gammas(MspmChain& other_chain) {
+    void swap(MspmChain& other_chain, const Data& data, bool complete_swap) {
+        // Swap gammas.
         for (int target = 0; target < gammas.size(); target++) {
             for (int j = 0; j < gammas[target].n_elem; j++) {
                 double temp = gammas[target][j];
@@ -431,23 +426,18 @@ public:
                 other_chain.gammas[target][j] = temp;
             }
         }
-    }
 
-    /**
-     * Partially swap the state of this chain with another chain. This involves swapping only the 
-     * beta parameters between the two chains, while keeping the gamma parameters unchanged. Note
-     * that only the latest values of the parameters are swapped, and the stored samples in the 
-     * storage matrixes are not swapped.
-     * 
-     * @param other_chain The other MspmChain instance with which to swap the beta 
-     * parameters.
-     */
-    void swap_beta (MspmChain& other_chain) {
-        for (int j = 0; j < npredictors; j++) {
-            double temp = beta[j];
-            beta[j] = other_chain.beta[j];
-            other_chain.beta[j] = temp;
+        // Swap betas.
+        if (complete_swap) {
+            for (int j = 0; j < npredictors; j++) {
+                double temp = beta[j];
+                beta[j] = other_chain.beta[j];
+                other_chain.beta[j] = temp;
+            }
         }
+
+        // New state means new likelihoods, so recompute them.
+        refresh_log_likelihood(data);
     }
 
     /**
@@ -467,23 +457,8 @@ public:
         const Data& data,
         gsl_rng* rng
     ) {
-        // Compute the log acceptance ratio for the swap.
-        auto cdf = gsl_cdf_ugaussian_P;
-        double log_swap_accept_ratio = 0;
-        for (unsigned int target = 0; target < ntargets; target++) {
-            const colvec ystar1 = data.X[target] * beta;
-            const colvec ystar2 = data.X[target] * other_chain.beta;
-
-            // Loop over all data points for target.
-            for (unsigned int i = 0; i < data.X[target].n_rows; i++) {
-                log_swap_accept_ratio = log_swap_accept_ratio
-                    + log(cdf(gammas[target](data.Y[target](i)) - ystar2[i]) - 
-                          cdf(gammas[target](data.Y[target](i)-1) - ystar2[i]))
-                    - log(cdf(gammas[target](data.Y[target](i)) - ystar1[i]) - 
-                          cdf(gammas[target](data.Y[target](i)-1) - ystar1[i]));
-            }
-
-        }
+        double log_swap_accept_ratio = arma::sum(other_chain.log_likelihood) 
+            - arma::sum(log_likelihood);
 
         // Scale it by inv_temperature delta.
         log_swap_accept_ratio *= (inv_temperature - other_chain.inv_temperature);
