@@ -163,8 +163,6 @@ run_all_cv_tests <- function() {
 
     # Check that allEvals are identical.
     if (!identical(cvAllEvaluations(cv_res1), cvAllEvaluations(cv_res2))) {
-        test_cv_res1 <<- cv_res1
-        test_cv_res2 <<- cv_res2
         stop("Expected allEvals to be identical across runs with the same seed.")
     }
 

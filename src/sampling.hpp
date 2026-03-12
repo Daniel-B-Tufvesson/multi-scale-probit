@@ -54,7 +54,7 @@ public:
     arma::mat XpX;
 
     /** The number of observations for each target. */
-    std::vector<int> target_nobs;
+    arma::ivec target_nobs;
 
     /** The total number of observations. */
     int nobs;
@@ -106,6 +106,9 @@ public:
     /** The number of target gamma groups. */
     const int ntargets;
 
+    /** The cached log likelihood for each target for the current state. */
+    arma::vec log_likelihood;
+
     MspmChain(
         double inv_temperature,
         const arma::colvec beta_start,
@@ -122,6 +125,7 @@ public:
         
         ystar = arma::colvec(total_nobs, arma::fill::zeros);
         cumulative_acceptance_probabilities = arma::vec(gammas.size(), arma::fill::zeros);
+        log_likelihood = arma::vec(gammas.size(), arma::fill::zeros);
         
         // Initialize gamma proposal storage.
         gamma_proposals = std::vector<arma::colvec>(ntargets);
@@ -141,6 +145,7 @@ public:
         }
         ystar.zeros();
         cumulative_acceptance_probabilities.zeros();
+        log_likelihood.zeros();
     }
 
     /**
@@ -151,6 +156,12 @@ public:
      * @param rng The GSL random number generator to use for sampling.
      */
     void simulate_step(const Data& data, gsl_rng* rng) {
+        if (nsteps == 0) {
+            // Compute initial log likelihoods.
+            for (int target = 0; target < ntargets; target++) {
+                log_likelihood(target) = compute_log_likelihood(gammas[target], data, target);
+            }
+        }
         step_gamma(data, rng);
         step_beta(data, rng);
         nsteps++;
@@ -174,8 +185,10 @@ private:
             propose_gamma(gammas[target], gamma_proposals[target], ncats, 
                 proposal_variance[target], rng);
 
-            double log_likelihood_ratio = compute_log_likelihood_ratio(gammas[target], 
-                gamma_proposals[target], data.X[target], data.Y[target], beta, ncats);
+            double log_likelihood_proposed = compute_log_likelihood(gamma_proposals[target], 
+                data, target);
+
+            double log_likelihood_ratio = log_likelihood_proposed - log_likelihood(target);
             
             double log_proposal_ratio = compute_gamma_log_proposal_ratio(gammas[target], 
                 gamma_proposals[target], ncats, proposal_variance[target]);
@@ -186,6 +199,7 @@ private:
             double acceptance_probability = std::min(1.0, std::exp(log_accept_ratio));
             if (gsl_ran_flat(rng, 0.0, 1.0) <= acceptance_probability) {
                 gammas[target] = gamma_proposals[target];
+                log_likelihood(target) = log_likelihood_proposed;
             }
             cumulative_acceptance_probabilities[target] += acceptance_probability;
         }
@@ -235,53 +249,35 @@ private:
     }
 
     /**
-     * Compute the log likelihood ratio between the current gammas and the proposed gammas.
-     * 
-     * @param gamma The current gamma thresholds for the target.
-     * @param gamma_p The proposed gamma thresholds for the target.
-     * @param X The feature matrix for the target.
-     * @param Y The response vector for the target.
-     * @param beta The current regression coefficients.
-     * @param ncategories The number of categories for the target.
-     * 
-     * @return The log likelihood ratio for the proposed gamma thresholds compared to the current 
-     * gamma thresholds.
+     * Compute the log likelihood for the proposed gamma target.
      */
-    double compute_log_likelihood_ratio(
-        const arma::colvec& gamma,
+    double compute_log_likelihood(
         const arma::colvec& gamma_p,
-        const arma::mat& X,
-        const arma::colvec& Y,
-        const arma::colvec& beta,
-        int ncategories
+        const Data& data,
+        int target
     ) {
-        double log_likelihood_ratio = 0.0;
-        arma::colvec y_star = X * beta;
+        int ncats = ncategories[target];
+        double log_likelihood = 0.0;
         auto cdf = gsl_cdf_ugaussian_P;
-        for (unsigned int i = 0; i < X.n_rows; ++i){
-            int y_val = Y(i);
+        arma::colvec y_star = data.X[target] * beta;
+        for (int i = 0; i < data.target_nobs[target]; i++) {
+            int y_val = data.Y[target][i];
+
             // Handle last category.
-            if (y_val == ncategories){
-                log_likelihood_ratio = log_likelihood_ratio
-                + log(1.0 - cdf(gamma_p(y_val-1) - y_star[i]))
-                - log(1.0 - cdf(gamma(y_val-1) - y_star[i]));
+            if (y_val == ncats){
+                log_likelihood += log(1.0 - cdf(gamma_p(y_val-1) - y_star[i]));
             }
             // Handle first category.
-            else if (y_val == 1){
-                log_likelihood_ratio = log_likelihood_ratio 
-                + log(cdf(gamma_p(y_val) - y_star[i]))
-                - log(cdf(gamma(y_val) - y_star[i]));
+            else if (y_val == 1) {
+                log_likelihood += log(cdf(gamma_p(y_val) - y_star[i]));
             }
             // Handle categories inbetween.
             else {
-                log_likelihood_ratio = log_likelihood_ratio
-                + log(cdf(gamma_p(y_val) - y_star[i]) - 
-                    cdf(gamma_p(y_val-1) - y_star[i]))
-                - log(cdf(gamma(y_val) - y_star[i]) - 
-                    cdf(gamma(y_val-1) - y_star[i]));
+                log_likelihood += log(cdf(gamma_p(y_val) - y_star[i]) 
+                    - cdf(gamma_p(y_val-1) - y_star[i]));
             }
         }
-        return log_likelihood_ratio;
+        return log_likelihood;
     }
 
     /**
