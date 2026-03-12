@@ -17,13 +17,19 @@ data <- generate_synthetic_data(
 # Perform cross-validation on the standard mh-within-gibbs sampler.
 cv_res1 <- cross_validate(
     data = data,
-    nsplits = 50,
+    nsplits = 5,
     prop = 0.66,
-    ndraws = 50000,
+    ndraws = 5000,
     sampler = fit_mspm,
     samplerArgs = list(
-        burnin = 50000,
+        burnin = 5000,
         thin = 10
+    ),
+    pretune_function = tune_mspm,
+    pretune_args = list(
+        iterations = 5000,
+        target_epsilon = 0.01,
+        stop_early = TRUE
     ),
     seed = 42,
     nworkers = 5,

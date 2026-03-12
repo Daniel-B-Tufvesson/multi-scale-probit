@@ -183,17 +183,13 @@ new_mspm <- function(
     gammas,
     meanPrior,
     precPrior,
-    adaptTune,
-    tune,
+    proposal_variance,
     acceptanceRate,
-    burninAcceptanceRate,
     seed,
     ndraws,
     ndrawsNoThin,
     thin,
     burnin,
-    burninBeta,
-    burninGammas,
     diagnostics,
     samplingTime,
     burninTime,
@@ -206,19 +202,14 @@ new_mspm <- function(
             gammas = gammas,
             meanPrior = meanPrior,
             precPrior = precPrior,
-            adaptTune = adaptTune,
-            tune = tune,
+            proposal_variance = proposal_variance,
             acceptanceRate = acceptanceRate,
-            burninAcceptanceRate = burninAcceptanceRate,
             call = call,
             seed = seed,
-            nobs = nrow(beta), # Why is nobs the number of rows in beta? Shouldn't this be ndraws?
             ndraws = ndraws,
             ndrawsNoThin = ndrawsNoThin,
             thin = thin,
             burnin = burnin,
-            burninBeta = burninBeta, # May be null.
-            burninGammas = burninGammas, # May be null.
             diagnostics = diagnostics, # May be null.
             samplingTime = samplingTime,
             burninTime = burninTime
@@ -265,6 +256,10 @@ meanPrior.mspm <- function(object, ...) {
 
 precPrior.mspm <- function(object, ...) {
     object$precPrior
+}
+
+get_proposal_variance.mspm <- function(object, ...) {
+    object$proposal_variance
 }
 
 ndraws.mspm <- function(object, ...) {
@@ -345,30 +340,18 @@ new_mspm_pt <- function(
     data_spec,
     beta,
     gammas,
-    meanPrior,
-    precPrior,
+    mean_prior,
+    prec_prior,
+    proposal_variance,
     seed,
     ndraws,
     ndrawsNoThin,
     thin,
     ntemperatures,
     burnin,
-    burninBeta,
-    burninGammas,
     diagnostics,
     samplingTime,
     burninTime,
-    initialTemperatureLadder,
-    adjustedTemperatureLadder,
-    targetSwapAcceptRatio,
-    actualSwapAcceptRatio,
-    swapRatios,
-    samplingSwapAcceptRatio,
-    nacceptedSwaps,
-    nproposedSwaps,
-    ladderLearningRate,
-    initialWindowSize,
-    windowGrowthFactor,
     completeSwapping,
     call
 ) {
@@ -377,31 +360,17 @@ new_mspm_pt <- function(
             data_spec = data_spec,
             beta = beta,
             gammas = gammas,
-            meanPrior = meanPrior,
-            precPrior = precPrior,
+            mean_prior = mean_prior,
+            prec_prior = prec_prior,
+            proposal_variance = proposal_variance,
             call = call,
             seed = seed,
-            nobs = nrow(beta), # Why is nobs the number of rows in beta? Shouldn't this be ndraws?
             ndraws = ndraws,
             ndrawsNoThin = ndrawsNoThin,
             thin = thin,
             burnin = burnin,
-            burninBeta = burninBeta, # May be null.
-            burninGammas = burninGammas, # May be null.
 
             ntemperatures = ntemperatures,
-            initialTemperatureLadder = initialTemperatureLadder,
-            adjustedTemperatureLadder = adjustedTemperatureLadder,
-            targetSwapAcceptRatio = targetSwapAcceptRatio,
-            actualSwapAcceptRatio = actualSwapAcceptRatio,
-            swapRatios = swapRatios,
-            samplingSwapAcceptRatio = samplingSwapAcceptRatio,
-            nacceptedSwaps = nacceptedSwaps,
-            nproposedSwaps = nproposedSwaps,
-            ladderLearningRate = ladderLearningRate,
-            initialWindowSize = initialWindowSize,
-            windowGrowthFactor = windowGrowthFactor,
-            
             completeSwapping = completeSwapping,
 
             samplingTime = samplingTime,
@@ -414,6 +383,10 @@ new_mspm_pt <- function(
 
 ntemperatures.mspm_pt <- function(object, ...) {
     object$ntemperatures
+}
+
+get_proposal_variance.mspm_pt <- function(object, ...) {
+    object$proposal_variance
 }
 
 
@@ -589,6 +562,13 @@ evalMetricMeans.mspm_labeled_evaluation <- function(object, ...) {
 #' element is a matrix where each row is a split and each column is a metric. 
 #' @param meansOnly A boolean indicating whether only the mean performance scores are included in 
 #' the result (TRUE) or if the full evaluation results for each split are included (FALSE).
+#' @param gelmanRhatBeta A numeric value representing the Gelman-Rubin R-hat diagnostic for the beta
+#' parameters across the splits.
+#' @param gelmanRhatGammas A list of numeric values representing the Gelman-Rubin R-hat diagnostic for
+#' the gamma parameters across the splits, with one value for each target dataset.
+#' @param add_tune_results A list containing the tuning results for each split, if tuning was 
+#' performed as part of the cross-validation process. Each element is an mspm_tune_results object.
+#' Can be NULL if tuning was not done.
 #' @param seed The random seed used for reproducibility.
 new_mspm_cv_result <- function(
     data_spec,
@@ -600,6 +580,7 @@ new_mspm_cv_result <- function(
     seed,
     gelmanRhatBeta,
     gelmanRhatGammas,
+    all_tune_results,
     call
 ) {
     structure(
@@ -613,6 +594,7 @@ new_mspm_cv_result <- function(
             seed = seed,
             gelmanRhatBeta = gelmanRhatBeta,
             gelmanRhatGammas = gelmanRhatGammas,
+            all_tune_results = all_tune_results,
             call = call
         ),
         class = "mspm_cv_result"
@@ -671,4 +653,83 @@ gelmanRhatBeta.mspm_cv_result <- function(object, ...) {
 
 gelmanRhatGammas.mspm_cv_result <- function(object, ...) {
     object$gelmanRhatGammas
+}
+
+
+#' Constructor for creating a new multi-scale probit model tuning results object.
+#'
+#' @param data_spec The data specification object containing information about the predictors,
+#' responses, levels, etc.
+#' @param proposal_variance The final approximation of the tuning parameter.
+#' @param acceptance_rates A vector of the final acceptance rates for each target dataset.
+#' @param target_acceptance_rate The target acceptance rate used for tuning.
+#' @param max_iterations The maximum number of iterations used for tuning.
+#' @param final_iteration The final iteration number reached during tuning.
+#' @param seed The random seed used for reproducibility.
+#' @param call The original function call used to create the tuning results object.
+new_mspm_tune_results <- function(
+    data_spec,
+    proposal_variance,
+    acceptance_rates,
+    target_acceptance_rate,
+    max_iterations,
+    final_iteration,
+    seed,
+    call
+) {
+    structure(
+        list(
+            data_spec = data_spec,
+            proposal_variance = proposal_variance,
+            acceptance_rates = acceptance_rates,
+            target_acceptance_rate = target_acceptance_rate,
+            max_iterations = max_iterations,
+            final_iteration = final_iteration,
+            seed = seed,
+            call = call
+        ),
+        class = "mspm_tune_results"
+    )
+}
+
+get_proposal_variance.mspm_tune_results <- function(object, ...) {
+    object$proposal_variance
+}
+
+new_mspm_tune_results_pt <- function(
+    data_spec,
+    proposal_variance,
+    proposal_acceptance_rates,
+    target_acceptance_rate,
+    inv_temperature_ladder,
+    target_temp_swap_rate,
+    temp_swap_rates,
+    max_iterations,
+    final_iteration,
+    seed,
+    call
+) {
+    structure(
+        list(
+            data_spec = data_spec,
+
+            proposal_variance = proposal_variance,
+            proposal_acceptance_rates = proposal_acceptance_rates,
+            target_acceptance_rate = target_acceptance_rate,
+
+            inv_temperature_ladder = inv_temperature_ladder,
+            target_temp_swap_rate = target_temp_swap_rate,
+            temp_swap_rates = temp_swap_rates,
+
+            max_iterations = max_iterations,
+            final_iteration = final_iteration,
+            seed = seed,
+            call = call
+        ),
+        class = "mspm_tune_results_pt"
+    )
+}
+
+get_proposal_variance.mspm_tune_results_pt <- function(object, ...) {
+    object$proposal_variance
 }

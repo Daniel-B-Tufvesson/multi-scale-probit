@@ -26,7 +26,7 @@ colvec NormNormregress_beta_draw(
     const mat C = chol(sig_beta, "lower");
     const mat betahat = sig_beta * (B0*b0 + XpY*sig2_inv);
     std::vector<double> sample(k);
-    for (unsigned int i; i<k; ++i) {
+    for (unsigned int i = 0; i<k; ++i) {
         sample[i] = gsl_ran_ugaussian(gen);
     }
     colvec vec_sample(sample);

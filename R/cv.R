@@ -15,10 +15,6 @@ library(coda)
 #' Note that this function can be computationally intensive, especially with a large number of 
 #' splits and posterior draws.
 #'
-#' Also note that parallel and serial cross-validation may yield different results due to 
-#' differences in random number generation and execution order. This is despite using the same 
-#' random seed, because of how parallelization works in R.
-#'
 #' @param data An mspm_data object containing the dataset to be used for cross-validation.
 #' @param nsplits An integer specifying the number of random splits to perform.
 #' @param prop A numeric value between 0 and 1 indicating the proportion of data to be used for 
@@ -26,7 +22,6 @@ library(coda)
 #' @param sampler A function that fits an mspm model and returns an object containing posterior draws.
 #' @param samplerArgs A list of additional arguments to pass to the sampler function, such
 #' @param ndraws An integer specifying the number of posterior draws to use when fitting the model.
-#' @param seed An integer random seed for reproducibility. If NULL, a random seed will be generated.
 #' @param metrics A character vector specifying the evaluation metrics to compute. Default 
 #' is c("f1", "kendall").
 #' @param nworkers An integer specifying the number of worker processes to use for parallelization.
@@ -48,15 +43,20 @@ cross_validate <- function(
     samplerArgs,
     ndraws,
     ...,
-    seed = NULL,
+    pretune_function = NULL,
+    pretune_args = NULL,
     metrics = c("f1", "kendall"),
     nworkers = 1,
     meansOnly = TRUE,
     computeDiagnostics = TRUE
 ) {
-    if (is.null(seed)) {
-        seed <- sample.int(1e6, 1)
-    }
+    # Use random seed. Note, however, that we cannot guarantee perfect reproducibility, even for
+    # when nworkers = 0. This is most likely caused by underlying parallelization of the math
+    # libraries used by the sampler. We will investigate this issue further and try to find a 
+    # solution. For cross-validation, however, we usually only care about average performance
+    # rather than specific performance, so lack of seeding should not be negatively impact the 
+    # utility of this function.
+    seed <- sample.int(1e6, 1)
     
     # 1 worker -> no parallelization, run sequentially.
     if (nworkers == 1) {
@@ -68,6 +68,8 @@ cross_validate <- function(
                 ndraws = ndraws,
                 sampler = sampler,
                 samplerArgs = samplerArgs,
+                pretune_function = pretune_function,
+                pretune_args = pretune_args,
                 seed = seed + i,
                 metrics = metrics,
                 meansOnly = meansOnly
@@ -103,6 +105,8 @@ cross_validate <- function(
                 ndraws = ndraws,
                 sampler = sampler,
                 samplerArgs = samplerArgs,
+                pretune_function = pretune_function,
+                pretune_args = pretune_args,
                 seed = seed + i, # Use different seed for each split.
                 metrics = metrics,
                 meansOnly = meansOnly
@@ -156,6 +160,15 @@ cross_validate <- function(
         }
     }
 
+    # Aggregate tune results as list.
+    all_tune_results <- NULL
+    if (!is.null(pretune_function)) {
+        all_tune_results <- list()
+        for (i in 1:nsplits) {
+            all_tune_results[[i]] <- res[[i]]$tune_results
+        }
+    }
+
     # Return result.
     new_mspm_cv_result(
         data_spec = data_spec(data),
@@ -167,6 +180,7 @@ cross_validate <- function(
         seed = seed,
         gelmanRhatBeta = rhatBeta,
         gelmanRhatGammas = rhatGammas,
+        all_tune_results = all_tune_results,
         call = match.call()
     )
 }
@@ -194,6 +208,8 @@ cross_validate <- function(
     ndraws,
     sampler,
     samplerArgs,
+    pretune_function,
+    pretune_args,
     seed,
     metrics,
     meansOnly
@@ -202,6 +218,22 @@ cross_validate <- function(
     splits <- split_data(data, prop = prop, seed = seed)
     train_data <- splits$train
     test_data <- splits$test
+
+    # Pre-tune the sampler.
+    tune_results <- NULL
+    if (!is.null(pretune_function)) {
+        pretune_args <- c(list(data = train_data, seed = seed), pretune_args)
+        tune_results <- do.call(pretune_function, pretune_args)
+
+        # Ugly unpacking of the params. We may fix this later. 
+        if (class(tune_results) == "mspm_tune_results") {
+            samplerArgs <- c(samplerArgs, tune_results$final_tune)
+        }
+        else if (class(tune_results) == "mspm_tune_results_pt") {
+            samplerArgs <- c(samplerArgs, tune_results$final_tune)
+            # Todo: extract the tuned temperature ladder as well.
+        }
+    }
 
     # Fit model on training data.
     args <- list(
@@ -252,7 +284,8 @@ cross_validate <- function(
         return(list(
             results = results,
             means = means,
-            fit = fit
+            fit = fit,
+            tune_results = tune_results
         ))
     }
 }

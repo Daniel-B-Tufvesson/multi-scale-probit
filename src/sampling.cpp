@@ -34,6 +34,16 @@ Data unpack_data(
     return data;
 }
 
+std::vector<colvec> unpack_gamma(const Rcpp::List& gammaStart, const arma::ivec& ncat) {
+    int ntargets = gammaStart.size();
+    std::vector<colvec> gamma(ntargets);
+    for (int target = 0; target < ntargets; ++target) {
+        gamma[target] = Rcpp::as<colvec>(gammaStart[target]);
+        gamma[target](0) = -std::numeric_limits<double>::max();
+        gamma[target](ncat[target]) = std::numeric_limits<double>::max();
+    }
+    return gamma;
+}
 
 /**
  * Compute the log likelihood ratio between the current gammas and the proposed gammas.
@@ -222,86 +232,15 @@ arma::colvec propose_gamma(
 }
 
 
-bool mh_update_gamma(
-    colvec& gamma,
-    const colvec& beta,
-    const mat& X,
-    const colvec& Y,
-    int ncategories,
-    double sigma,
-    double inv_temperature,
-    double& acceptance_probability,
-    gsl_rng* rng
+void compute_acceptance_rate(
+    const arma::vec& acceptance_probabilities,
+    int nsamples,
+    arma::vec& acceptance_rates
 ) {
-    // Make proposal.
-    arma::colvec gamma_prop = propose_gamma(
-        gamma,
-        ncategories,
-        sigma,
-        rng
-    );
-    double log_likelihood_ratio = compute_log_likelihood_ratio(
-        gamma,
-        gamma_prop,
-        X,
-        Y,
-        beta,
-        ncategories
-    );
-    double log_proposal_ratio = compute_gamma_log_proposal_ratio(
-        gamma,
-        gamma_prop,
-        ncategories,
-        sigma
-    );
-
-    double log_accept_ratio = inv_temperature * log_likelihood_ratio + log_proposal_ratio;
-
-    // Do MH acceptance step.
-    acceptance_probability = std::min(1.0, std::exp(log_accept_ratio));
-    if (gsl_ran_flat(rng, 0.0, 1.0) <= acceptance_probability) {
-        gamma = gamma_prop;
-        return true;
+    for (unsigned int target = 0; target < acceptance_probabilities.n_rows; ++target) {
+        acceptance_rates(target) = acceptance_probabilities(target) / static_cast<double>(nsamples);
     }
-    return false;
 }
 
-void gibbs_update_beta(
-    colvec& beta,
-    const std::vector<colvec>& gamma,
-    const Data& data,
-    const arma::colvec& beta_mean_prior,
-    const arma::mat& beta_prec_prior,
-    gsl_rng* rng
-) {
-    // Draw latent y*.
-    arma::colvec ystar = arma::colvec(data.nobs, arma::fill::zeros);
-    int offset = 0;
-    for (unsigned int target = 0; target < data.ntargets; target++) {
-        if (target > 0) {
-            int nobs = data.Y[target-1].n_elem;
-            offset += nobs;
-        }
-        const colvec current_ystar = data.X[target] * beta;
-        for (unsigned int i = 0; i < data.X[target].n_rows; i++) {
-            ystar(offset + i) = rtnorm(
-                rng,
-                gamma[target](data.Y[target](i) - 1),
-                gamma[target](data.Y[target](i)),
-                current_ystar[i], 
-                1.0
-            ).first;
-        }
-    }
 
-    // Draw new beta.
-    arma::mat XpZ = arma::trans(data.Xall) * ystar;
-    beta = mspm_util::NormNormregress_beta_draw(
-        rng, 
-        data.XpX, 
-        XpZ, 
-        beta_mean_prior, 
-        beta_prec_prior, 
-        1.0
-    );
-}
+

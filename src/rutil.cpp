@@ -1,3 +1,10 @@
+/**
+ * @file rutil.cpp
+ * @author Johan Falkenjack
+ * @version 1.0
+ * @brief Utility functions for the Rcpp interface of the Multi-Scale Probit model.
+ */
+
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::depends(RcppGSL)]]
@@ -13,19 +20,17 @@ using namespace arma;
 
 // [[Rcpp::depends("RcppArmadillo")]]
 // [[Rcpp::export]]
-
-
 arma::vec cpp_fmeasure_distribution(
     arma::mat predictions,
     arma::vec reference,
     int n_labels
 ) {
-    Rcpp::Rcout << "cpp_fmeasure_distribution: START" << std::endl;
+    // Rcpp::Rcout << "cpp_fmeasure_distribution: START" << std::endl;
     // Bookkeeping
     arma::vec F1_dist = arma::vec(predictions.n_cols, arma::fill::zeros);
     // Constants
     double N = reference.n_elem;
-    Rcpp::Rcout << "reference.n_elem: " << N << ", predictions.n_rows: " << predictions.n_rows << ", predictions.n_cols: " << predictions.n_cols << std::endl;
+    // Rcpp::Rcout << "reference.n_elem: " << N << ", predictions.n_rows: " << predictions.n_rows << ", predictions.n_cols: " << predictions.n_cols << std::endl;
     arma::vec refsums_vec = arma::vec(n_labels, arma::fill::zeros);
     for (std::size_t i = 0; i < static_cast<std::size_t>(N); i++) {
         if (reference(i) < 0 || reference(i) >= n_labels) {
@@ -36,17 +41,15 @@ arma::vec cpp_fmeasure_distribution(
     // Predeclared but transient variables
     arma::mat confusion_matrix;
     arma::vec TP_vec;
-    double sumTP;
     arma::vec predsums_vec;
     arma::vec PPV_vec; // Positive Predictive Value AKA Precision
     arma::vec TPR_vec; // True Positive Rate AKA Recall AKA Sensitivity
-    double TN;
     arma::vec TNR_vec; // True Negative Rate AKA Specificity
     // Class-wise metrics before taking the mean
     arma::rowvec F1;
     // cout << "here\n";
     for (std::size_t j = 0; j < static_cast<std::size_t>(predictions.n_cols); j++) {
-        Rcpp::Rcout << "Processing column j=" << j << std::endl;
+        // Rcpp::Rcout << "Processing column j=" << j << std::endl;
         // Re-initialize and fill confusion matrix
         confusion_matrix = arma::mat(n_labels, n_labels, arma::fill::zeros);
         for (std::size_t i = 0; i < static_cast<std::size_t>(reference.n_elem); i++) {
@@ -58,11 +61,10 @@ arma::vec cpp_fmeasure_distribution(
             }
             confusion_matrix(pred_idx, ref_idx)++;
         }
-        Rcpp::Rcout << "Filled confusion_matrix for j=" << j << std::endl;
+        // Rcpp::Rcout << "Filled confusion_matrix for j=" << j << std::endl;
 
         // Compute transient temporary variables
         TP_vec = arma::diagvec(confusion_matrix);
-        sumTP = arma::sum(TP_vec);
         predsums_vec = arma::vectorise(arma::sum(confusion_matrix, 1));
         PPV_vec = TP_vec / predsums_vec;
         TPR_vec = TP_vec / refsums_vec;
@@ -71,9 +73,9 @@ arma::vec cpp_fmeasure_distribution(
         F1 = arma::conv_to<arma::rowvec>::from( 2 * (PPV_vec % TPR_vec) / (PPV_vec + TPR_vec));
         F1.elem(arma::find_nonfinite(F1)).zeros();
         F1_dist(j) = arma::mean(F1);
-        Rcpp::Rcout << "F1_dist[" << j << "] = " << F1_dist(j) << std::endl;
+        // Rcpp::Rcout << "F1_dist[" << j << "] = " << F1_dist(j) << std::endl;
     }
-    Rcpp::Rcout << "cpp_fmeasure_distribution: END" << std::endl;
+    // Rcpp::Rcout << "cpp_fmeasure_distribution: END" << std::endl;
     // cout << "\nPPV_dist\n";
     // PPV_dist.print(cout);
     return F1_dist;
@@ -101,7 +103,6 @@ Rcpp::List cpp_classification_metric_distributions(arma::mat predictions,
   // Predeclared but transient variables
   arma::mat confusion_matrix;
   arma::vec TP_vec;
-  double sumTP;
   arma::vec predsums_vec;
   arma::vec PPV_vec; // Positive Predictive Value AKA Precision
   arma::vec TPR_vec; // True Positive Rate AKA Recall AKA Sensitivity
@@ -122,7 +123,6 @@ Rcpp::List cpp_classification_metric_distributions(arma::mat predictions,
     // cout << "\n\n";
     // Compute transient temporary variables
     TP_vec = arma::diagvec(confusion_matrix);
-    sumTP = arma::sum(TP_vec);
     predsums_vec = arma::vectorise(arma::sum(confusion_matrix, 1));
     //predsums_vec = arma::vectorise(arma::sum(confusion_matrix, 0));
     PPV_vec = TP_vec / predsums_vec;
@@ -196,14 +196,8 @@ arma::vec cpp_harmonic_rowmeans(arma::mat variables) {
   return result;
 }
 
-// You can include R code blocks in C++ files processed with sourceCpp
-// (useful for testing and development). The R code will be automatically 
-// run after the compilation.
-//
-
 // [[Rcpp::depends("RcppArmadillo")]]
 // [[Rcpp::export]]
-
 Rcpp::List cpp_compare_distributions(arma::vec dist1, arma::vec dist2) {
   double score1 = 0;
   double score2 = 0;
@@ -225,7 +219,6 @@ Rcpp::List cpp_compare_distributions(arma::vec dist1, arma::vec dist2) {
 
 // [[Rcpp::depends("RcppArmadillo")]]
 // [[Rcpp::export]]
-
 arma::vec cpp_diff_distributions(arma::vec dist1, arma::vec dist2) {
   arma::vec res = arma::vec(dist1.n_elem*dist2.n_elem, arma::fill::zeros);
   std::size_t k = 0;
@@ -240,7 +233,6 @@ arma::vec cpp_diff_distributions(arma::vec dist1, arma::vec dist2) {
 
 // [[Rcpp::depends("RcppArmadillo")]]
 // [[Rcpp::export]]
-
 arma::vec cpp_rmse_dist(arma::mat predictions,
                         arma::mat reference,
                         int ndraws) {

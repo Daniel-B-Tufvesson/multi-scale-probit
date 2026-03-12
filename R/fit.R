@@ -3,6 +3,125 @@ library(callr)
 
 source("R/internal.R")
 
+tune_mspm <- function(
+    data,
+    iterations,
+    ...,
+    target_acceptance_rate = 0.234,
+    target_epsilon = 0.05,
+    stop_early = FALSE,
+    window_size = 25,
+    seed = NA,
+    mean_prior = NULL,
+    prec_prior = NULL,
+    proposal_variance_initial = NULL,
+    beta_initial = NULL,
+    gamma_initial = NULL,
+    verbose = 0
+) {
+    .validate_data(data)
+
+    nlevels = nlevels(data)
+    ntargets = ntargets(data)
+    npredictors = length(predictorNames(data))
+
+    # Set the seed.
+    if (is.na(seed)) {
+        seed <- sample.int(.Machine$integer.max, 1)
+    }
+    set.seed(seed)
+
+    # Set default priors.
+    if (is.null(mean_prior)) {
+        mean_prior <- rep(0, npredictors)
+    }
+    if (is.null(prec_prior)) {
+        prec_prior <- .create_prec_prior(npredictors)
+    }
+
+    # Set starting values for gamma and beta if not provided
+    if (is.null(gamma_initial)) {
+        gamma_initial <- .create_inital_gammas(ntargets, nlevels)
+    }
+    if (is.null(beta_initial)) {
+        beta_initial <- rep(0, npredictors)
+    }
+
+    # Set tuning parameter for the sampler
+    proposal_variance_initial <- .reshape_proposal_variance_gibbs(proposal_variance_initial, ntargets)
+
+    tune_results <- cpp_hprobit_tune(
+        data$Xlist,
+        data$ylist,
+        mean_prior,
+        prec_prior,
+        nlevels,
+        gamma_initial,
+        beta_initial,
+        proposal_variance_initial,
+        target_acceptance_rate,
+        target_epsilon,
+        stop_early,
+        iterations,
+        window_size,
+        seed,
+        verbose
+    )
+
+    # Tmp: start as subprocess for more robust development.
+    # tune_results <- tryCatch({callr::r(
+    #     function(data, mean_prior, prec_prior, nlevels, gamma_initial, beta_initial, start_tune, 
+    #              target_acceptance_rate, target_epsilon, stop_early, iterations, window_size, seed, 
+    #              verbose) {
+    #         devtools::load_all()
+    #         cpp_hprobit_tune(
+    #             data$Xlist,
+    #             data$ylist,
+    #             mean_prior,
+    #             prec_prior,
+    #             nlevels,
+    #             gamma_initial,
+    #             beta_initial,
+    #             start_tune,
+    #             target_acceptance_rate,
+    #             target_epsilon,
+    #             stop_early,
+    #             iterations,
+    #             window_size,
+    #             seed,
+    #             verbose
+    #         )
+    #     },
+    #     args = list(data, mean_prior, prec_prior, nlevels, gamma_initial, beta_initial, start_tune, 
+    #                 target_acceptance_rate, target_epsilon, stop_early, iterations, window_size, 
+    #                 seed, verbose),
+    #     show = verbose > 0
+    # )}, error = function(e) {
+    #     message("Error in cpp_hprobit: ", e$message)
+    #     if (!is.null(e$stdout)) {
+    #         cat("---- STDOUT ----\n")
+    #         cat(e$stdout, sep = "\n")
+    #     }
+    #     if (!is.null(e$stderr)) {
+    #         cat("---- STDERR ----\n")
+    #         cat(e$stderr, sep = "\n")
+    #     }
+    #     stop(e)
+    # })
+
+    # Return tuning results.
+    return(new_mspm_tune_results(
+        data_spec = data_spec(data),
+        proposal_variance = tune_results$proposal_variance,
+        target_acceptance_rate = target_acceptance_rate,
+        acceptance_rates = tune_results$acceptance_rates,
+        max_iterations = iterations,
+        final_iteration = tune_results$final_iteration,
+        seed = seed,
+        call = match.call()
+    ))
+}
+
 # Fit a multi-scale probit model (MSPM) to the data.  
 # 
 # Arguments:
@@ -21,7 +140,6 @@ source("R/internal.R")
 # gamma.initial: Initial values for threshold parameters.
 # verbose: Verbosity level for output.
 # computeDiagnostics: Whether to compute diagnostics for the fitted model.
-# saveBurninSamples: Whether to save the burn-in samples in the returned model object. 
 # 
 # Returns:
 # An object of class 'mspm' containing the fitted model.
@@ -31,18 +149,14 @@ fit_mspm <- function(
     ndraws,
     thin,
     ...,
-    meanPrior = NULL,
-    precPrior = NULL,
-    tune = NULL,
-    adapt_tune = FALSE,
-    tuneWindowSize = 25,
-    targetAcceptanceRate = 0.234,
+    mean_prior = NULL,
+    prec_prior = NULL,
+    proposal_variance = NULL,
     seed = NA,
-    beta.initial = NULL,
-    gamma.initial = NULL,
+    beta_start = NULL,
+    gamma_start = NULL,
     verbose = 0,
-    computeDiagnostics = TRUE,
-    saveBurninSamples = FALSE
+    compute_diagnostics = TRUE
 ) {
     .validate_data(data)
 
@@ -57,89 +171,83 @@ fit_mspm <- function(
     set.seed(seed)
 
     # Set default priors.
-    if (is.null(meanPrior)) {
-        meanPrior <- rep(0, npredictors)
+    if (is.null(mean_prior)) {
+        mean_prior <- rep(0, npredictors)
     }
-    if (is.null(precPrior)) {
-        precPrior <- .create_prec_prior(npredictors)
+    if (is.null(prec_prior)) {
+        prec_prior <- .create_prec_prior(npredictors)
     }
 
     # Set starting values for gamma and beta if not provided
-    if (is.null(gamma.initial)) {
-        gamma.initial <- .create_inital_gammas(ntargets, nlevels)
+    if (is.null(gamma_start)) {
+        gamma_start <- .create_inital_gammas(ntargets, nlevels)
     }
-    if (is.null(beta.initial)) {
-        beta.initial <- rep(0, npredictors)
+    if (is.null(beta_start)) {
+        beta_start <- rep(0, npredictors)
     }
 
-    # Set tuning parameter for the sampler
-    if (is.null(tune)) {
-        tune <- 0.05 / nlevels
-    }
-    if (length(tune) != ntargets) {
-        tune <- rep(tune, ntargets)
-    }
+    # Set proposal variance parameter for the sampler
+    proposal_variance <- .reshape_proposal_variance_gibbs(proposal_variance, ntargets)
 
     # Run CPP backend sampler.
-    # sim <- cpp_hprobit(
-    #     data$Xlist,
-    #     data$ylist,
-    #     meanPrior,
-    #     precPrior,
-    #     fix.zero,
-    #     nlevels,
-    #     gamma.initial,
-    #     beta.initial,
-    #     tune,
-    #     ndraws,
-    #     burnin,
-    #     thin,
-    #     seed,
-    #     verbose
-    # )
+    sim <- cpp_hprobit(
+        data$Xlist,
+        data$ylist,
+        mean_prior,
+        prec_prior,
+        nlevels,
+        gamma_start,
+        beta_start,
+        proposal_variance,
+        ndraws,
+        burnin,
+        thin,
+        seed,
+        verbose
+    )
 
     # Tmp: start as subprocess for more robust development.
-    sim <- tryCatch({callr::r(
-        function(data, meanPrior, precPrior, nlevels, gamma.initial, beta.initial, tune, 
-                 ndraws, burnin, thin, seed, verbose, saveBurninSamples, adapt_tune, tuneWindowSize, 
-                 targetAcceptanceRate) {
-            devtools::load_all()
-            cpp_hprobit(
-                data$Xlist,
-                data$ylist,
-                meanPrior,
-                precPrior,
-                nlevels,
-                gamma.initial,
-                beta.initial,
-                tune,
-                adapt_tune,
-                tuneWindowSize,
-                targetAcceptanceRate,
-                ndraws,
-                burnin,
-                thin,
-                saveBurninSamples,
-                seed,
-                verbose
-            )
-        },
-        args = list(data, meanPrior, precPrior, nlevels, gamma.initial, beta.initial, 
-                    tune, ndraws, burnin, thin, seed, verbose, saveBurninSamples, adapt_tune,
-                    tuneWindowSize, targetAcceptanceRate),
-        show = verbose > 0
-    )}, error = function(e) {
-        message("Error in cpp_hprobit: ", e$message)
-        if (!is.null(e$stdout)) {
-            cat("---- STDOUT ----\n")
-            cat(e$stdout, sep = "\n")
-        }
-        if (!is.null(e$stderr)) {
-            cat("---- STDERR ----\n")
-            cat(e$stderr, sep = "\n")
-        }
-        stop(e)
-    })
+    # sim <- tryCatch({callr::r(
+    #     function(data, meanPrior, precPrior, nlevels, gamma.initial, beta.initial, tune, 
+    #              ndraws, burnin, thin, seed, verbose, saveBurninSamples, adapt_tune, tuneWindowSize, 
+    #              targetAcceptanceRate) {
+    #         devtools::load_all()
+    #         cpp_hprobit(
+    #             data$Xlist,
+    #             data$ylist,
+    #             meanPrior,
+    #             precPrior,
+    #             nlevels,
+    #             gamma.initial,
+    #             beta.initial,
+    #             tune,
+    #             adapt_tune,
+    #             tuneWindowSize,
+    #             targetAcceptanceRate,
+    #             ndraws,
+    #             burnin,
+    #             thin,
+    #             saveBurninSamples,
+    #             seed,
+    #             verbose
+    #         )
+    #     },
+    #     args = list(data, meanPrior, precPrior, nlevels, gamma.initial, beta.initial, 
+    #                 tune, ndraws, burnin, thin, seed, verbose, saveBurninSamples, adapt_tune,
+    #                 tuneWindowSize, targetAcceptanceRate),
+    #     show = verbose > 0
+    # )}, error = function(e) {
+    #     message("Error in cpp_hprobit: ", e$message)
+    #     if (!is.null(e$stdout)) {
+    #         cat("---- STDOUT ----\n")
+    #         cat(e$stdout, sep = "\n")
+    #     }
+    #     if (!is.null(e$stderr)) {
+    #         cat("---- STDERR ----\n")
+    #         cat(e$stderr, sep = "\n")
+    #     }
+    #     stop(e)
+    # })
 
     # Format and store MCMC results
     colnames(sim$storebeta) <- c(data$predictorNames)
@@ -149,20 +257,9 @@ fit_mspm <- function(
         gammas[[i]] <- mcmc(sim$storegamma[[i]], start = burnin + 1, thin = thin)
     }
 
-    # Format and store MCMC burnin results.
-    burninBeta <- NULL
-    burninGammas <- NULL
-    if (saveBurninSamples) {
-        burninBeta <- mcmc(sim$storebeta_burnin, start = 1, end = burnin, thin = thin)
-        burninGammas <- list()
-        for (i in 1:ntargets) {
-            burninGammas[[i]] <- mcmc(sim$storegamma_burnin[[i]], start = 1, end = burnin, thin = thin)
-        }
-    }
-
     # Compute diagnostics.
     diagnostics <- NULL
-    if (computeDiagnostics) {
+    if (compute_diagnostics) {
         diagnostics <- .run_diagnostics(beta, gammas)
     }
 
@@ -171,25 +268,394 @@ fit_mspm <- function(
         data_spec = data_spec(data),
         beta = beta,
         gammas = gammas,
-        meanPrior = meanPrior,
-        precPrior = precPrior,
-        adaptTune = adapt_tune,
-        tune = sim$tune,
+        meanPrior = mean_prior,
+        precPrior = prec_prior,
+        proposal_variance = proposal_variance,
         acceptanceRate = sim$acceptance_rate,
-        burninAcceptanceRate = sim$burnin_acceptance_rate,
         seed = seed,
         ndraws = ndraws / thin,
         ndrawsNoThin = ndraws,
         thin = thin,
         burnin = burnin,
-        burninBeta,
-        burninGammas,
         diagnostics = diagnostics,
         samplingTime = sim$sampling_time,
         burninTime = sim$burnin_time,
         call = match.call()
     )  
 }
+
+
+
+tune_mspm_pt <- function(
+    data,
+    iterations,
+    ntemperatures,
+    ...,
+    tune_proposal_variance = TRUE,
+    tune_temperature_ladder = TRUE,
+    target_acceptance_rate = 0.234,
+    target_acceptance_epsilon = 0.05,
+    target_temp_swap_accept_rate = 0.3,
+    target_temp_swap_accept_epsilon = 0.05,
+    stop_early = FALSE,
+    proposal_window_size = 25,
+    temperature_window_size = 100,
+    temperature_window_growth_factor = 1.2,
+    temperature_ladder_learning_rate = 0.01,
+    seed = NA,
+    mean_prior = NULL,
+    prec_prior = NULL,
+    proposal_variance_initial = NULL,
+    beta_initial = NULL,
+    gamma_initial = NULL,
+    inv_temperature_ladder = NULL,
+    complete_param_swapping = TRUE,
+    verbose = 0
+) {
+    .validate_data(data)
+
+    nlevels = nlevels(data)
+    ntargets = ntargets(data)
+    npredictors = length(predictorNames(data))
+
+    # Set the seed.
+    if (is.na(seed)) {
+        seed <- sample.int(.Machine$integer.max, 1)
+    }
+    set.seed(seed)
+
+    # Set default priors.
+    if (is.null(mean_prior)) {
+        mean_prior <- rep(0, npredictors)
+    }
+    if (is.null(prec_prior)) {
+        prec_prior <- .create_prec_prior(npredictors)
+    }
+
+    # Set starting values for gamma and beta if not provided
+    if (is.null(gamma_initial)) {
+        gamma_initial <- .create_inital_gammas(ntargets, nlevels)
+    }
+    if (is.null(beta_initial)) {
+        beta_initial <- rep(0, npredictors)
+    }
+
+    # Set tuning parameter for the sampler
+    proposal_variance_initial <- .reshape_proposal_variance_pt(proposal_variance_initial, 
+        ntargets, ntemperatures)
+
+    inv_temperature_ladder <- .prepare_temperature_ladder(inv_temperature_ladder, ntemperatures)
+
+    # Call backend tuner.
+    cpp_hprobit_tune_pt(
+        data$Xlist,
+        data$ylist,
+        mean_prior,
+        prec_prior,
+        nlevels,
+        gamma_initial,
+        beta_initial,
+        proposal_variance_initial,
+        tune_proposal_variance,
+        target_acceptance_rate,
+        target_acceptance_epsilon,
+        proposal_window_size,
+        inv_temperature_ladder,
+        tune_temperature_ladder,
+        target_temp_swap_accept_rate,
+        target_temp_swap_accept_epsilon,
+        temperature_window_size,
+        temperature_window_growth_factor,
+        temperature_ladder_learning_rate,
+        iterations,
+        stop_early,
+        seed,
+        complete_param_swapping,
+        verbose
+    )
+
+    # Tmp: start as subprocess for more robust development.
+    # tune_results <- tryCatch({callr::r(
+    #     function(data, mean_prior, prec_prior, nlevels, gamma_initial, beta_initial, proposal_variance_initial, 
+    #              target_acceptance_rate, target_acceptance_epsilon, target_temp_swap_accept_rate,
+    #              target_temp_swap_accept_epsilon, proposal_window_size, inv_temperature_ladder, 
+    #              temperature_window_size, temperature_window_growth_factor, temperature_ladder_learning_rate,
+    #              tune_proposal_variance, tune_temperature_ladder,
+    #              stop_early, iterations, seed, complete_param_swapping, verbose) {
+    #         devtools::load_all()
+    #         cpp_hprobit_tune_pt(
+    #             data$Xlist,
+    #             data$ylist,
+    #             mean_prior,
+    #             prec_prior,
+    #             nlevels,
+    #             gamma_initial,
+    #             beta_initial,
+    #             proposal_variance_initial,
+    #             tune_proposal_variance,
+    #             target_acceptance_rate,
+    #             target_acceptance_epsilon,
+    #             proposal_window_size,
+    #             inv_temperature_ladder,
+    #             tune_temperature_ladder,
+    #             target_temp_swap_accept_rate,
+    #             target_temp_swap_accept_epsilon,
+    #             temperature_window_size,
+    #             temperature_window_growth_factor,
+    #             temperature_ladder_learning_rate,
+    #             iterations,
+    #             stop_early,
+    #             seed,
+    #             complete_param_swapping,
+    #             verbose
+    #         )
+    #     },
+    #     args = list(data, mean_prior, prec_prior, nlevels, gamma_initial, beta_initial, proposal_variance_initial, 
+    #                 target_acceptance_rate, target_acceptance_epsilon, target_temp_swap_accept_rate,
+    #                 target_temp_swap_accept_epsilon, proposal_window_size, inv_temperature_ladder, temperature_window_size,
+    #                 temperature_window_growth_factor, temperature_ladder_learning_rate,
+    #                 tune_proposal_variance, tune_temperature_ladder,
+    #                 stop_early, iterations, seed, complete_param_swapping, verbose),
+    #     show = verbose > 0
+    # )}, error = function(e) {
+    #     message("Error in cpp_hprobit: ", e$message)
+    #     if (!is.null(e$stdout)) {
+    #         cat("---- STDOUT ----\n")
+    #         cat(e$stdout, sep = "\n")
+    #     }
+    #     if (!is.null(e$stderr)) {
+    #         cat("---- STDERR ----\n")
+    #         cat(e$stderr, sep = "\n")
+    #     }
+    #     stop(e)
+    # })
+
+    # Return tuning results.
+    return(new_mspm_tune_results_pt(
+        data_spec = data_spec(data),
+        proposal_variance = tune_results$proposal_variance,
+        proposal_acceptance_rates = tune_results$proposal_acceptance_rates,
+        target_acceptance_rate = target_acceptance_rate,
+        inv_temperature_ladder = tune_results$inv_temperature_ladder,
+        target_temp_swap_rate = target_temp_swap_accept_rate,
+        temp_swap_rates = tune_results$temp_swap_rates,
+        max_iterations = iterations,
+        final_iteration = tune_results$final_iteration,
+        seed = seed,
+        call = match.call()
+    ))
+}
+
+#' Fit a multi-scale probit model (MSPM) using parallel tempering.
+#'
+#' @param data An MSPM data structure holding the data.
+#' @param burnin Number of burn-in iterations.
+#' @param ndraws Number of posterior draws to collect.
+#' @param thin Thinning interval for MCMC sampling.
+#' @param ntemperatures Number of temperatures to use in parallel tempering.
+#' @param meanPrior Prior mean for regression coefficients.
+#' @param precPrior Prior precision for regression coefficients.
+#' @param fix.zero Index of the threshold to fix at zero.
+#' @param tune Tuning parameter for the sampler.
+#' @param temperatureLadder Optional initial temperature ladder. If NULL, a default ladder 
+#' will be created.
+#' @param target_temp_swap_accept_ratio Target acceptance ratio for temperature swaps, used for 
+#' adaptive temperature ladder. If set to -1, the temperature ladder will not be adapted.
+#' @param temperature_window_size Window size for computing swap acceptance ratios for adaptive 
+#' temperature ladder.
+#' @param tempperature_window_growth_factor Growth factor for the window size used in adaptive
+#' temperature ladder.
+#' @param temperature_ladder_learning_rate Learning rate for updating the temperature ladder in 
+#' the adaptive temperature ladder algorithm.
+#' @param complete_param_swapping Whether to perform complete swapping of the parameters (beta and 
+#' gammas) during temperature swaps, or just swap the gammas.
+#' @param seed Random seed for reproducibility.
+#' @param beta.initial Initial values for regression coefficients.
+#' @param gamma.initial Initial values for threshold parameters.
+#' @param verbose Verbosity level for output.
+#' @param computeDiagnostics Whether to compute diagnostics for the fitted model.
+#' @param saveBurninSamples Whether to save the burn-in samples in the returned model object.
+#' @return An object of class 'mspm' containing the fitted model.
+fit_mspm_pt <- function(
+    data, 
+    burnin,
+    ndraws,
+    thin,
+    ntemperatures,
+    ...,
+    mean_prior = NULL,
+    prec_prior = NULL,
+    proposal_variance = NULL,
+    inv_temperature_ladder = NULL,
+    complete_param_swapping = TRUE,
+    seed = NA,
+    beta_start = NULL,
+    gamma_start = NULL,
+    verbose = 0,
+    compute_diagnostics = TRUE
+) {
+    .validate_data(data)
+
+    nlevels = nlevels(data)
+    ntargets = ntargets(data)
+    npredictors = length(predictorNames(data))
+
+    # Set the seed.
+    if (is.na(seed)) {
+        seed <- sample.int(.Machine$integer.max, 1)
+    }
+    set.seed(seed)
+
+    # Set default priors.
+    if (is.null(mean_prior)) {
+        mean_prior <- rep(0, npredictors)
+    }
+    if (is.null(prec_prior)) {
+        prec_prior <- .create_prec_prior(npredictors)
+    }
+
+    # Set starting values for gamma and beta if not provided
+    if (is.null(gamma_start)) {
+        gamma_start <- .create_inital_gammas(ntargets, nlevels)
+    }
+    if (is.null(beta_start)) {
+        beta_start <- rep(0, npredictors)
+    }
+
+    # Set tuning parameter for the sampler
+    proposal_variance <- .reshape_proposal_variance_pt(proposal_variance, ntargets, ntemperatures)
+
+    # Set default temperature ladder if not provided.
+    inv_temperature_ladder <- .prepare_temperature_ladder(inv_temperature_ladder, ntemperatures)
+
+    # Call the backend parallel tempering sampler.
+    sim <- cpp_hprobit_pt(
+        data$Xlist,
+        data$ylist,
+        mean_prior,
+        prec_prior,
+        nlevels,
+        gamma_start,
+        beta_start,
+        proposal_variance,
+        inv_temperature_ladder,
+        ndraws,
+        burnin,
+        thin,
+        seed,
+        complete_param_swapping,
+        verbose
+    )
+
+    # Call the backend parallel tempering sampler.
+    # Tmp: start as subprocess for more robust development.
+    # sim <- tryCatch({callr::r(
+    #     function(
+    #         data, 
+    #         mean_prior,
+    #         prec_prior,
+    #         nlevels,
+    #         gamma_start,
+    #         beta_start,
+    #         proposal_variance,
+    #         inv_temperature_ladder,
+    #         ndraws,
+    #         burnin,
+    #         thin,
+    #         seed,
+    #         complete_param_swapping,
+    #         verbose
+            
+    #     ) {
+    #         devtools::load_all()
+    #         cpp_hprobit_pt(
+    #             data$Xlist,
+    #             data$ylist,
+    #             mean_prior,
+    #             prec_prior,
+    #             nlevels,
+    #             gamma_start,
+    #             beta_start,
+    #             proposal_variance,
+    #             inv_temperature_ladder,
+    #             ndraws,
+    #             burnin,
+    #             thin,
+    #             seed,
+    #             complete_param_swapping,
+    #             verbose
+    #         )
+    #     },
+    #     args = list(
+    #         data, 
+    #         mean_prior,
+    #         prec_prior,
+    #         nlevels,
+    #         gamma_start,
+    #         beta_start,
+    #         proposal_variance,
+    #         inv_temperature_ladder,
+    #         ndraws,
+    #         burnin,
+    #         thin,
+    #         seed,
+    #         complete_param_swapping,
+    #         verbose
+    #     ),
+    #     show = verbose > 0
+    # )}, error = function(e) {
+    #     message("Error in cpp_hprobit_pt: ", e$message)
+    #     if (!is.null(e$stdout)) {
+    #         cat("---- STDOUT ----\n")
+    #         cat(e$stdout, sep = "\n")
+    #     }
+    #     if (!is.null(e$stderr)) {
+    #         cat("---- STDERR ----\n")
+    #         cat(e$stderr, sep = "\n")
+    #     }
+    #     stop(e)
+    # })
+
+    # Format and store MCMC results
+    colnames(sim$storebeta) <- c(data$predictorNames)
+    beta <- mcmc(sim$storebeta, start = burnin + 1, thin = thin)
+    gammas <- list()
+    for (i in 1:ntargets) {
+        gammas[[i]] <- mcmc(sim$storegamma[[i]], start = burnin + 1, thin = thin)
+    }
+
+    # Compute diagnostics.
+    diagnostics <- NULL
+    if (compute_diagnostics) {
+        diagnostics <- .run_diagnostics(beta, gammas)
+    }
+
+    # Return fitted model.
+    new_mspm_pt(
+        data_spec = data_spec(data),
+        beta = beta,
+        gammas = gammas,
+        mean_prior = mean_prior,
+        prec_prior = prec_prior,
+        proposal_variance = proposal_variance,
+        seed = seed,
+        ndraws = ndraws / thin,
+        ndrawsNoThin = ndraws,
+        thin = thin,
+        ntemperatures = ntemperatures,
+        burnin = burnin,
+        diagnostics = diagnostics,
+        completeSwapping = complete_param_swapping,
+        samplingTime = sim$sampling_time,
+        burninTime = sim$burnin_time,
+        call = match.call()
+    )  
+}
+
+
+
+# Helper functions. -------------------------------------------------------------------------------
+
 
 .validate_data <- function(data) {
     nlevels = nlevels(data)
@@ -246,6 +712,40 @@ fit_mspm <- function(
     precPrior
 }
 
+.reshape_proposal_variance_gibbs <- function(proposal_variance, ntargets) {
+    if (is.null(proposal_variance)) {
+        proposal_variance <- 0.05
+    }
+    if (is.numeric(proposal_variance) && length(proposal_variance) == 1) {
+        proposal_variance <- rep(proposal_variance, ntargets)
+    }
+    return(proposal_variance)
+}
+
+.reshape_proposal_variance_pt <- function(proposal_variance, ntargets, ntemperatures) {
+    if (is.null(proposal_variance)) {
+        proposal_variance <- 0.05
+    } 
+    if (length(proposal_variance) != ntemperatures) {
+        proposal_variance_list <- list()
+        for (i in 1:ntemperatures) {
+            proposal_variance_list[[i]] <- rep(proposal_variance, ntargets)
+        }
+        proposal_variance <- proposal_variance_list
+    }
+    return(proposal_variance)
+}
+
+.prepare_temperature_ladder <- function(inv_temperature_ladder, ntemperatures) {
+    if (is.null(inv_temperature_ladder)) {
+        inv_temperature_ladder <- 1 / (2^((1:ntemperatures) - 1))
+    }
+    if (length(inv_temperature_ladder) != ntemperatures) {
+        stop("Length of inv_temperature_ladder must match ntemperatures.")
+    }
+    return(inv_temperature_ladder)
+}
+
 .run_diagnostics <- function(beta, gammas) {
     # Compute Geweke diagnostic.
     gewekeBeta <- geweke.diag(beta)
@@ -261,250 +761,4 @@ fit_mspm <- function(
         essBeta = essBeta,
         essGammas = essGammas
     )
-}
-
-#' Fit a multi-scale probit model (MSPM) using parallel tempering.
-#'
-#' @param data An MSPM data structure holding the data.
-#' @param burnin Number of burn-in iterations.
-#' @param ndraws Number of posterior draws to collect.
-#' @param thin Thinning interval for MCMC sampling.
-#' @param ntemperatures Number of temperatures to use in parallel tempering.
-#' @param meanPrior Prior mean for regression coefficients.
-#' @param precPrior Prior precision for regression coefficients.
-#' @param fix.zero Index of the threshold to fix at zero.
-#' @param tune Tuning parameter for the sampler.
-#' @param temperatureLadder Optional initial temperature ladder. If NULL, a default ladder 
-#' will be created.
-#' @param target_temp_swap_accept_ratio Target acceptance ratio for temperature swaps, used for 
-#' adaptive temperature ladder. If set to -1, the temperature ladder will not be adapted.
-#' @param temperature_window_size Window size for computing swap acceptance ratios for adaptive 
-#' temperature ladder.
-#' @param tempperature_window_growth_factor Growth factor for the window size used in adaptive
-#' temperature ladder.
-#' @param temperature_ladder_learning_rate Learning rate for updating the temperature ladder in 
-#' the adaptive temperature ladder algorithm.
-#' @param complete_param_swapping Whether to perform complete swapping of the parameters (beta and 
-#' gammas) during temperature swaps, or just swap the gammas.
-#' @param seed Random seed for reproducibility.
-#' @param beta.initial Initial values for regression coefficients.
-#' @param gamma.initial Initial values for threshold parameters.
-#' @param verbose Verbosity level for output.
-#' @param computeDiagnostics Whether to compute diagnostics for the fitted model.
-#' @param saveBurninSamples Whether to save the burn-in samples in the returned model object.
-#' @return An object of class 'mspm' containing the fitted model.
-fit_mspm_pt <- function(
-    data, 
-    burnin,
-    ndraws,
-    thin,
-    ntemperatures,
-    ...,
-    meanPrior = NULL,
-    precPrior = NULL,
-    fix.zero = 1,
-    tune = NULL,
-    temperatureLadder = NULL,
-    target_temp_swap_accept_ratio = 0.3,
-    temperature_window_size = 100,
-    tempperature_window_growth_factor = 2,
-    temperature_ladder_learning_rate = 0.01,
-    complete_param_swapping = TRUE,
-    seed = NA,
-    beta.initial = NULL,
-    gamma.initial = NULL,
-    verbose = 0,
-    computeDiagnostics = TRUE,
-    saveBurninSamples = FALSE
-
-) {
-    .validate_data(data)
-
-    nlevels = nlevels(data)
-    ntargets = ntargets(data)
-    npredictors = length(predictorNames(data))
-
-    # Set the seed.
-    if (is.na(seed)) {
-        seed <- sample.int(.Machine$integer.max, 1)
-    }
-    set.seed(seed)
-
-    # Set default priors.
-    if (is.null(meanPrior)) {
-        meanPrior <- rep(0, npredictors)
-    }
-    if (is.null(precPrior)) {
-        precPrior <- .create_prec_prior(npredictors)
-    }
-
-    # Set starting values for gamma and beta if not provided
-    if (is.null(gamma.initial)) {
-        gamma.initial <- .create_inital_gammas(ntargets, nlevels)
-    }
-    if (is.null(beta.initial)) {
-        beta.initial <- rep(0, npredictors)
-    }
-
-    # Set tuning parameter for the sampler
-    if (is.null(tune)) {
-        tune <- 0.05 / nlevels
-    } else if (length(tune) != ntargets) {
-        tune <- rep(tune, ntargets)
-    }
-
-    # Set default temperature ladder if not provided.
-    if (is.null(temperatureLadder)) {
-        temperatureLadder <- 2^(1:ntemperatures - 1)
-    } else if (length(temperatureLadder) != ntemperatures) {
-        stop("Length of temperatureLadder must match ntemperatures.")
-    }
-
-    # Call the backend parallel tempering sampler.
-    # Tmp: start as subprocess for more robust development.
-    sim <- tryCatch({callr::r(
-        function(
-            data, 
-            meanPrior, 
-            precPrior, 
-            fix.zero, 
-            nlevels, 
-            gamma.initial, 
-            beta.initial, 
-            tune, 
-            ntemperatures,
-            temperatureLadder,
-            target_temp_swap_accept_ratio,
-            temperature_window_size,
-            tempperature_window_growth_factor,
-            temperature_ladder_learning_rate,
-            ndraws,
-            burnin,
-            thin,
-            seed,
-            complete_param_swapping,
-            saveBurninSamples,
-            verbose
-        ) {
-            devtools::load_all()
-            cpp_hprobit_pt(
-                data$Xlist,
-                data$ylist,
-                meanPrior,
-                precPrior,
-                fix.zero,
-                nlevels,
-                gamma.initial,
-                beta.initial,
-                tune,
-                ntemperatures,
-                temperatureLadder,
-                target_temp_swap_accept_ratio,
-                temperature_window_size,
-                tempperature_window_growth_factor,
-                temperature_ladder_learning_rate,
-                ndraws,
-                burnin,
-                thin,
-                seed,
-                complete_param_swapping,
-                saveBurninSamples,
-                verbose
-            )
-        },
-        args = list(
-            data, 
-            meanPrior, 
-            precPrior, 
-            fix.zero, 
-            nlevels, 
-            gamma.initial, 
-            beta.initial, 
-            tune, 
-            ntemperatures,
-            temperatureLadder,
-            target_temp_swap_accept_ratio,
-            temperature_window_size,
-            tempperature_window_growth_factor,
-            temperature_ladder_learning_rate,
-            ndraws,
-            burnin,
-            thin,
-            seed,
-            complete_param_swapping,
-            saveBurninSamples,
-            verbose
-        ),
-        show = verbose > 0
-    )}, error = function(e) {
-        message("Error in cpp_hprobit_pt: ", e$message)
-        if (!is.null(e$stdout)) {
-            cat("---- STDOUT ----\n")
-            cat(e$stdout, sep = "\n")
-        }
-        if (!is.null(e$stderr)) {
-            cat("---- STDERR ----\n")
-            cat(e$stderr, sep = "\n")
-        }
-        stop(e)
-    })
-
-    # Format and store MCMC results
-    colnames(sim$storebeta) <- c(data$predictorNames)
-    beta <- mcmc(sim$storebeta, start = burnin + 1, thin = thin)
-    gammas <- list()
-    for (i in 1:ntargets) {
-        gammas[[i]] <- mcmc(sim$storegamma[[i]], start = burnin + 1, thin = thin)
-    }
-
-    # Compute diagnostics.
-    diagnostics <- NULL
-    if (computeDiagnostics) {
-        diagnostics <- .run_diagnostics(beta, gammas)
-    }
-
-    # Get the burnin samples.
-    burninBeta <- NULL
-    burninGammas <- NULL
-    if (saveBurninSamples) {
-        colnames(sim$storebeta_burnin) <- c(data$predictorNames)
-        burninBeta <- mcmc(sim$storebeta_burnin, start = 1, end = burnin, thin = thin)
-        burninGammas <- list()
-        for (i in 1:ntargets) {
-            burninGammas[[i]] <- mcmc(sim$storegamma_burnin[[i]], start = 1, end = burnin, thin = thin)
-        }
-    }
-
-    # Return fitted model.
-    new_mspm_pt(
-        data_spec = data_spec(data),
-        beta = beta,
-        gammas = gammas,
-        meanPrior = meanPrior,
-        precPrior = precPrior,
-        seed = seed,
-        ndraws = ndraws / thin,
-        ndrawsNoThin = ndraws,
-        thin = thin,
-        ntemperatures = ntemperatures,
-        burnin = burnin,
-        diagnostics = diagnostics,
-        initialTemperatureLadder = temperatureLadder,
-        adjustedTemperatureLadder = sim$adapted_temps,
-        targetSwapAcceptRatio = target_temp_swap_accept_ratio,
-        actualSwapAcceptRatio = mean(sim$adaptation_swap_rates),
-        swapRatios = sim$adaptation_swap_rates,
-        samplingSwapAcceptRatio = sim$nswap_accepts / sim$nswap_proposals,
-        nacceptedSwaps = sim$nswap_accepts,
-        nproposedSwaps = sim$nswap_proposals,
-        ladderLearningRate = temperature_ladder_learning_rate,
-        initialWindowSize = temperature_window_size,
-        windowGrowthFactor = tempperature_window_growth_factor,
-        completeSwapping = complete_param_swapping,
-        burninBeta = burninBeta,
-        burninGammas = burninGammas,
-        samplingTime = sim$sampling_time,
-        burninTime = sim$burnin_time,
-        call = match.call()
-    )  
 }

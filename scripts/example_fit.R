@@ -16,16 +16,21 @@ data <- generate_synthetic_data(
     seed = 1234
 )
 
+# Tune the proposal variance.
+tuning_results <- tune_mspm(
+    data = data,
+    iterations = 20000,
+    stop_early = TRUE
+)
+
 # Fit using all the data.
 fit <- fit_mspm(
     data = data,
-    ndraws = 2000,
-    burnin = 60000,
-    thin = 1,
-    tune = 0.1,
-    adapt_tune = TRUE,
+    ndraws = 5000,
+    burnin = 5000,
+    thin = 10,
+    proposal_variance = tuning_results$final_proposal_variance,
     seed = 1234,
-    saveBurninSamples = TRUE,
     verbose = 1000
 )
 #fit

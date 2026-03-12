@@ -15,15 +15,12 @@ data <- generate_synthetic_data(
 # Fit using all the data.
 fit_pt <- fit_mspm_pt(
     data = data,
-    ndraws = 500,
+    ndraws = 10000,
     burnin = 10000,
-    thin = 2,
-    tune = 0.1,
-    seed = 1234,
-    ntemperatures = 5,
-    verbose = 100,
-    temperature_ladder_learning_rate = 0.01,
-    tempperature_window_growth_factor = 2,
+    thin = 10,
+    proposal_variance = 0.1,
+    #seed = 1234,
+    ntemperatures = 10,
     complete_param_swapping = TRUE,
-    saveBurninSamples = TRUE
+    verbose = 1000
 )
