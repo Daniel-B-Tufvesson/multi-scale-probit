@@ -14,7 +14,7 @@ tune_mspm <- function(
     seed = NA,
     mean_prior = NULL,
     prec_prior = NULL,
-    start_tune = NULL,
+    proposal_variance_initial = NULL,
     beta_initial = NULL,
     gamma_initial = NULL,
     verbose = 0
@@ -48,12 +48,7 @@ tune_mspm <- function(
     }
 
     # Set tuning parameter for the sampler
-    if (is.null(start_tune)) {
-        start_tune <- 0.05 / nlevels
-    }
-    if (length(start_tune) != ntargets) {
-        start_tune <- rep(start_tune, ntargets)
-    }
+    proposal_variance_initial <- .reshape_proposal_variance_gibbs(proposal_variance_initial, ntargets)
 
     tune_results <- cpp_hprobit_tune(
         data$Xlist,
@@ -63,7 +58,7 @@ tune_mspm <- function(
         nlevels,
         gamma_initial,
         beta_initial,
-        start_tune,
+        proposal_variance_initial,
         target_acceptance_rate,
         target_epsilon,
         stop_early,
@@ -117,10 +112,9 @@ tune_mspm <- function(
     # Return tuning results.
     return(new_mspm_tune_results(
         data_spec = data_spec(data),
-        proposal_variance = tune_results$final_tune,
-        acceptance_rates = tune_results$final_acceptance_rates,
+        proposal_variance = tune_results$proposal_variance,
         target_acceptance_rate = target_acceptance_rate,
-        target_epsilon = target_epsilon,
+        acceptance_rates = tune_results$acceptance_rates,
         max_iterations = iterations,
         final_iteration = tune_results$final_iteration,
         seed = seed,
@@ -193,12 +187,7 @@ fit_mspm <- function(
     }
 
     # Set proposal variance parameter for the sampler
-    if (is.null(proposal_variance)) {
-        proposal_variance <- 0.05
-    }
-    if (length(proposal_variance) != ntargets) {
-        proposal_variance <- rep(proposal_variance, ntargets)
-    }
+    proposal_variance <- .reshape_proposal_variance_gibbs(proposal_variance, ntargets)
 
     # Run CPP backend sampler.
     sim <- cpp_hprobit(
@@ -295,76 +284,166 @@ fit_mspm <- function(
     )  
 }
 
-.validate_data <- function(data) {
+
+
+tune_mspm_pt <- function(
+    data,
+    iterations,
+    ntemperatures,
+    ...,
+    tune_proposal_variance = TRUE,
+    tune_temperature_ladder = TRUE,
+    target_acceptance_rate = 0.234,
+    target_acceptance_epsilon = 0.05,
+    target_temp_swap_accept_rate = 0.3,
+    target_temp_swap_accept_epsilon = 0.05,
+    stop_early = FALSE,
+    proposal_window_size = 25,
+    temperature_window_size = 100,
+    temperature_window_growth_factor = 1.2,
+    temperature_ladder_learning_rate = 0.01,
+    seed = NA,
+    mean_prior = NULL,
+    prec_prior = NULL,
+    proposal_variance_initial = NULL,
+    beta_initial = NULL,
+    gamma_initial = NULL,
+    inv_temperature_ladder = NULL,
+    complete_param_swapping = TRUE,
+    verbose = 0
+) {
+    .validate_data(data)
+
     nlevels = nlevels(data)
     ntargets = ntargets(data)
     npredictors = length(predictorNames(data))
 
-    # Check for empty matrices or vectors in data
-    if (is.null(data$Xlist) || length(data$Xlist) == 0) {
-        stop("data$Xlist is empty or NULL.")
+    # Set the seed.
+    if (is.na(seed)) {
+        seed <- sample.int(.Machine$integer.max, 1)
     }
-    if (is.null(data$ylist) || length(data$ylist) == 0) {
-        stop("data$ylist is empty or NULL.")
-    }
-    for (i in seq_along(data$Xlist)) {
-        if (is.null(data$Xlist[[i]]) || any(dim(data$Xlist[[i]]) == 0)) {
-            stop(sprintf("data$Xlist[[%d]] is empty or has zero dimension.", i))
-        }
-    }
-    for (i in seq_along(data$ylist)) {
-        if (is.null(data$ylist[[i]]) || length(data$ylist[[i]]) == 0) {
-            stop(sprintf("data$ylist[[%d]] is empty.", i))
-        }
-    }
-    if (npredictors == 0) {
-        stop("No predictors found: data$predictorNames is empty.")
-    }
-    if (is.null(nlevels) || length(nlevels) == 0) {
-        stop("data$nlevels is empty or NULL.")
-    }
-    if (is.null(ntargets) || ntargets == 0) {
-        stop("data$ntargets is empty or zero.")
-    }
-}
+    set.seed(seed)
 
-.create_inital_gammas <- function(ntargets, nlevels) {
-    gamma.initial <- list()
-    for (i in 1:ntargets) {
-        gamma.initial[[i]] <- rep(0, nlevels[i]+1)
-        gamma.initial[[i]][1] <- -300
-        gamma.initial[[i]][2:nlevels[i]] <- 0:(nlevels[i]-2)
-        gamma.initial[[i]][nlevels[i] + 1] <- 300
+    # Set default priors.
+    if (is.null(mean_prior)) {
+        mean_prior <- rep(0, npredictors)
     }
-    gamma.initial
-}
-
-.create_prec_prior <- function(npredictors) {
-    if (npredictors > 1) {
-        precPrior <- diag(rep(0.1, npredictors))
+    if (is.null(prec_prior)) {
+        prec_prior <- .create_prec_prior(npredictors)
     }
-    else {
-        # Special case for single predictor. diag() returns a 0x0 matrix when npredictors=1.
-        precPrior <- matrix(0.1, nrow = 1, ncol = 1)
+
+    # Set starting values for gamma and beta if not provided
+    if (is.null(gamma_initial)) {
+        gamma_initial <- .create_inital_gammas(ntargets, nlevels)
     }
-    precPrior
-}
+    if (is.null(beta_initial)) {
+        beta_initial <- rep(0, npredictors)
+    }
 
-.run_diagnostics <- function(beta, gammas) {
-    # Compute Geweke diagnostic.
-    gewekeBeta <- geweke.diag(beta)
-    gewekeGammas <- lapply(gammas, geweke.diag)
+    # Set tuning parameter for the sampler
+    proposal_variance_initial <- .reshape_proposal_variance_pt(proposal_variance_initial, 
+        ntargets, ntemperatures)
 
-    # Compute ESS.
-    essBeta <- effectiveSize(beta)
-    essGammas <- lapply(gammas, effectiveSize)
+    inv_temperature_ladder <- .prepare_temperature_ladder(inv_temperature_ladder, ntemperatures)
 
-    new_mspm_single_chain_diag(
-        gewekeBeta = gewekeBeta,
-        gewekeGammas = gewekeGammas,
-        essBeta = essBeta,
-        essGammas = essGammas
+    # Call backend tuner.
+    cpp_hprobit_tune_pt(
+        data$Xlist,
+        data$ylist,
+        mean_prior,
+        prec_prior,
+        nlevels,
+        gamma_initial,
+        beta_initial,
+        proposal_variance_initial,
+        tune_proposal_variance,
+        target_acceptance_rate,
+        target_acceptance_epsilon,
+        proposal_window_size,
+        inv_temperature_ladder,
+        tune_temperature_ladder,
+        target_temp_swap_accept_rate,
+        target_temp_swap_accept_epsilon,
+        temperature_window_size,
+        temperature_window_growth_factor,
+        temperature_ladder_learning_rate,
+        iterations,
+        stop_early,
+        seed,
+        complete_param_swapping,
+        verbose
     )
+
+    # Tmp: start as subprocess for more robust development.
+    # tune_results <- tryCatch({callr::r(
+    #     function(data, mean_prior, prec_prior, nlevels, gamma_initial, beta_initial, proposal_variance_initial, 
+    #              target_acceptance_rate, target_acceptance_epsilon, target_temp_swap_accept_rate,
+    #              target_temp_swap_accept_epsilon, proposal_window_size, inv_temperature_ladder, 
+    #              temperature_window_size, temperature_window_growth_factor, temperature_ladder_learning_rate,
+    #              tune_proposal_variance, tune_temperature_ladder,
+    #              stop_early, iterations, seed, complete_param_swapping, verbose) {
+    #         devtools::load_all()
+    #         cpp_hprobit_tune_pt(
+    #             data$Xlist,
+    #             data$ylist,
+    #             mean_prior,
+    #             prec_prior,
+    #             nlevels,
+    #             gamma_initial,
+    #             beta_initial,
+    #             proposal_variance_initial,
+    #             tune_proposal_variance,
+    #             target_acceptance_rate,
+    #             target_acceptance_epsilon,
+    #             proposal_window_size,
+    #             inv_temperature_ladder,
+    #             tune_temperature_ladder,
+    #             target_temp_swap_accept_rate,
+    #             target_temp_swap_accept_epsilon,
+    #             temperature_window_size,
+    #             temperature_window_growth_factor,
+    #             temperature_ladder_learning_rate,
+    #             iterations,
+    #             stop_early,
+    #             seed,
+    #             complete_param_swapping,
+    #             verbose
+    #         )
+    #     },
+    #     args = list(data, mean_prior, prec_prior, nlevels, gamma_initial, beta_initial, proposal_variance_initial, 
+    #                 target_acceptance_rate, target_acceptance_epsilon, target_temp_swap_accept_rate,
+    #                 target_temp_swap_accept_epsilon, proposal_window_size, inv_temperature_ladder, temperature_window_size,
+    #                 temperature_window_growth_factor, temperature_ladder_learning_rate,
+    #                 tune_proposal_variance, tune_temperature_ladder,
+    #                 stop_early, iterations, seed, complete_param_swapping, verbose),
+    #     show = verbose > 0
+    # )}, error = function(e) {
+    #     message("Error in cpp_hprobit: ", e$message)
+    #     if (!is.null(e$stdout)) {
+    #         cat("---- STDOUT ----\n")
+    #         cat(e$stdout, sep = "\n")
+    #     }
+    #     if (!is.null(e$stderr)) {
+    #         cat("---- STDERR ----\n")
+    #         cat(e$stderr, sep = "\n")
+    #     }
+    #     stop(e)
+    # })
+
+    # Return tuning results.
+    return(new_mspm_tune_results_pt(
+        data_spec = data_spec(data),
+        proposal_variance = tune_results$proposal_variance,
+        proposal_acceptance_rates = tune_results$proposal_acceptance_rates,
+        target_acceptance_rate = target_acceptance_rate,
+        inv_temperature_ladder = tune_results$inv_temperature_ladder,
+        target_temp_swap_rate = target_temp_swap_accept_rate,
+        temp_swap_rates = tune_results$temp_swap_rates,
+        max_iterations = iterations,
+        final_iteration = tune_results$final_iteration,
+        seed = seed,
+        call = match.call()
+    ))
 }
 
 #' Fit a multi-scale probit model (MSPM) using parallel tempering.
@@ -444,24 +523,10 @@ fit_mspm_pt <- function(
     }
 
     # Set tuning parameter for the sampler
-    if (is.null(proposal_variance)) {
-        proposal_variance <- 0.05
-    } 
-    if (length(proposal_variance) != ntemperatures) {
-        proposal_variance_list <- list()
-        for (i in 1:ntemperatures) {
-            proposal_variance_list[[i]] <- rep(proposal_variance, ntargets)
-        }
-        proposal_variance <- proposal_variance_list
-    }
+    proposal_variance <- .reshape_proposal_variance_pt(proposal_variance, ntargets, ntemperatures)
 
     # Set default temperature ladder if not provided.
-    if (is.null(inv_temperature_ladder)) {
-        inv_temperature_ladder <- 1 / (2^((1:ntemperatures) - 1))
-    }
-    if (length(inv_temperature_ladder) != ntemperatures) {
-        stop("Length of inv_temperature_ladder must match ntemperatures.")
-    }
+    inv_temperature_ladder <- .prepare_temperature_ladder(inv_temperature_ladder, ntemperatures)
 
     # Call the backend parallel tempering sampler.
     sim <- cpp_hprobit_pt(
@@ -572,6 +637,7 @@ fit_mspm_pt <- function(
         gammas = gammas,
         mean_prior = mean_prior,
         prec_prior = prec_prior,
+        proposal_variance = proposal_variance,
         seed = seed,
         ndraws = ndraws / thin,
         ndrawsNoThin = ndraws,
@@ -584,4 +650,115 @@ fit_mspm_pt <- function(
         burninTime = sim$burnin_time,
         call = match.call()
     )  
+}
+
+
+
+# Helper functions. -------------------------------------------------------------------------------
+
+
+.validate_data <- function(data) {
+    nlevels = nlevels(data)
+    ntargets = ntargets(data)
+    npredictors = length(predictorNames(data))
+
+    # Check for empty matrices or vectors in data
+    if (is.null(data$Xlist) || length(data$Xlist) == 0) {
+        stop("data$Xlist is empty or NULL.")
+    }
+    if (is.null(data$ylist) || length(data$ylist) == 0) {
+        stop("data$ylist is empty or NULL.")
+    }
+    for (i in seq_along(data$Xlist)) {
+        if (is.null(data$Xlist[[i]]) || any(dim(data$Xlist[[i]]) == 0)) {
+            stop(sprintf("data$Xlist[[%d]] is empty or has zero dimension.", i))
+        }
+    }
+    for (i in seq_along(data$ylist)) {
+        if (is.null(data$ylist[[i]]) || length(data$ylist[[i]]) == 0) {
+            stop(sprintf("data$ylist[[%d]] is empty.", i))
+        }
+    }
+    if (npredictors == 0) {
+        stop("No predictors found: data$predictorNames is empty.")
+    }
+    if (is.null(nlevels) || length(nlevels) == 0) {
+        stop("data$nlevels is empty or NULL.")
+    }
+    if (is.null(ntargets) || ntargets == 0) {
+        stop("data$ntargets is empty or zero.")
+    }
+}
+
+.create_inital_gammas <- function(ntargets, nlevels) {
+    gamma.initial <- list()
+    for (i in 1:ntargets) {
+        gamma.initial[[i]] <- rep(0, nlevels[i]+1)
+        gamma.initial[[i]][1] <- -300
+        gamma.initial[[i]][2:nlevels[i]] <- 0:(nlevels[i]-2)
+        gamma.initial[[i]][nlevels[i] + 1] <- 300
+    }
+    gamma.initial
+}
+
+.create_prec_prior <- function(npredictors) {
+    if (npredictors > 1) {
+        precPrior <- diag(rep(0.1, npredictors))
+    }
+    else {
+        # Special case for single predictor. diag() returns a 0x0 matrix when npredictors=1.
+        precPrior <- matrix(0.1, nrow = 1, ncol = 1)
+    }
+    precPrior
+}
+
+.reshape_proposal_variance_gibbs <- function(proposal_variance, ntargets) {
+    if (is.null(proposal_variance)) {
+        proposal_variance <- 0.05
+    }
+    if (is.numeric(proposal_variance) && length(proposal_variance) == 1) {
+        proposal_variance <- rep(proposal_variance, ntargets)
+    }
+    return(proposal_variance)
+}
+
+.reshape_proposal_variance_pt <- function(proposal_variance, ntargets, ntemperatures) {
+    if (is.null(proposal_variance)) {
+        proposal_variance <- 0.05
+    } 
+    if (length(proposal_variance) != ntemperatures) {
+        proposal_variance_list <- list()
+        for (i in 1:ntemperatures) {
+            proposal_variance_list[[i]] <- rep(proposal_variance, ntargets)
+        }
+        proposal_variance <- proposal_variance_list
+    }
+    return(proposal_variance)
+}
+
+.prepare_temperature_ladder <- function(inv_temperature_ladder, ntemperatures) {
+    if (is.null(inv_temperature_ladder)) {
+        inv_temperature_ladder <- 1 / (2^((1:ntemperatures) - 1))
+    }
+    if (length(inv_temperature_ladder) != ntemperatures) {
+        stop("Length of inv_temperature_ladder must match ntemperatures.")
+    }
+    return(inv_temperature_ladder)
+}
+
+.run_diagnostics <- function(beta, gammas) {
+    # Compute Geweke diagnostic.
+    gewekeBeta <- geweke.diag(beta)
+    gewekeGammas <- lapply(gammas, geweke.diag)
+
+    # Compute ESS.
+    essBeta <- effectiveSize(beta)
+    essGammas <- lapply(gammas, effectiveSize)
+
+    new_mspm_single_chain_diag(
+        gewekeBeta = gewekeBeta,
+        gewekeGammas = gewekeGammas,
+        essBeta = essBeta,
+        essGammas = essGammas
+    )
 }

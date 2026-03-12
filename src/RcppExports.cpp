@@ -86,8 +86,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_hprobit_tune_pt
-Rcpp::List cpp_hprobit_tune_pt(const Rcpp::List& x_list, const Rcpp::List& y_list, const arma::colvec& mean_prior, const arma::mat& prec_prior, const arma::ivec& ncategories, const Rcpp::List& gamma_start, const arma::colvec& beta_start, const Rcpp::List& tune_start, const bool tune_proposal_variance, const double target_acceptance_rate, const int proposal_window_size, const arma::vec temperature_ladder_start, const bool tune_ladder, const double target_temp_swap_accept_rate, const int temp_window_size, const double temp_window_size_growth_factor, const double temp_ladder_learning_rate, const int iterations, const bool stop_early, const double target_epsilon, const int seed, const bool complete_swapping, const int verbose);
-RcppExport SEXP _masteruppsatsr_cpp_hprobit_tune_pt(SEXP x_listSEXP, SEXP y_listSEXP, SEXP mean_priorSEXP, SEXP prec_priorSEXP, SEXP ncategoriesSEXP, SEXP gamma_startSEXP, SEXP beta_startSEXP, SEXP tune_startSEXP, SEXP tune_proposal_varianceSEXP, SEXP target_acceptance_rateSEXP, SEXP proposal_window_sizeSEXP, SEXP temperature_ladder_startSEXP, SEXP tune_ladderSEXP, SEXP target_temp_swap_accept_rateSEXP, SEXP temp_window_sizeSEXP, SEXP temp_window_size_growth_factorSEXP, SEXP temp_ladder_learning_rateSEXP, SEXP iterationsSEXP, SEXP stop_earlySEXP, SEXP target_epsilonSEXP, SEXP seedSEXP, SEXP complete_swappingSEXP, SEXP verboseSEXP) {
+Rcpp::List cpp_hprobit_tune_pt(const Rcpp::List& x_list, const Rcpp::List& y_list, const arma::colvec& mean_prior, const arma::mat& prec_prior, const arma::ivec& ncategories, const Rcpp::List& gamma_start, const arma::colvec& beta_start, const Rcpp::List& proposal_variance, const bool tune_proposal_variance, const double target_acceptance_rate, const double target_acceptance_epsilon, const int proposal_window_size, const arma::vec inv_temperature_ladder_start, const bool tune_ladder, const double target_temp_swap_accept_rate, const double target_temp_swap_accept_epsilon, const int temp_window_size, const double temp_window_size_growth_factor, const double temp_ladder_learning_rate, const int iterations, const bool stop_early, const int seed, const bool complete_swapping, const int verbose);
+RcppExport SEXP _masteruppsatsr_cpp_hprobit_tune_pt(SEXP x_listSEXP, SEXP y_listSEXP, SEXP mean_priorSEXP, SEXP prec_priorSEXP, SEXP ncategoriesSEXP, SEXP gamma_startSEXP, SEXP beta_startSEXP, SEXP proposal_varianceSEXP, SEXP tune_proposal_varianceSEXP, SEXP target_acceptance_rateSEXP, SEXP target_acceptance_epsilonSEXP, SEXP proposal_window_sizeSEXP, SEXP inv_temperature_ladder_startSEXP, SEXP tune_ladderSEXP, SEXP target_temp_swap_accept_rateSEXP, SEXP target_temp_swap_accept_epsilonSEXP, SEXP temp_window_sizeSEXP, SEXP temp_window_size_growth_factorSEXP, SEXP temp_ladder_learning_rateSEXP, SEXP iterationsSEXP, SEXP stop_earlySEXP, SEXP seedSEXP, SEXP complete_swappingSEXP, SEXP verboseSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -98,23 +98,24 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::ivec& >::type ncategories(ncategoriesSEXP);
     Rcpp::traits::input_parameter< const Rcpp::List& >::type gamma_start(gamma_startSEXP);
     Rcpp::traits::input_parameter< const arma::colvec& >::type beta_start(beta_startSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type tune_start(tune_startSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type proposal_variance(proposal_varianceSEXP);
     Rcpp::traits::input_parameter< const bool >::type tune_proposal_variance(tune_proposal_varianceSEXP);
     Rcpp::traits::input_parameter< const double >::type target_acceptance_rate(target_acceptance_rateSEXP);
+    Rcpp::traits::input_parameter< const double >::type target_acceptance_epsilon(target_acceptance_epsilonSEXP);
     Rcpp::traits::input_parameter< const int >::type proposal_window_size(proposal_window_sizeSEXP);
-    Rcpp::traits::input_parameter< const arma::vec >::type temperature_ladder_start(temperature_ladder_startSEXP);
+    Rcpp::traits::input_parameter< const arma::vec >::type inv_temperature_ladder_start(inv_temperature_ladder_startSEXP);
     Rcpp::traits::input_parameter< const bool >::type tune_ladder(tune_ladderSEXP);
     Rcpp::traits::input_parameter< const double >::type target_temp_swap_accept_rate(target_temp_swap_accept_rateSEXP);
+    Rcpp::traits::input_parameter< const double >::type target_temp_swap_accept_epsilon(target_temp_swap_accept_epsilonSEXP);
     Rcpp::traits::input_parameter< const int >::type temp_window_size(temp_window_sizeSEXP);
     Rcpp::traits::input_parameter< const double >::type temp_window_size_growth_factor(temp_window_size_growth_factorSEXP);
     Rcpp::traits::input_parameter< const double >::type temp_ladder_learning_rate(temp_ladder_learning_rateSEXP);
     Rcpp::traits::input_parameter< const int >::type iterations(iterationsSEXP);
     Rcpp::traits::input_parameter< const bool >::type stop_early(stop_earlySEXP);
-    Rcpp::traits::input_parameter< const double >::type target_epsilon(target_epsilonSEXP);
     Rcpp::traits::input_parameter< const int >::type seed(seedSEXP);
     Rcpp::traits::input_parameter< const bool >::type complete_swapping(complete_swappingSEXP);
     Rcpp::traits::input_parameter< const int >::type verbose(verboseSEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_hprobit_tune_pt(x_list, y_list, mean_prior, prec_prior, ncategories, gamma_start, beta_start, tune_start, tune_proposal_variance, target_acceptance_rate, proposal_window_size, temperature_ladder_start, tune_ladder, target_temp_swap_accept_rate, temp_window_size, temp_window_size_growth_factor, temp_ladder_learning_rate, iterations, stop_early, target_epsilon, seed, complete_swapping, verbose));
+    rcpp_result_gen = Rcpp::wrap(cpp_hprobit_tune_pt(x_list, y_list, mean_prior, prec_prior, ncategories, gamma_start, beta_start, proposal_variance, tune_proposal_variance, target_acceptance_rate, target_acceptance_epsilon, proposal_window_size, inv_temperature_ladder_start, tune_ladder, target_temp_swap_accept_rate, target_temp_swap_accept_epsilon, temp_window_size, temp_window_size_growth_factor, temp_ladder_learning_rate, iterations, stop_early, seed, complete_swapping, verbose));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -197,7 +198,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_masteruppsatsr_cpp_hprobit", (DL_FUNC) &_masteruppsatsr_cpp_hprobit, 13},
     {"_masteruppsatsr_cpp_hprobit_tune", (DL_FUNC) &_masteruppsatsr_cpp_hprobit_tune, 15},
     {"_masteruppsatsr_cpp_hprobit_pt", (DL_FUNC) &_masteruppsatsr_cpp_hprobit_pt, 15},
-    {"_masteruppsatsr_cpp_hprobit_tune_pt", (DL_FUNC) &_masteruppsatsr_cpp_hprobit_tune_pt, 23},
+    {"_masteruppsatsr_cpp_hprobit_tune_pt", (DL_FUNC) &_masteruppsatsr_cpp_hprobit_tune_pt, 24},
     {"_masteruppsatsr_cpp_fmeasure_distribution", (DL_FUNC) &_masteruppsatsr_cpp_fmeasure_distribution, 3},
     {"_masteruppsatsr_cpp_classification_metric_distributions", (DL_FUNC) &_masteruppsatsr_cpp_classification_metric_distributions, 3},
     {"_masteruppsatsr_cpp_harmonic_rowmeans", (DL_FUNC) &_masteruppsatsr_cpp_harmonic_rowmeans, 1},

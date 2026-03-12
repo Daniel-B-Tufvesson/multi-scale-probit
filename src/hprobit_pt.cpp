@@ -25,6 +25,9 @@ public:
     /** The cumulative swap probabilities for each adjacent chain pair. */
     arma::vec cumulative_swap_probabilities;
 
+    /** Counter of number of swap proposals for each chain pair. */
+    arma::ivec nswap_proposals;
+
     PTChains(
         const arma::vec& inv_temperature_ladder,
         const arma::colvec& beta_start,
@@ -52,6 +55,7 @@ public:
         }
 
         cumulative_swap_probabilities = arma::vec(ntemperatures-1, arma::fill::zeros);
+        nswap_proposals = arma::ivec(ntemperatures-1, arma::fill::zeros);
     }
 
     void simulate_step(const Data& data, gsl_rng* rng) {
@@ -74,6 +78,7 @@ public:
             
         }
         cumulative_swap_probabilities(swap_index) += swap_probability;
+        nswap_proposals(swap_index) += 1;
     }
 
     arma::vec get_inv_temperatures() {
@@ -83,8 +88,217 @@ public:
         }
         return temperatures;
     }
+
+    Rcpp::List get_proposal_variance() {
+        Rcpp::List proposal_variances(ntemperatures);
+        for (int i = 0; i < ntemperatures; i++) {
+            proposal_variances[i] = chains[i].proposal_variance;
+        }
+        return proposal_variances;
+    }
 };
 
+/**
+ * A class for tuning the proposal variance of the MSPM parallel tempering sampler. This operates
+ * on several chains.
+ */
+class PTProposalTuner {
+public:
+
+    std::vector<ProposalTuner> tuners;
+
+    PTProposalTuner(
+        double target_acceptance_rate,
+        double target_epsilon,
+        int window_size,
+        int ntargets,
+        int ntemperatures
+    ) {
+        for (int i = 0; i < ntemperatures; i++) {
+            tuners.emplace_back(target_acceptance_rate, target_epsilon, window_size, ntargets);
+        }
+    }
+
+    /**
+     * Run one step of the tuning process, which includes updating the acceptance probabilities for 
+     * the proposed gammas, and adjusting the proposal variance if the end of the window is reached.
+     * 
+     * Note that this function does not simulate a step of the chain itself. Simulating a step of
+     * the chain should be done before calling this function.
+     * 
+     * @param chains The PTChains instance for which to perform the tuning step. 
+     * @param data The data object containing the feature matrices and response vectors for each target.
+     * @param rng The GSL random number generator to use for sampling.
+     */
+    void tune_step(PTChains& chains, const Data& data, gsl_rng* rng) {
+        for (int i = 0; i < chains.ntemperatures; i++) {
+            tuners[i].tune_step(chains.chains[i], data, rng);
+        }
+    }
+
+    /**
+     * Check whether the acceptance rates for the proposed gammas have reached the target acceptance 
+     * rate within the specified epsilon threshold for all targets. This can be used for early stopping 
+     * of the tuning process.
+     * 
+     * @return A boolean indicating whether the acceptance rates for all targets have reached the 
+     * target acceptance rate within the epsilon threshold (true) or not (false).
+     */
+    bool has_reached_target() {
+        for (auto& tuner : tuners) {
+            if (!tuner.has_reached_target()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Extract the acceptance rates for each chain.
+     * 
+     * @return A list of acceptance rates for each chain. Each element in the list is a vector 
+     * of acceptance rates for the proposed gammas for each target in that chain.
+     */
+    Rcpp::List get_acceptance_rates() {
+        Rcpp::List acceptance_rates(tuners.size());
+        for (int i = 0; i < tuners.size(); i++) {
+            acceptance_rates[i] = tuners[i].acceptance_rates;
+        }
+        return acceptance_rates;
+    }
+};
+
+/**
+ * A class for tuning the temperature ladder by equalizing the swap rates between the chains to 
+ * a target rate.
+ */
+class TemperatureLadderTuner {
+public:
+    /**The target swap acceptance ratio that we want to achieve for each pair of adjacent 
+     * temperatures. */
+    const double target_swap_rate;
+
+    /** The epsilon threshold for early stopping during tuning. */
+    const double target_epsilon;
+
+    int window_size;
+
+    const double window_growth_factor;
+
+    /** The learning rate for adjusting the ladder gaps. */
+    const double learning_rate;
+
+    /** The minimum allowed gap between inverse temperatures in the ladder. */
+    const double min_gap;
+
+    /** The number of chains. */
+    const int ntemperatures;
+
+    /** The total number of iterations the tuner has run. */
+    int step = 0;
+
+    /** The number of iterations the tuner has taken within the current window. */
+    int window_step = 0;
+
+    /** The swap rate for each chain pair. */
+    arma::colvec swap_rates;
+
+    TemperatureLadderTuner(
+        double target_swap_rate,
+        double target_epsilon,
+        int window_size,
+        double window_growth_factor,
+        double learning_rate,
+        int ntemperatures
+    ) : target_swap_rate(target_swap_rate), target_epsilon(target_epsilon), 
+        window_size(window_size), window_growth_factor(window_growth_factor), 
+        learning_rate(learning_rate), min_gap(min_gap), ntemperatures(ntemperatures) {
+        
+        swap_rates = arma::colvec(ntemperatures - 1, arma::fill::zeros);
+    }
+
+    void tune_step(PTChains& chains, const Data& data, gsl_rng* rng) {
+        window_step++;
+        if (window_step == window_size) {
+            adjust_ladder(chains);
+
+            // Increase window size.
+            window_step = 0;
+            window_size *= window_growth_factor;
+            
+            // Reset counters.
+            chains.cumulative_swap_probabilities.zeros();
+            chains.nswap_proposals.zeros();
+        }
+        step++;
+    }
+
+    /**
+     * Check whether the swap rates between all pairs of adjacent temperatures have reached the 
+     * target swap acceptance rate within the specified epsilon threshold.
+     * 
+     * @return A boolean indicating whether the swap acceptance rates for all pairs of adjacent 
+     * temperatures have reached the target swap acceptance rate within the epsilon threshold 
+     * (true) or not (false).
+     */
+    bool has_reached_target() {
+        for (int i = 0; i < ntemperatures - 1; i++) {
+            if (std::abs(swap_rates(i) - target_swap_rate) > target_epsilon) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+private:
+    /**
+     * Adjust the temperature ladder based on the accumulated swap probabilities for each pair of
+     * adjacent temperatures.
+     * 
+     * @param chains The PTChains instance representing the Markov chains at each temperature. The 
+     * inverse temperatures (betas) in these chains will be updated based on the new ladder.
+     */
+    void adjust_ladder(PTChains& chains) {
+        std::vector<double> ladder_gaps(ntemperatures - 1);
+
+        // Compute old gaps.
+        for(int i = 0; i < ntemperatures - 1; i++) {
+            ladder_gaps[i] = chains.chains[i].inv_temperature - chains.chains[i+1].inv_temperature;
+        }
+
+        // Compute mean swap rate for each pair.
+        for (int i = 0; i < ntemperatures - 1; i++) {
+            swap_rates[i] = chains.cumulative_swap_probabilities[i] / 
+                (chains.nswap_proposals[i] == 0 ? 1 : chains.nswap_proposals[i]);
+        }
+
+        // Update ladder gaps.
+        for (int i = 0; i < ntemperatures - 1; i++) {
+            ladder_gaps[i] *= std::exp(learning_rate * (swap_rates[i] - target_swap_rate));
+
+            // Impose min.
+            if (ladder_gaps[i] < min_gap) {
+                ladder_gaps[i] = min_gap;
+            }
+        }
+
+        // Normalize the gaps to ensure beta_K is fixed.
+        double total_span = ladder_gaps[0];
+        for (int i = 1; i < ntemperatures - 1; i++) {
+            total_span += ladder_gaps[i];
+        }
+        double normalization_factor = (1.0 - chains.chains[ntemperatures-1].inv_temperature) / total_span;
+        for (int i = 0; i < ntemperatures - 1; i++) {
+            ladder_gaps[i] *= normalization_factor;
+        }
+
+        // Reconstruct ladder.
+        chains.chains[0].inv_temperature = 1.0;
+        for (int i = 1; i < ntemperatures-1; i++) {
+            chains.chains[i].inv_temperature = chains.chains[i-1].inv_temperature - ladder_gaps[i-1];
+        }
+    }
+};
 
 
 /**
@@ -274,55 +488,55 @@ double do_sampling(
  * this gap does not become smaller than min_gap for any pair of adjacent temperatures after the 
  * adjustment.
  */
-void adjust_ladder(
-    PTChains& chains, 
-    int ntemperatures,
-    std::vector<double>& swap_probabilities,
-    arma::vec& swap_rates,
-    std::vector<int>& nswap_proposals,
-    double target_swap_ratio,
-    double ladder_adjust_learning_rate,
-    double min_gap
-) {
-    std::vector<double> ladder_gaps(ntemperatures - 1);
+// void adjust_ladder(
+//     PTChains& chains, 
+//     int ntemperatures,
+//     std::vector<double>& swap_probabilities,
+//     arma::vec& swap_rates,
+//     std::vector<int>& nswap_proposals,
+//     double target_swap_ratio,
+//     double ladder_adjust_learning_rate,
+//     double min_gap
+// ) {
+//     std::vector<double> ladder_gaps(ntemperatures - 1);
 
-    // Compute old gaps.
-    for(int i = 0; i < ntemperatures - 1; i++) {
-        ladder_gaps[i] = chains.chains[i].inv_temperature - chains.chains[i+1].inv_temperature;
-    }
+//     // Compute old gaps.
+//     for(int i = 0; i < ntemperatures - 1; i++) {
+//         ladder_gaps[i] = chains.chains[i].inv_temperature - chains.chains[i+1].inv_temperature;
+//     }
 
-    // Compute mean swap rate for each pair.
-    for (int i = 0; i < ntemperatures - 1; i++) {
-        swap_rates[i] = swap_probabilities[i] / (nswap_proposals[i] == 0 ? 1 : nswap_proposals[i]);
-    }
+//     // Compute mean swap rate for each pair.
+//     for (int i = 0; i < ntemperatures - 1; i++) {
+//         swap_rates[i] = swap_probabilities[i] / (nswap_proposals[i] == 0 ? 1 : nswap_proposals[i]);
+//     }
 
-    // Update ladder gaps.
-    for (int i = 0; i < ntemperatures - 1; i++) {
-        ladder_gaps[i] *= std::exp(ladder_adjust_learning_rate * 
-            (swap_rates[i] - target_swap_ratio));
+//     // Update ladder gaps.
+//     for (int i = 0; i < ntemperatures - 1; i++) {
+//         ladder_gaps[i] *= std::exp(ladder_adjust_learning_rate * 
+//             (swap_rates[i] - target_swap_ratio));
 
-        // Impose min.
-        if (ladder_gaps[i] < min_gap) {
-            ladder_gaps[i] = min_gap;
-        }
-    }
+//         // Impose min.
+//         if (ladder_gaps[i] < min_gap) {
+//             ladder_gaps[i] = min_gap;
+//         }
+//     }
 
-    // Normalize the gaps to ensure beta_K is fixed.
-    double total_span = ladder_gaps[0];
-    for (int i = 1; i < ntemperatures - 1; i++) {
-        total_span += ladder_gaps[i];
-    }
-    double normalization_factor = (1.0 - chains.chains[ntemperatures-1].inv_temperature) / total_span;
-    for (int i = 0; i < ntemperatures - 1; i++) {
-        ladder_gaps[i] *= normalization_factor;
-    }
+//     // Normalize the gaps to ensure beta_K is fixed.
+//     double total_span = ladder_gaps[0];
+//     for (int i = 1; i < ntemperatures - 1; i++) {
+//         total_span += ladder_gaps[i];
+//     }
+//     double normalization_factor = (1.0 - chains.chains[ntemperatures-1].inv_temperature) / total_span;
+//     for (int i = 0; i < ntemperatures - 1; i++) {
+//         ladder_gaps[i] *= normalization_factor;
+//     }
 
-    // Reconstruct ladder.
-    chains.chains[0].inv_temperature = 1.0;
-    for (int i = 1; i < ntemperatures-1; i++) {
-        chains.chains[i].inv_temperature = chains.chains[i-1].inv_temperature - ladder_gaps[i-1];
-    }
-}
+//     // Reconstruct ladder.
+//     chains.chains[0].inv_temperature = 1.0;
+//     for (int i = 1; i < ntemperatures-1; i++) {
+//         chains.chains[i].inv_temperature = chains.chains[i-1].inv_temperature - ladder_gaps[i-1];
+//     }
+// }
 
 
 std::vector<arma::vec> unpack_proposal_variances(const Rcpp::List& proposal_variances) {
@@ -636,17 +850,6 @@ Rcpp::List cpp_hprobit_pt(
 // }
 
 
-void adjust_proposal_variances(
-    PTChains& chains
-
-) {
-    // for(auto& chain : chains) {
-    //     compute_acceptance_rate(acceptance_probabilites, window_size, acceptance_rates);
-    //     adjust_proposal_variance(tune, acceptance_rates, target_acceptance_rate, learning_rate);
-    //     chain.cumulative_acceptance_probabilities.zeros();
-    // }
-    
-}
 
 // [[Rcpp::depends("RcppArmadillo")]]
 // [[Rcpp::export]]
@@ -658,26 +861,24 @@ Rcpp::List cpp_hprobit_tune_pt(
     const arma::ivec& ncategories,
     const Rcpp::List& gamma_start,
     const arma::colvec& beta_start,
-    const Rcpp::List& tune_start,
+    const Rcpp::List& proposal_variance,
     const bool tune_proposal_variance,
     const double target_acceptance_rate,
+    const double target_acceptance_epsilon,
     const int proposal_window_size,
-    const arma::vec temperature_ladder_start,
+    const arma::vec inv_temperature_ladder_start,
     const bool tune_ladder,
     const double target_temp_swap_accept_rate,
+    const double target_temp_swap_accept_epsilon,
     const int temp_window_size,
     const double temp_window_size_growth_factor,
     const double temp_ladder_learning_rate,
     const int iterations,
     const bool stop_early,
-    const double target_epsilon,
     const int seed,
     const bool complete_swapping,
     const int verbose
 ){
-    if (verbose != 0){
-        Rcpp::Rcout << "Starting parallel tempering sampler for multi-scale probit model..." << std::endl;
-    }
     // Initialize GSL random number generator.
     gsl_rng_env_setup();                          // Read variable environnement
     const gsl_rng_type* type = gsl_rng_default;   // Default algorithm 'twister'
@@ -687,16 +888,16 @@ Rcpp::List cpp_hprobit_tune_pt(
     // Unpack data and define constants.
     const Data data = unpack_data(x_list, y_list);
     const int ntargets = data.ntargets;
-    const int ntemperatures = temperature_ladder_start.size();
+    const int ntemperatures = inv_temperature_ladder_start.size();
     const int nobs = data.nobs;
     std::vector<colvec> gamma_start_vec = unpack_gamma(gamma_start, ncategories);
 
     // Create chains.
     PTChains chains(
-        temperature_ladder_start,
+        inv_temperature_ladder_start,
         beta_start,
         gamma_start_vec,
-        unpack_proposal_variances(tune_start),
+        unpack_proposal_variances(proposal_variance),
         mean_prior,
         prec_prior,
         ncategories,
@@ -704,33 +905,50 @@ Rcpp::List cpp_hprobit_tune_pt(
         complete_swapping
     );
 
-    std::vector<int> nswap_accepts(ntemperatures-1, 0);
-    std::vector<int> nswap_proposals(ntemperatures-1, 0);
-    std::vector<double> swap_probabilities(ntemperatures-1, 0);
-
-    int proposal_window_step = 0;
-    int temperature_window_step = 0;
+    // Initialize tuners.
+    PTProposalTuner proposal_tuner(
+        target_acceptance_rate,
+        target_acceptance_epsilon,
+        proposal_window_size,
+        ntargets,
+        ntemperatures
+    );
+    TemperatureLadderTuner ladder_tuner(
+        target_temp_swap_accept_rate,
+        target_temp_swap_accept_epsilon,
+        temp_window_size,
+        temp_window_size_growth_factor,
+        temp_ladder_learning_rate,
+        ntemperatures
+    );
     
     // Tuning loop.
     int iter = 0;
     for (; iter < iterations; iter++) {
         chains.simulate_step(data, gen);
-        // do_step(chains, ntemperatures, data, nswap_accepts, nswap_proposals, 
-        //     &swap_probabilities, gen);
         
         // Tune the proposal variance.
         if (tune_proposal_variance) {
-            proposal_window_step++;
-            if (proposal_window_step == proposal_window_size) {
-                proposal_window_step = 0;
-                double learning_rate = 1.0 / std::sqrt(iter);
-                // adjust_
-            }
+            proposal_tuner.tune_step(chains, data, gen);
         }
         
         // Tune the temperature ladder.
         if (tune_ladder) {
+            ladder_tuner.tune_step(chains, data, gen);
+        }
 
+        // Print progress.
+        if (verbose > 0 && iter % verbose == 0) {
+            Rcpp::Rcout << "Tuning iteration " << (iter+1) << " of " << iterations << " ";
+        }
+
+        // Check for early stopping.
+        if (stop_early && proposal_tuner.has_reached_target() && ladder_tuner.has_reached_target()) {
+            if (verbose > 0) {
+                Rcpp::Rcout << "Early stopping at iteration " << (iter+1) 
+                            << " as target acceptance rates have been reached." << std::endl;
+            }
+            break;
         }
     }
 
@@ -738,7 +956,10 @@ Rcpp::List cpp_hprobit_tune_pt(
     gsl_rng_free(gen);
 
     return Rcpp::List::create(
-        _["adapted_inv_temps"] = arma::vec(), // placeholder
-        _["adapted_temps"] = arma::vec() // placeholder
+        _["proposal_variance"] = chains.get_proposal_variance(),
+        _["proposal_acceptance_rates"] = proposal_tuner.get_acceptance_rates(),
+        _["inv_temperature_ladder"] = chains.get_inv_temperatures(),
+        _["temp_swap_rates"] = ladder_tuner.swap_rates,
+        _["final_iteration"] = iter
     );
 }

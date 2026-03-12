@@ -258,7 +258,7 @@ precPrior.mspm <- function(object, ...) {
     object$precPrior
 }
 
-proposal_variance.mspm <- function(object, ...) {
+get_proposal_variance.mspm <- function(object, ...) {
     object$proposal_variance
 }
 
@@ -342,6 +342,7 @@ new_mspm_pt <- function(
     gammas,
     mean_prior,
     prec_prior,
+    proposal_variance,
     seed,
     ndraws,
     ndrawsNoThin,
@@ -361,6 +362,7 @@ new_mspm_pt <- function(
             gammas = gammas,
             mean_prior = mean_prior,
             prec_prior = prec_prior,
+            proposal_variance = proposal_variance,
             call = call,
             seed = seed,
             ndraws = ndraws,
@@ -381,6 +383,10 @@ new_mspm_pt <- function(
 
 ntemperatures.mspm_pt <- function(object, ...) {
     object$ntemperatures
+}
+
+get_proposal_variance.mspm_pt <- function(object, ...) {
+    object$proposal_variance
 }
 
 
@@ -657,7 +663,6 @@ gelmanRhatGammas.mspm_cv_result <- function(object, ...) {
 #' @param proposal_variance The final approximation of the tuning parameter.
 #' @param acceptance_rates A vector of the final acceptance rates for each target dataset.
 #' @param target_acceptance_rate The target acceptance rate used for tuning.
-#' @param target_epsilon The target epsilon used for tuning.
 #' @param max_iterations The maximum number of iterations used for tuning.
 #' @param final_iteration The final iteration number reached during tuning.
 #' @param seed The random seed used for reproducibility.
@@ -667,7 +672,6 @@ new_mspm_tune_results <- function(
     proposal_variance,
     acceptance_rates,
     target_acceptance_rate,
-    target_epsilon,
     max_iterations,
     final_iteration,
     seed,
@@ -679,7 +683,6 @@ new_mspm_tune_results <- function(
             proposal_variance = proposal_variance,
             acceptance_rates = acceptance_rates,
             target_acceptance_rate = target_acceptance_rate,
-            target_epsilon = target_epsilon,
             max_iterations = max_iterations,
             final_iteration = final_iteration,
             seed = seed,
@@ -689,6 +692,44 @@ new_mspm_tune_results <- function(
     )
 }
 
-proposal_variance.mspm_tune_results <- function(object, ...) {
+get_proposal_variance.mspm_tune_results <- function(object, ...) {
+    object$proposal_variance
+}
+
+new_mspm_tune_results_pt <- function(
+    data_spec,
+    proposal_variance,
+    proposal_acceptance_rates,
+    target_acceptance_rate,
+    inv_temperature_ladder,
+    target_temp_swap_rate,
+    temp_swap_rates,
+    max_iterations,
+    final_iteration,
+    seed,
+    call
+) {
+    structure(
+        list(
+            data_spec = data_spec,
+
+            proposal_variance = proposal_variance,
+            proposal_acceptance_rates = proposal_acceptance_rates,
+            target_acceptance_rate = target_acceptance_rate,
+
+            inv_temperature_ladder = inv_temperature_ladder,
+            target_temp_swap_rate = target_temp_swap_rate,
+            temp_swap_rates = temp_swap_rates,
+
+            max_iterations = max_iterations,
+            final_iteration = final_iteration,
+            seed = seed,
+            call = call
+        ),
+        class = "mspm_tune_results_pt"
+    )
+}
+
+get_proposal_variance.mspm_tune_results_pt <- function(object, ...) {
     object$proposal_variance
 }

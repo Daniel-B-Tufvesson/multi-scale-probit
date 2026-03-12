@@ -418,55 +418,33 @@ Rcpp::List cpp_hprobit_tune(
         data.nobs
     );
 
-    arma::vec acceptance_rates (data.ntargets, arma::fill::zeros);
-    int window_step = 0;
+    // Create tuner.
+    ProposalTuner tuner(target_acceptance_rate, target_epsilon, window_size, ntargets);
 
     // Tuning loop.
     int iter = 0;
-    int last_print = 0;
     for (; iter < max_iterations; iter++) {
         chain.simulate_step(data, gen);
 
-        // Tune the proposal variance.
-        window_step++;
-        if (window_step == window_size) {
-            window_step = 0;
+        tuner.tune_step(chain, data, gen);
 
-            // Do adjustment.
-            double learning_rate = 1.0 / std::sqrt(iter);
-            compute_acceptance_rate(chain.cumulative_acceptance_probabilities, window_size, 
-                acceptance_rates);
-            chain.adjust_proposal_variance(acceptance_rates, target_acceptance_rate, learning_rate);
-            chain.cumulative_acceptance_probabilities.zeros();
+        // Print progress.
+        if (verbose > 0 && iter % verbose == 0) {
+            Rcpp::Rcout << "Tuning iteration " << (iter+1) << " of " << max_iterations << " ";
 
-            // Print progress.
-            if (verbose > 0 && (iter - last_print) >= verbose) {
-                last_print = iter;
-                Rcpp::Rcout << "Tuning iteration " << (iter+1) << " of " << max_iterations << " ";
+            double mean_accept_rate = arma::mean(tuner.acceptance_rates);
+            Rcpp::Rcout << "Mean acceptance rate = " << mean_accept_rate << std::endl;
+        }
 
-                double mean_accept_rate = arma::mean(acceptance_rates);
-                Rcpp::Rcout << "Mean acceptance rate = " << mean_accept_rate << std::endl;
+        // Check for early stopping.
+        if (stop_early && tuner.has_reached_target()) {
+            if (verbose > 0) {
+                double mean_acceptance_rate = arma::mean(tuner.acceptance_rates);
+                Rcpp::Rcout << "Early stopping at iteration " << (iter+1) 
+                    << " as acceptance rates are within epsilon of target. " 
+                    << "Mean acceptance rate = " << mean_acceptance_rate << std::endl;
             }
-
-            // Check for early stopping.
-            if (stop_early) {
-                bool all_close = true;
-                for (int target = 0; target < ntargets; target++) {
-                    if (std::abs(acceptance_rates(target) - target_acceptance_rate) > target_epsilon) {
-                        all_close = false;
-                        break;
-                    }
-                }
-                if (all_close) {
-                    if (verbose > 0) {
-                        double mean_accept_rate = arma::mean(acceptance_rates);
-                        Rcpp::Rcout << "Early stopping at iteration " << (iter+1) 
-                            << " as acceptance rates are within epsilon of target. " 
-                            << "Mean acceptance rate = " << mean_accept_rate << std::endl;
-                    }
-                    break;
-                }
-            }
+            break;
         }
     }
 
@@ -475,10 +453,8 @@ Rcpp::List cpp_hprobit_tune(
 
     return Rcpp::List::create(
         _["target_acceptance_rate"] = target_acceptance_rate,
-        _["target_epsilon"] = target_epsilon,
-        _["max_iterations"] = max_iterations,
         _["final_iteration"] = iter,
-        _["final_tune"] = chain.proposal_variance,
-        _["final_acceptance_rates"] = acceptance_rates
+        _["proposal_variance"] = chain.proposal_variance,
+        _["acceptance_rates"] = tuner.acceptance_rates
     );
 }

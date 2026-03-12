@@ -18,6 +18,23 @@
 #include <cmath>
 
 /**
+ * Compute the acceptance rates for the proposed gammas for each target based on the observed 
+ * acceptance probabilities for the proposed gammas.
+ * 
+ * @param acceptance_probabilities The vector containing the sum of the acceptance probabilities for 
+ * the proposed gammas for each target.
+ * @param nsamples The number of samples (iterations) over which the acceptance probabilities were
+ * accumulated.
+ * @param acceptance_rates The vector to store the computed acceptance rates for each target. This will
+ * be updated in place with the computed acceptance rates for each target.
+ */
+void compute_acceptance_rate(
+    const arma::vec& acceptance_probabilities,
+    int nsamples,
+    arma::vec& acceptance_rates
+);
+
+/**
  * Struct to hold the data for the model. This includes the feature matrices and response vectors
  * for each target, as well as the combined feature matrix and precomputed X'X matrix for all 
  * targets.
@@ -158,7 +175,7 @@ private:
 
             double log_likelihood_ratio = compute_log_likelihood_ratio(gammas[target], 
                 gamma_proposals[target], data.X[target], data.Y[target], beta, ncats);
-
+            
             double log_proposal_ratio = compute_gamma_log_proposal_ratio(gammas[target], 
                 gamma_proposals[target], ncats, proposal_variance[target]);
 
@@ -395,6 +412,8 @@ public:
         }
     }
 
+
+
     // Parallel tempering logic. -----------------------------------------------------------------
 
 
@@ -537,6 +556,88 @@ public:
 };
 
 /**
+ * A class for tuning the proposal variance of the MSPM sampler.
+ */
+class ProposalTuner {
+public:
+
+    /** The target acceptance-rejection rate for the proposed gammas. */
+    const double target_acceptance_rate;
+
+    /** The epsilon threshold for early stopping. */
+    const double target_epsilon;
+
+    /** The window size for computing acceptance rates and adjusting the proposal variance 
+     * during tuning */
+    const int window_size;
+
+    /** The total number of iterations the tuner has run. */
+    int step = 0;
+
+    /** The number of iterations the tuner has taken within the current window. */
+    int window_step = 0;
+
+    /** The acceptance rates for the current window. Is reset at the beginning of each window. */
+    arma::vec acceptance_rates;
+
+    ProposalTuner(
+        double target_acceptance_rate,
+        double target_epsilon,
+        int window_size,
+        int ntargets
+    ) : target_acceptance_rate(target_acceptance_rate), target_epsilon(target_epsilon), 
+        window_size(window_size) {
+
+        acceptance_rates = arma::vec(ntargets, arma::fill::zeros);
+    }
+
+    /**
+     * Run one step of the tuning process, which includes updating the acceptance probabilities for 
+     * the proposed gammas, and adjusting the proposal variance if the end of the window is reached.
+     * 
+     * Note that this function does not simulate a step of the chain itself. Simulating a step of
+     * the chain should be done before calling this function.
+     * 
+     * @param chain The MspmChain instance for which to perform the tuning step. 
+     * @param data The data object containing the feature matrices and response vectors for each target.
+     * @param rng The GSL random number generator to use for sampling.
+     */
+    void tune_step(MspmChain& chain, const Data& data, gsl_rng* rng) {
+
+        window_step++;
+        if (window_step == window_size){
+            window_step = 0;
+
+            // Do adjustment.
+            double learning_rate = 1.0 / std::sqrt(step);
+            compute_acceptance_rate(chain.cumulative_acceptance_probabilities, window_size, 
+                acceptance_rates);
+            chain.adjust_proposal_variance(acceptance_rates, target_acceptance_rate, learning_rate);
+            chain.cumulative_acceptance_probabilities.zeros();
+        }
+
+        step++;
+    }
+
+    /**
+     * Check whether the acceptance rates for the proposed gammas have reached the target acceptance 
+     * rate within the specified epsilon threshold for all targets. This can be used for early stopping 
+     * of the tuning process.
+     * 
+     * @return A boolean indicating whether the acceptance rates for all targets have reached the 
+     * target acceptance rate within the epsilon threshold (true) or not (false).
+     */
+    bool has_reached_target() {
+        for (int target = 0; target < acceptance_rates.n_elem; target++) {
+            if (std::abs(acceptance_rates(target) - target_acceptance_rate) > target_epsilon) {
+                return false;
+            }
+        }
+        return true;
+    }
+};
+
+/**
  * Unpack the data from the input lists into a Data object containing the feature matrices, 
  * response vectors, and precomputed cross-product of the combined feature matrix. This 
  * function assumes that the input lists are properly formatted and contain the expected types 
@@ -619,23 +720,6 @@ void gibbs_update_beta(
     gsl_rng* rng
 );
 
-
-/**
- * Compute the acceptance rates for the proposed gammas for each target based on the observed 
- * acceptance probabilities for the proposed gammas.
- * 
- * @param acceptance_probabilities The vector containing the sum of the acceptance probabilities for 
- * the proposed gammas for each target.
- * @param nsamples The number of samples (iterations) over which the acceptance probabilities were
- * accumulated.
- * @param acceptance_rates The vector to store the computed acceptance rates for each target. This will
- * be updated in place with the computed acceptance rates for each target.
- */
-void compute_acceptance_rate(
-    const arma::vec& acceptance_probabilities,
-    int nsamples,
-    arma::vec& acceptance_rates
-);
 
 
 

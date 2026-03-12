@@ -171,6 +171,7 @@ thin <- function(object, ...) {
 #' \itemize{
 #'   \item An mspm object.
 #'   \item An mspm_tune_results object.
+#'   \item An mspm_tune_results_pt object.
 #' }
 #' @param ... Additional arguments (not used).
 #' @return The proposal variance on the form of:
@@ -180,8 +181,8 @@ thin <- function(object, ...) {
 #'   \item A list of numerical vectors for each temperature if the sampler is a parallel tempering 
 #'   sampler.
 #' }
-proposal_variance <- function(object, ...) {
-    UseMethod("proposal_variance")
+get_proposal_variance <- function(object, ...) {
+    UseMethod("get_proposal_variance")
 }
 
 #' The time taken for the sampling phase of MCMC sampling. This only encompasses the time taken for 
