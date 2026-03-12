@@ -213,6 +213,7 @@ public:
         int window_size,
         double window_growth_factor,
         double learning_rate,
+        double min_gap,
         int ntemperatures
     ) : target_swap_rate(target_swap_rate), target_epsilon(target_epsilon), 
         window_size(window_size), window_growth_factor(window_growth_factor), 
@@ -435,8 +436,6 @@ Rcpp::List cpp_hprobit_pt(
     // Define constants and unpack data.
     const Data data = unpack_data(xlist, ylist);
     const int nstore = iterations / thin;
-    const int ntargets = data.ntargets;
-    const int ntemperatures = inv_temperature_ladder.n_elem;
 
     // Sample storages.
     SampleStorage sampling_storage(nstore, data.npredictors, ncategories);
@@ -579,6 +578,8 @@ Rcpp::List cpp_hprobit_tune_pt(
     const int ntargets = data.ntargets;
     const int ntemperatures = inv_temperature_ladder_start.size();
     const int nobs = data.nobs;
+    const double min_gap = (1.0 - inv_temperature_ladder_start[ntemperatures-1]) 
+        / (10 * (ntemperatures - 1)); // The min gap between temperatures.
     std::vector<colvec> gamma_start_vec = unpack_gamma(gamma_start, ncategories);
 
     // Create chains.
@@ -608,6 +609,7 @@ Rcpp::List cpp_hprobit_tune_pt(
         temp_window_size,
         temp_window_size_growth_factor,
         temp_ladder_learning_rate,
+        min_gap,
         ntemperatures
     );
     

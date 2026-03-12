@@ -81,14 +81,15 @@ public:
     /** The proposal variance for the gamma proposal distribution. */
     arma::vec proposal_variance;
 
-    /** The number of categories for each target. */
-    arma::ivec ncategories;
 
     /** The prior mean for the beta. */
     arma::colvec beta_mean_prior;
 
     /** The prior precision for the beta. */
     arma::mat beta_prec_prior;
+
+    /** The number of categories for each target. */
+    arma::ivec ncategories;
 
     /** The number of steps the chain has progressed so far. */
     int nsteps = 0;
@@ -508,11 +509,11 @@ public:
     /** The number of samples stored so far. */
     int nstored = 0;
 
-    /** The number of samples to store. */
-    const int nstore_size;
-
     /** The number of target gamma groups. */
     const int ntargets;
+
+    /** The number of samples to store. */
+    const int nstore_size;
 
     SampleStorage(
         int nstore_size,
@@ -665,62 +666,6 @@ Data unpack_data(
  * @return std::vector<colvec> with boundary values set.
  */
 std::vector<colvec> unpack_gamma(const Rcpp::List& gammaStart, const arma::ivec& ncat);
-
-
-/**
- * Propose a new gamma via the Metropolis-Hastings method.
- * 
- * @param gamma The current gamma thresholds for the target, which will be updated in place if the
- * proposed gammas are accepted.
- * @param beta The current regression coefficients for the target.
- * @param X The feature matrix for the target.
- * @param Y The response vector for the target.
- * @param ncategories The number of categories for the target.
- * @param sigma The standard deviation of the truncated Gaussian distribution used for proposing new
- * gamma values. This controls the tuning of the proposal distribution.
- * @param inv_temperature The inverse temperature (1/T) for the current chain. This is used to scale
- * the log likelihood ratio in the acceptance probability for the proposed gammas.
- * @param acceptance_probability The resulting acceptance probability for the proposed gammas.
- * @param rng The GSL random number generator to use for sampling.
- * 
- * @return A boolean indicating whether the proposed gammas were accepted (true) or rejected (false).
- */
-bool mh_update_gamma(
-    colvec& gamma,
-    const colvec& beta,
-    const mat& X,
-    const colvec& Y,
-    int ncategories,
-    double sigma,
-    double inv_temperature,
-    double& acceptance_probability,
-    gsl_rng* rng
-);
-
-/**
- * Perform the Gibbs update for the regression coefficients. This involves first updating the
- * latent variables y* based on the current thresholds and regression coefficients, and then
- * drawing new regression coefficients from their full conditional distribution given the 
- * updated latent variables and thresholds.
- * 
- * @param beta The current regression coefficients, which will be updated in place with the new 
- * sampled values.
- * @param gamma The current threshold parameters for each target.
- * @param data The data object.
- * @param beta_mean_prior The prior mean for the regression coefficients.
- * @param beta_prec_prior The prior precision matrix for the regression coefficients.
- * @param rng The GSL random number generator to use for sampling.
- */
-void gibbs_update_beta(
-    colvec& beta,
-    const std::vector<colvec>& gamma,
-    const Data& data,
-    const arma::colvec& beta_mean_prior,
-    const arma::mat& beta_prec_prior,
-    gsl_rng* rng
-);
-
-
 
 
 

@@ -146,28 +146,29 @@ compute_f1_score_draws <- function(y_true, y_pred, nlabels) {
     }
 
     # Call the cpp backend as a subprocess.
-    f1 <- tryCatch({callr::r(
-        function(y_pred, y_true, nlabels) {
-            devtools::load_all()
-            cpp_fmeasure_distribution(y_pred, y_true, nlabels)
-        },
-        args = list(
-            y_pred = y_pred-1, # 0-based for cpp
-            y_true = y_true-1, # 0-based for cpp
-            nlabels = nlabels
-        )
-    )}, error = function(e) {
-        message("Error in cpp_hprobit: ", e$message)
-        if (!is.null(e$stdout)) {
-            cat("---- STDOUT ----\n")
-            cat(e$stdout, sep = "\n")
-        }
-        if (!is.null(e$stderr)) {
-            cat("---- STDERR ----\n")
-            cat(e$stderr, sep = "\n")
-        }
-        stop(e)
-    })
+    f1 <- cpp_fmeasure_distribution(y_pred, y_true, nlabels)
+    # f1 <- tryCatch({callr::r(
+    #     function(y_pred, y_true, nlabels) {
+    #         devtools::load_all()
+            
+    #     },
+    #     args = list(
+    #         y_pred = y_pred-1, # 0-based for cpp
+    #         y_true = y_true-1, # 0-based for cpp
+    #         nlabels = nlabels
+    #     )
+    # )}, error = function(e) {
+    #     message("Error in cpp_hprobit: ", e$message)
+    #     if (!is.null(e$stdout)) {
+    #         cat("---- STDOUT ----\n")
+    #         cat(e$stdout, sep = "\n")
+    #     }
+    #     if (!is.null(e$stderr)) {
+    #         cat("---- STDERR ----\n")
+    #         cat(e$stderr, sep = "\n")
+    #     }
+    #     stop(e)
+    # })
     return(f1)
 }
 

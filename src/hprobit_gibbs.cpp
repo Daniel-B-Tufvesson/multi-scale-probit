@@ -94,14 +94,12 @@ double do_sampling(
         
         // Print progress.
         if(verbose > 0 && iter % verbose == 0){
-            double avg_acceptance_rate = 0.0;
             Rcpp::Rcout << "probit_gibbs iteration " << (iter+1) 
                 << " of " << iterations << std::endl;
 
             // Print acceptance rates for each target.
             for (unsigned int target = 0; target < data.ntargets; ++target) {
                 double acceptance_rate = chain.cumulative_acceptance_probabilities(target) / static_cast<double>(iter+1);
-                avg_acceptance_rate += acceptance_rate;
                 Rcpp::Rcout << "Metropolis acceptance rate for gamma (target " << target << ") = " 
                     << acceptance_rate << std::endl;
             }

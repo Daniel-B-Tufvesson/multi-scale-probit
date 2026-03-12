@@ -26,7 +26,7 @@
 //  OS: Unix based system
 
 
-#ifndef __RTNORNM_HPP
+#ifndef __RTNORM_HPP
 #define __RTNORM_HPP
 
 #include <gsl/gsl_rng.h>

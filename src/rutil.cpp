@@ -1,3 +1,10 @@
+/**
+ * @file rutil.cpp
+ * @author Johan Falkenjack
+ * @version 1.0
+ * @brief Utility functions for the Rcpp interface of the Multi-Scale Probit model.
+ */
+
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::depends(RcppGSL)]]
@@ -13,8 +20,6 @@ using namespace arma;
 
 // [[Rcpp::depends("RcppArmadillo")]]
 // [[Rcpp::export]]
-
-
 arma::vec cpp_fmeasure_distribution(
     arma::mat predictions,
     arma::vec reference,
@@ -36,11 +41,9 @@ arma::vec cpp_fmeasure_distribution(
     // Predeclared but transient variables
     arma::mat confusion_matrix;
     arma::vec TP_vec;
-    double sumTP;
     arma::vec predsums_vec;
     arma::vec PPV_vec; // Positive Predictive Value AKA Precision
     arma::vec TPR_vec; // True Positive Rate AKA Recall AKA Sensitivity
-    double TN;
     arma::vec TNR_vec; // True Negative Rate AKA Specificity
     // Class-wise metrics before taking the mean
     arma::rowvec F1;
@@ -62,7 +65,6 @@ arma::vec cpp_fmeasure_distribution(
 
         // Compute transient temporary variables
         TP_vec = arma::diagvec(confusion_matrix);
-        sumTP = arma::sum(TP_vec);
         predsums_vec = arma::vectorise(arma::sum(confusion_matrix, 1));
         PPV_vec = TP_vec / predsums_vec;
         TPR_vec = TP_vec / refsums_vec;
@@ -101,7 +103,6 @@ Rcpp::List cpp_classification_metric_distributions(arma::mat predictions,
   // Predeclared but transient variables
   arma::mat confusion_matrix;
   arma::vec TP_vec;
-  double sumTP;
   arma::vec predsums_vec;
   arma::vec PPV_vec; // Positive Predictive Value AKA Precision
   arma::vec TPR_vec; // True Positive Rate AKA Recall AKA Sensitivity
@@ -122,7 +123,6 @@ Rcpp::List cpp_classification_metric_distributions(arma::mat predictions,
     // cout << "\n\n";
     // Compute transient temporary variables
     TP_vec = arma::diagvec(confusion_matrix);
-    sumTP = arma::sum(TP_vec);
     predsums_vec = arma::vectorise(arma::sum(confusion_matrix, 1));
     //predsums_vec = arma::vectorise(arma::sum(confusion_matrix, 0));
     PPV_vec = TP_vec / predsums_vec;
@@ -196,14 +196,8 @@ arma::vec cpp_harmonic_rowmeans(arma::mat variables) {
   return result;
 }
 
-// You can include R code blocks in C++ files processed with sourceCpp
-// (useful for testing and development). The R code will be automatically 
-// run after the compilation.
-//
-
 // [[Rcpp::depends("RcppArmadillo")]]
 // [[Rcpp::export]]
-
 Rcpp::List cpp_compare_distributions(arma::vec dist1, arma::vec dist2) {
   double score1 = 0;
   double score2 = 0;
@@ -225,7 +219,6 @@ Rcpp::List cpp_compare_distributions(arma::vec dist1, arma::vec dist2) {
 
 // [[Rcpp::depends("RcppArmadillo")]]
 // [[Rcpp::export]]
-
 arma::vec cpp_diff_distributions(arma::vec dist1, arma::vec dist2) {
   arma::vec res = arma::vec(dist1.n_elem*dist2.n_elem, arma::fill::zeros);
   std::size_t k = 0;
@@ -240,7 +233,6 @@ arma::vec cpp_diff_distributions(arma::vec dist1, arma::vec dist2) {
 
 // [[Rcpp::depends("RcppArmadillo")]]
 // [[Rcpp::export]]
-
 arma::vec cpp_rmse_dist(arma::mat predictions,
                         arma::mat reference,
                         int ndraws) {
