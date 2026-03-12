@@ -25,12 +25,12 @@ arma::vec cpp_fmeasure_distribution(
     arma::vec reference,
     int n_labels
 ) {
-    Rcpp::Rcout << "cpp_fmeasure_distribution: START" << std::endl;
+    // Rcpp::Rcout << "cpp_fmeasure_distribution: START" << std::endl;
     // Bookkeeping
     arma::vec F1_dist = arma::vec(predictions.n_cols, arma::fill::zeros);
     // Constants
     double N = reference.n_elem;
-    Rcpp::Rcout << "reference.n_elem: " << N << ", predictions.n_rows: " << predictions.n_rows << ", predictions.n_cols: " << predictions.n_cols << std::endl;
+    // Rcpp::Rcout << "reference.n_elem: " << N << ", predictions.n_rows: " << predictions.n_rows << ", predictions.n_cols: " << predictions.n_cols << std::endl;
     arma::vec refsums_vec = arma::vec(n_labels, arma::fill::zeros);
     for (std::size_t i = 0; i < static_cast<std::size_t>(N); i++) {
         if (reference(i) < 0 || reference(i) >= n_labels) {
@@ -49,7 +49,7 @@ arma::vec cpp_fmeasure_distribution(
     arma::rowvec F1;
     // cout << "here\n";
     for (std::size_t j = 0; j < static_cast<std::size_t>(predictions.n_cols); j++) {
-        Rcpp::Rcout << "Processing column j=" << j << std::endl;
+        // Rcpp::Rcout << "Processing column j=" << j << std::endl;
         // Re-initialize and fill confusion matrix
         confusion_matrix = arma::mat(n_labels, n_labels, arma::fill::zeros);
         for (std::size_t i = 0; i < static_cast<std::size_t>(reference.n_elem); i++) {
@@ -61,7 +61,7 @@ arma::vec cpp_fmeasure_distribution(
             }
             confusion_matrix(pred_idx, ref_idx)++;
         }
-        Rcpp::Rcout << "Filled confusion_matrix for j=" << j << std::endl;
+        // Rcpp::Rcout << "Filled confusion_matrix for j=" << j << std::endl;
 
         // Compute transient temporary variables
         TP_vec = arma::diagvec(confusion_matrix);
@@ -73,9 +73,9 @@ arma::vec cpp_fmeasure_distribution(
         F1 = arma::conv_to<arma::rowvec>::from( 2 * (PPV_vec % TPR_vec) / (PPV_vec + TPR_vec));
         F1.elem(arma::find_nonfinite(F1)).zeros();
         F1_dist(j) = arma::mean(F1);
-        Rcpp::Rcout << "F1_dist[" << j << "] = " << F1_dist(j) << std::endl;
+        // Rcpp::Rcout << "F1_dist[" << j << "] = " << F1_dist(j) << std::endl;
     }
-    Rcpp::Rcout << "cpp_fmeasure_distribution: END" << std::endl;
+    // Rcpp::Rcout << "cpp_fmeasure_distribution: END" << std::endl;
     // cout << "\nPPV_dist\n";
     // PPV_dist.print(cout);
     return F1_dist;

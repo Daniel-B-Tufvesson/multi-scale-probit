@@ -146,11 +146,11 @@ compute_f1_score_draws <- function(y_true, y_pred, nlabels) {
     }
 
     # Call the cpp backend as a subprocess.
-    f1 <- cpp_fmeasure_distribution(y_pred, y_true, nlabels)
+    f1 <- cpp_fmeasure_distribution(y_pred-1, y_true-1, nlabels) # Labels are 0-based for cpp
     # f1 <- tryCatch({callr::r(
     #     function(y_pred, y_true, nlabels) {
     #         devtools::load_all()
-            
+    #         cpp_fmeasure_distribution(y_pred, y_true, nlabels)
     #     },
     #     args = list(
     #         y_pred = y_pred-1, # 0-based for cpp
