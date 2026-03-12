@@ -348,6 +348,11 @@ private:
 };
 
 
+class RoundTripCounter {
+    
+}
+
+
 /**
  * Perform the burn-in phase of the sampler. This is similar to the do_sampling function, but does 
  * not store any samples.
