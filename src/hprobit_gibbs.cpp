@@ -14,7 +14,17 @@
 
 
 /**
- * Do the burn-in phase.
+ * Do the burn-in phase of the MCMC sampler, which runs the sampler for a specified number of 
+ * iterations without storing the samples.
+ * 
+ * @param chain The MspmChain object representing the current state of the MCMC chain.
+ * @param data The Data object containing the feature matrices and response vectors for each target.
+ * @param burnin The number of burn-in iterations to perform.
+ * @param gen The GSL random number generator to use for sampling.
+ * @param verbose The verbosity level for printing progress during burn-in. A value of 0 means
+ * no progress will be printed, while higher values will print progress every `verbose` iterations.
+ * 
+ * @return The time taken for the burn-in phase in seconds.
  */
 double do_burnin(
     MspmChain& chain,
@@ -52,22 +62,14 @@ double do_burnin(
 
 /**
  * Perform the sampling phase of the MCMC sampler, after burn-in is complete. This runs the MCMC
- * sampler for a specified number of iterations, and stores the sampled beta and gamma values in
- * the provided storage matrices.
+ * sampler for a specified number of iterations, and stores the sampled beta and gamma values.
  * 
  * @param iterations The number of MCMC iterations to perform during the sampling phase.
- * @param beta The current regression coefficients, which will be updated in place with the new
- * sampled values during the sampling phase.
- * @param gamma The current threshold parameters for each target, which will be updated in place
- * with the new sampled values during the sampling phase.
- * @param storebeta The matrix to store the sampled beta values. This will be updated in place with 
- * the sampled beta values for each iteration during the sampling phase.
- * @param storegamma The vector of matrices to store the sampled gamma values for each target. This
- * will be updated in place with the sampled gamma values for each iteration during the sampling
- * phase.
- * @param thin The thinning interval for storing samples. Only every `thin`-th sample will be stored
- * in the storage matrices. To store all samples without thinning, set `thin` to 1.
- * @param acceptance_rate The vector to store the acceptance rates for the proposed gammas for each target.
+ * @param chain The MspmChain object representing the current state of the MCMC chain.
+ * @param data The Data object containing the feature matrices and response vectors for each target.
+ * @param sample_storage The SampleStorage object where the sampled beta and gamma values will be 
+ * stored.
+ * @param thin The thinning interval for storing samples.
  * @param gen The GSL random number generator to use for sampling.
  * @param verbose The verbosity level for printing progress during sampling. A value of 0 means
  * no progress will be printed, while higher values will print progress every `verbose` iterations.
@@ -83,8 +85,6 @@ double do_sampling(
     gsl_rng* gen,
     int verbose
 ) {
-    int nstored = 0;
-
     // Measure sampling time.
     auto start_time = std::chrono::high_resolution_clock::now();
 
@@ -119,6 +119,33 @@ double do_sampling(
     return elapsed.count();
 }
 
+/**
+ * Run the sampler for a specified number of iterations, and store the sampled beta and gamma values.
+ * This is the main function that is called from R, and it unpacks the input data, initializes the 
+ * MCMC chain and storage, runs the burn-in and sampling phases, and then packs the results into a 
+ * list to return to R.
+ * 
+ * @param Xlist A list of design matrices for each target.
+ * @param Ylist A list of response vectors for each target.
+ * @param mean_prior The prior mean for the regression coefficients.
+ * @param prec_prior The prior precision matrix for the regression coefficients.
+ * @param ncategories A vector containing the number of categories for each target.
+ * @param gammas_start A list of initial values for the gamma parameters for each target.
+ * @param beta_start The initial values for the regression coefficients.
+ * @param proposal_variance The proposal variance for the Metropolis-Hastings updates of the
+ * gamma parameters.
+ * @param iterations The number of MCMC iterations to perform during the sampling phase.
+ * @param burnin The number of burn-in iterations to perform before the sampling phase.
+ * @param thin The thinning interval for storing samples. Only every `thin`-th sample
+ * will be stored in the storage matrices. To store all samples without thinning, set `thin` to 1.
+ * @param seed The random seed to use for the GSL random number generator.
+ * @param verbose The verbosity level for printing progress during burn-in and sampling. A value of
+ * 0 means no progress will be printed, while higher values will print progress every `verbose` 
+ * iterations.
+ * 
+ * @return An R list containing the results, including the stored beta and gamma samples, acceptance
+ * rates, total iterations, and time taken for burn-in and sampling.
+ */
 // [[Rcpp::depends("RcppArmadillo")]]
 // [[Rcpp::export]]
 Rcpp::List cpp_hprobit(
@@ -200,150 +227,6 @@ Rcpp::List cpp_hprobit(
     );
 }
 
-
-
-/**
- * The main function for the MCMC sampler, which is called from R. This function unpacks the input data,
- * initializes the parameters and storage matrices, runs the burn-in and sampling phases of the MCMC
- * sampler, and then packs the results into a list to return to R.
- * 
- * @param Xlist A list of design matrices for each target.
- * @param Ylist A list of response vectors for each target.
- * @param meanPrior The prior mean for the regression coefficients.
- * @param precPrior The prior precision matrix for the regression coefficients.
- * @param ncat A vector containing the number of categories for each target.
- * @param gammaStart A list of initial values for the gamma parameters for each target.
- * @param betaStart The initial values for the regression coefficients.
- * @param tune_start The initial values for the tuning parameters for the proposal distribution 
- * for the gammas.
- * @param adapt_tune A boolean indicating whether to perform adaptive tuning of the proposal variance
- * during burn-in.
- * @param tune_window_size The window size for computing acceptance rates and adjusting the proposal
- * variance during adaptive burn-in.
- * @param target_acceptance_rate The target acceptance rate for the proposed gammas during adaptive
- * burn-in.
- * @param iterations The number of MCMC iterations to perform during the sampling phase.
- * @param burnin The number of burn-in iterations to perform before the sampling phase.
- * @param thin The thinning interval for storing samples. Only every `thin`-th sample will be stored
- * in the storage matrices. To store all samples without thinning, set `thin` to 1.
- * @param save_burnin_samples A boolean indicating whether to store the samples from the burn-in phase
- * in the storage matrices.
- * @param seed The random seed to use for the GSL random number generator.
- * @param verbose The verbosity level for printing progress during burn-in and sampling. A value of
- * 0 means no progress will be printed, while higher values will print progress every `verbose` 
- * iterations.
- * 
- * @return An R list containing the results.
- */
-
-// Rcpp::List cpp_hprobit_old(
-//     const Rcpp::List& Xlist,
-//     const Rcpp::List& Ylist,
-//     const arma::colvec& meanPrior,
-//     const arma::mat& precPrior,
-//     const arma::ivec& ncat,
-//     const Rcpp::List& gammaStart,
-//     const arma::colvec& betaStart,
-//     const arma::vec& tune_start,
-//     const bool adapt_tune,
-//     int tune_window_size,
-//     double target_acceptance_rate,
-//     const int iterations,
-//     const int burnin,
-//     const int thin,
-//     const bool save_burnin_samples,
-//     const int seed,
-//     const int verbose
-// ) {
-  
-//     //--- GSL random init ---
-//     // Used to take efficient samples from truncated normal.
-//     gsl_rng_env_setup();                          // Read variable environnement
-//     const gsl_rng_type* type = gsl_rng_default;   // Default algorithm 'twister'
-//     gsl_rng *gen = gsl_rng_alloc (type);          // Rand generator allocation
-//     gsl_rng_set(gen, seed);
-  
-//     // Unpack data and define constants.
-//     const Data data = unpack_data(Xlist, Ylist);
-//     const int ntargets = data.ntargets;
-//     const int nstore = iterations/thin;
-//     const int nstore_burnin = save_burnin_samples ? burnin : 0;
-
-//     // Unpack gamma.
-//     std::vector<colvec> gamma = unpack_gamma(gammaStart, ncat);
-  
-//     // Storage matrices
-//     mat storebeta(nstore, betaStart.n_rows, arma::fill::zeros);
-//     std::vector<mat> storegamma(ntargets);
-//     for (unsigned int target = 0; target < ntargets; ++target) {
-//         storegamma[target] = mat(nstore, ncat(target)-1, arma::fill::zeros);
-//     }
-
-//     // Storage matrices for burnin.
-//     mat storebeta_burnin(nstore_burnin, betaStart.n_rows, arma::fill::zeros);
-//     std::vector<mat> storegamma_burnin(ntargets);
-//     if (save_burnin_samples) {
-//         for (unsigned int target = 0; target < ntargets; ++target) {
-//             storegamma_burnin[target] = mat(burnin, ncat(target)-1, arma::fill::zeros);
-//         }
-//     }
-  
-//     // Set starting points
-//     arma::colvec beta = betaStart;
-//     arma::vec tune = tune_start;
-  
-//     // Do burnin.
-//     double burnin_duration = 0;
-//     arma::vec burnin_acceptance_rate (data.ntargets, arma::fill::zeros);
-//     if (adapt_tune) {
-//         burnin_duration = do_adaptive_burnin(burnin, beta, gamma, data, ncat, tune, 
-//             burnin_acceptance_rate, target_acceptance_rate, tune_window_size, meanPrior, 
-//             precPrior, save_burnin_samples, storebeta_burnin, storegamma_burnin, 
-//             thin, gen, verbose);
-//     }
-//     else {
-//         burnin_duration = do_burnin(burnin, beta, gamma, data, ncat, tune, burnin_acceptance_rate, 
-//             meanPrior, precPrior, save_burnin_samples, storebeta_burnin, storegamma_burnin,
-//             thin, gen, verbose);
-//     }
-
-//     // Do sampling.
-//     arma::vec acceptance_rate (data.ntargets, arma::fill::zeros);
-//     double sampling_time = do_sampling(iterations, beta, gamma, data, ncat, tune,
-//         meanPrior, precPrior, storebeta, storegamma, thin, acceptance_rate, 
-//         gen, verbose);
-  
-//     // Pack stored gammas.
-//     Rcpp::List gammas = Rcpp::List::create();
-//     for (unsigned int target = 0; target < ntargets; ++target) {
-//         gammas.push_back(storegamma[target]);
-//     }
-
-//     // Pack stored burnin gammas.
-//     Rcpp::List storegamma_burnin_list = Rcpp::List::create();
-//     if (save_burnin_samples) {
-//         for (unsigned int target = 0; target < ntargets; ++target) {
-//             storegamma_burnin_list.push_back(storegamma_burnin[target]);
-//         }
-//     }
-
-//     // Free pointer to GSL random generator.
-//     gsl_rng_free(gen);
-  
-//     return Rcpp::List::create(
-//         _["storebeta"] = storebeta,
-//         _["storegamma"] = gammas,
-//         _["tune"] = tune,
-//         _["acceptance_rate"] = acceptance_rate,
-//         _["burnin_acceptance_rate"] = burnin_acceptance_rate,
-//         _["total_iter"] = iterations + burnin,
-//         _["storebeta_burnin"] = storebeta_burnin,
-//         _["storegamma_burnin"] = storegamma_burnin_list,
-//         _["sampling_time"] = sampling_time,
-//         _["burnin_time"] = burnin_duration
-//     );
-// }
-
 /**
  * Tune the gibbs sampler by finding the optimal proposal variance for the gamma parameters. 
  * 
@@ -371,9 +254,8 @@ Rcpp::List cpp_hprobit(
  * @param verbose The verbosity level for printing progress during tuning. A value of 0 means no
  * progress will be printed, while higher values will print progress every `verbose` iterations.
  * 
- * @return An R list containing the tuned proposal variances and acceptance rates for each target, 
- * as well as information about the tuning process such as the number of iterations performed and 
- * whether early stopping was triggered.
+ * @return An R list containing the results of tuning, including the final proposal variance, 
+ * acceptance rates, and the number of iterations performed during tuning.
  */
 // [[Rcpp::depends("RcppArmadillo")]]
 // [[Rcpp::export]]
