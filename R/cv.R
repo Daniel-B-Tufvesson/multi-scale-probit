@@ -169,6 +169,14 @@ cross_validate <- function(
         }
     }
 
+    # Aggregate nlikelihood_calls as vector.
+    all_nlikelihood_calls <- sapply(res, function(r) {
+        if (!is.null(r$fit)) {
+            return(get_nlikelihood_calls(r$fit))
+        }
+        return(NA)
+    })
+
     # Return result.
     new_mspm_cv_result(
         data_spec = data_spec(data),
@@ -181,6 +189,7 @@ cross_validate <- function(
         gelmanRhatBeta = rhatBeta,
         gelmanRhatGammas = rhatGammas,
         all_tune_results = all_tune_results,
+        all_nlikelihood_calls = all_nlikelihood_calls,
         call = match.call()
     )
 }
@@ -232,6 +241,7 @@ cross_validate <- function(
         else if (class(tune_results) == "mspm_tune_results_pt") {
             samplerArgs <- c(samplerArgs, tune_results$final_tune)
             # Todo: extract the tuned temperature ladder as well.
+            stop("Pre-tuning for parallel tempering is not yet implemented in the cross-validation function.")
         }
     }
 

@@ -280,6 +280,7 @@ fit_mspm <- function(
         diagnostics = diagnostics,
         samplingTime = sim$sampling_time,
         burninTime = sim$burnin_time,
+        nlikelihood_calls = sim$nlikelihood_calls,
         call = match.call()
     )  
 }
@@ -648,6 +649,7 @@ fit_mspm_pt <- function(
         completeSwapping = complete_param_swapping,
         samplingTime = sim$sampling_time,
         burninTime = sim$burnin_time,
+        nlikelihood_calls = sim$nlikelihood_calls,
         call = match.call()
     )  
 }

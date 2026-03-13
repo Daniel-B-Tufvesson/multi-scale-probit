@@ -117,6 +117,15 @@ run_all_pt_tests <- function() {
             expected_ntemperatures, " but got ", ntemperatures(fit)))
     }
 
+    # Check nlikelihood_calls.
+    nlikelihood_calls <- get_nlikelihood_calls(fit)
+    if (is.null(nlikelihood_calls)) {
+        stop("Test failed: nlikelihood_calls is NULL.")
+    }
+    if (nlikelihood_calls == 0) {
+        stop("Test failed: nlikelihood_calls is zero, indicating likelihood was not evaluated.")
+    }
+
     # Make prediction.
     predictions <- predict_mspm(
         fit = fit,

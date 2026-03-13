@@ -221,7 +221,8 @@ Rcpp::List cpp_hprobit(
         _["acceptance_rate"] = acceptance_rate,
         _["total_iter"] = iterations + burnin,
         _["sampling_time"] = sampling_time,
-        _["burnin_time"] = burnin_time
+        _["burnin_time"] = burnin_time,
+        _["nlikelihood_calls"] = chain.nlikelihood_calls
     );
 }
 

@@ -185,6 +185,10 @@ get_proposal_variance <- function(object, ...) {
     UseMethod("get_proposal_variance")
 }
 
+get_nlikelihood_calls <- function(object, ...) {
+    UseMethod("get_nlikelihood_calls")
+}
+
 #' The time taken for the sampling phase of MCMC sampling. This only encompasses the time taken for 
 #' sampling and does not include data preprocessing, model fitting setup, burn-in, or post-processing 
 #' steps. The time is measured in seconds.
@@ -328,6 +332,27 @@ cvMeans <- function(object, ...) {
 #' does not contain evaluation draws.
 cvAllDraws <- function(object, ...) {
     UseMethod("cvAllDraws")
+}
+
+#' The tuning results for all cross-validation splits.
+#'
+#' @param object An mspm_cv_result object.
+#' @param ... Additional arguments (not used).
+#' @return A list containing the tuning results for all cross-validation splits. Each element of
+#' the list corresponds to a cross-validation split and contains the tuning results for that split.
+#' Is NULL if no tuning was done.
+get_all_tune_results <- function(object, ...) {
+    UseMethod("get_all_tune_results")
+}
+
+#' The number of likelihood calls made by the MCMC sampler during cross-validation. 
+#'
+#' @param object An mspm_cv_result object.
+#' @param ... Additional arguments (not used).
+#' @return An integer vector indicating the number of likelihood calls made by the MCMC sampler 
+#' for each cross-validation split.
+get_all_nlikelihood_calls <- function(object, ...) {
+    UseMethod("get_all_nlikelihood_calls")
 }
 
 #' The MCMC diagnostics for a multi-scale probit model object.

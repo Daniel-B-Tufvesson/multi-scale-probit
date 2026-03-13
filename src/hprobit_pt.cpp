@@ -61,6 +61,28 @@ public:
         nswap_proposals = arma::ivec(ntemperatures-1, arma::fill::zeros);
     }
 
+    /**
+     * Reset the chains to their starting state.
+     */
+    void reset() {
+        for (auto& chain : chains) {
+            chain.reset();
+        }
+        cumulative_swap_probabilities.zeros();
+        nswap_proposals.zeros();
+    }
+
+    /**
+     * Reset only the statistics of the chains.
+     */
+    void reset_statistics() {
+        for (auto& chain : chains) {
+            chain.reset_statistics();
+        }
+        cumulative_swap_probabilities.zeros();
+        nswap_proposals.zeros();
+    }
+
     void simulate_step(const Data& data, gsl_rng* rng) {
         // Do within-temperature MH updates.
         for (auto& chain : chains) {
@@ -80,6 +102,11 @@ public:
         nswap_proposals(swap_index) += 1;
     }
 
+    /**
+     * Extract the inverse temperatures for each chain.
+     * 
+     * @return A vector of inverse temperatures for each chain.
+     */
     arma::vec get_inv_temperatures() {
         arma::vec temperatures(ntemperatures);
         for (int i = 0; i < ntemperatures; i++) {
@@ -88,12 +115,31 @@ public:
         return temperatures;
     }
 
+    /**
+     * Extract the proposal variances for each chain.
+     * 
+     * @return A list of proposal variances for each chain. Each element in the list is a vector of
+     * proposal variances for the proposed gammas for each target in that chain.
+     */
     Rcpp::List get_proposal_variance() {
         Rcpp::List proposal_variances(ntemperatures);
         for (int i = 0; i < ntemperatures; i++) {
             proposal_variances[i] = chains[i].proposal_variance;
         }
         return proposal_variances;
+    }
+
+    /**
+     * Extract the number of likelihood calls across all chains.
+     * 
+     * @return The total number of likelihood calls across all chains.
+     */
+    int get_nlikelihood_calls() {
+        int total_nlikelihood_calls = 0;
+        for (auto& chain : chains) {
+            total_nlikelihood_calls += chain.nlikelihood_calls;
+        }
+        return total_nlikelihood_calls;
     }
 };
 
@@ -463,6 +509,8 @@ Rcpp::List cpp_hprobit_pt(
         }
     }
 
+    chains.reset_statistics();
+
     // Do sampling.
     double sampling_time = do_sampling(chains, data, sampling_storage, iterations, thin, 
         gen, verbose);
@@ -475,7 +523,8 @@ Rcpp::List cpp_hprobit_pt(
         _["storebeta"] = sampling_storage.store_beta,
         _["storegamma"] = sampling_storage.gamma_to_r_list(),
         _["sampling_time"] = sampling_time,
-        _["burnin_time"] = burnin_time
+        _["burnin_time"] = burnin_time,
+        _["nlikelihood_calls"] = chains.get_nlikelihood_calls()
     );
 }
 
