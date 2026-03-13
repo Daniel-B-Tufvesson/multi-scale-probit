@@ -110,6 +110,15 @@ run_all_probit_tests <-function() {
         }
     }
 
+    # Check nlikelihood_calls.
+    nlikelihood_calls <- get_nlikelihood_calls(tst_fit)
+    if (is.null(nlikelihood_calls)) {
+        stop("Test failed: nlikelihood_calls is NULL.")
+    }
+    if (nlikelihood_calls == 0) {
+        stop("Test failed: nlikelihood_calls is zero, indicating likelihood was not evaluated.")
+    }
+
     cat("Test passed: Fitted model estimates parameters accurately and returns valid diagnostics.\n")
 }
 

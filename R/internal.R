@@ -193,6 +193,7 @@ new_mspm <- function(
     diagnostics,
     samplingTime,
     burninTime,
+    nlikelihood_calls,
     call
 ) {
     structure(
@@ -212,7 +213,8 @@ new_mspm <- function(
             burnin = burnin,
             diagnostics = diagnostics, # May be null.
             samplingTime = samplingTime,
-            burninTime = burninTime
+            burninTime = burninTime,
+            nlikelihood_calls = nlikelihood_calls
         ),
         class = "mspm"
     )
@@ -260,6 +262,10 @@ precPrior.mspm <- function(object, ...) {
 
 get_proposal_variance.mspm <- function(object, ...) {
     object$proposal_variance
+}
+
+get_nlikelihood_calls.mspm <- function(object, ...) {
+    object$nlikelihood_calls
 }
 
 ndraws.mspm <- function(object, ...) {
@@ -335,6 +341,9 @@ gewekeGammas.mspm <- function(object, ...) {
 #' MCMC sampling, such as effective sample size (ess) and Geweke diagnostics for each parameter.
 #' @param samplingTime The time taken for the sampling phase of MCMC sampling.
 #' @param burninTime The time taken for the burn-in phase of MCMC sampling
+#' @param completeSwapping A boolean indicating whether complete swapping was used in parallel
+#' tempering.
+#' @param nlikelihood_calls The total number of likelihood calls made during MCMC sampling.
 #' @param call The original function call used to create the model.
 new_mspm_pt <- function(
     data_spec,
@@ -353,6 +362,7 @@ new_mspm_pt <- function(
     samplingTime,
     burninTime,
     completeSwapping,
+    nlikelihood_calls,
     call
 ) {
     structure(
@@ -375,7 +385,8 @@ new_mspm_pt <- function(
 
             samplingTime = samplingTime,
             burninTime = burninTime,
-            diagnostics = diagnostics
+            diagnostics = diagnostics,
+            nlikelihood_calls = nlikelihood_calls
         ),
         class = c("mspm_pt", "mspm")
     )

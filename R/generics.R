@@ -185,6 +185,10 @@ get_proposal_variance <- function(object, ...) {
     UseMethod("get_proposal_variance")
 }
 
+get_nlikelihood_calls <- function(object, ...) {
+    UseMethod("get_nlikelihood_calls")
+}
+
 #' The time taken for the sampling phase of MCMC sampling. This only encompasses the time taken for 
 #' sampling and does not include data preprocessing, model fitting setup, burn-in, or post-processing 
 #' steps. The time is measured in seconds.

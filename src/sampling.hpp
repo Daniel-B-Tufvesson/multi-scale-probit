@@ -69,6 +69,10 @@ public:
     /** The inverse temperature 1/T, also known as beta in parallel tempering literature. */
     double inv_temperature;
 
+    const arma::colvec beta_start;
+
+    const std::vector<arma::colvec> gammas_start;
+
     /** The current beta state. */
     arma::colvec beta;
 
@@ -109,6 +113,9 @@ public:
      * by temperature. */
     arma::vec log_likelihood;
 
+    /** How many times the compute_log_likelihood function has been called. */
+    int nlikelihood_calls = 0;
+
     MspmChain(
         double inv_temperature,
         const arma::colvec beta_start,
@@ -118,7 +125,8 @@ public:
         const arma::mat& beta_prec_prior,
         const arma::ivec& ncategories,
         const int total_nobs
-    ) : inv_temperature(inv_temperature), beta(beta_start), gammas(gammas_start), 
+    ) : inv_temperature(inv_temperature), beta_start(beta_start), gammas_start(gammas_start),
+        beta(beta_start), gammas(gammas_start), 
         proposal_variance(proposal_variance), beta_mean_prior(beta_mean_prior), 
         beta_prec_prior(beta_prec_prior), ncategories(ncategories), npredictors(beta_start.n_elem), 
         ntargets(gammas_start.size()) {
@@ -139,13 +147,22 @@ public:
      * Reset the chain to starting state. 
      */
     void reset() {
-        beta.zeros();
+        beta = beta_start;
         for (int target = 0; target < ntargets; target++) {
-            gammas[target].zeros();
+            gammas[target] = gammas_start[target];
         }
         ystar.zeros();
-        cumulative_acceptance_probabilities.zeros();
         log_likelihood.zeros();
+        reset_statistics();
+    }
+
+    /**
+     * Reset only the statistics of the chain, such as the cumulative acceptance probabilities and 
+     * the number of likelihood calls, but keep the current state of the chain.
+     */
+    void reset_statistics() {
+        cumulative_acceptance_probabilities.zeros();
+        nlikelihood_calls = 0;
     }
 
     /**
@@ -281,6 +298,7 @@ private:
                     - cdf(gamma_p(y_val-1) - y_star[i]));
             }
         }
+        nlikelihood_calls++;
         return log_likelihood;
     }
 
