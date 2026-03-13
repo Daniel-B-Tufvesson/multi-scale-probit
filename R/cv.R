@@ -241,6 +241,7 @@ cross_validate <- function(
         else if (class(tune_results) == "mspm_tune_results_pt") {
             samplerArgs <- c(samplerArgs, tune_results$final_tune)
             # Todo: extract the tuned temperature ladder as well.
+            stop("Pre-tuning for parallel tempering is not yet implemented in the cross-validation function.")
         }
     }
 
