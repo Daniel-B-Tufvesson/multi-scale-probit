@@ -592,6 +592,7 @@ new_mspm_cv_result <- function(
     gelmanRhatBeta,
     gelmanRhatGammas,
     all_tune_results,
+    all_nlikelihood_calls,
     call
 ) {
     structure(
@@ -606,6 +607,7 @@ new_mspm_cv_result <- function(
             gelmanRhatBeta = gelmanRhatBeta,
             gelmanRhatGammas = gelmanRhatGammas,
             all_tune_results = all_tune_results,
+            all_nlikelihood_calls = all_nlikelihood_calls,
             call = call
         ),
         class = "mspm_cv_result"
@@ -656,6 +658,14 @@ cvAllDraws.mspm_cv_result <- function(object, ...) {
     }
 
     results
+}
+
+get_all_tune_results.mspm_cv_result <- function(object, ...) {
+    object$all_tune_results
+}
+
+get_all_nlikelihood_calls.mspm_cv_result <- function(object, ...) {
+    object$all_nlikelihood_calls
 }
 
 gelmanRhatBeta.mspm_cv_result <- function(object, ...) {

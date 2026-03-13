@@ -5,7 +5,7 @@ source("R/cv.R")
 run_all_cv_tests <- function() {
     .test_cv()
 
-    # Fix: replication fails even without parallelization, likele due to underying parallelization
+    # Fix: replication fails even without parallelization, likely due to underying parallelization
     # of math library functions, such as matrix operations.
     #.test_replication()
 
@@ -35,6 +35,12 @@ run_all_cv_tests <- function() {
         samplerArgs = list(
             burnin = 10,
             thin = 1
+        ),
+        pretune_function = tune_mspm,
+        pretune_args = list(
+            iterations = 10,
+            target_epsilon = 0.01,
+            stop_early = TRUE
         ),
         nworkers = 1,
         meansOnly = FALSE
@@ -115,6 +121,25 @@ run_all_cv_tests <- function() {
     }
     if (length(rhatGammas) != 3) {
         stop("Expected gelmanRhatGammas to have length equal to ntargets.")
+    }
+
+    # Check tune results.
+    tune_results <- get_all_tune_results(cv_res)
+    if (is.null(tune_results)) {
+        stop("Expected tuning results to be stored in cv_res.")
+    }
+    if (length(tune_results) != 3) {
+        stop("Expected tuning results to have length equal to nsplits.")
+    }
+    for (i in 1:3) {
+        tune_result_i <- tune_results[[i]]
+        if (is.null(tune_result_i)) {
+            stop(paste("Expected tuning results for split ", i, " to not be NULL."))
+        }
+        proposal_variance_i <- get_proposal_variance(tune_result_i)
+        if (is.null(proposal_variance_i) || !is.numeric(proposal_variance_i)) {
+            stop(paste("Expected proposal_variance from tuning results for split ", i, " to be a numeric value."))
+        }
     }
 
     cat("Test passed: cross-validation runs without errors and returns results in the expected format.\n")
