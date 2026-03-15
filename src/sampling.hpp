@@ -116,6 +116,9 @@ public:
     /** How many times the compute_log_likelihood function has been called. */
     int nlikelihood_calls = 0;
 
+    /** A label for tracking the swapping paths. */
+    int replica_id;
+
     MspmChain(
         double inv_temperature,
         const arma::colvec beta_start,
@@ -124,12 +127,13 @@ public:
         const arma::colvec& beta_mean_prior,
         const arma::mat& beta_prec_prior,
         const arma::ivec& ncategories,
-        const int total_nobs
+        const int total_nobs,
+        int replica_id
     ) : inv_temperature(inv_temperature), beta_start(beta_start), gammas_start(gammas_start),
         beta(beta_start), gammas(gammas_start), 
         proposal_variance(proposal_variance), beta_mean_prior(beta_mean_prior), 
         beta_prec_prior(beta_prec_prior), ncategories(ncategories), npredictors(beta_start.n_elem), 
-        ntargets(gammas_start.size()) {
+        ntargets(gammas_start.size()), replica_id(replica_id) {
         
         ystar = arma::colvec(total_nobs, arma::fill::zeros);
         cumulative_acceptance_probabilities = arma::vec(gammas.size(), arma::fill::zeros);
@@ -453,6 +457,11 @@ public:
                 other_chain.beta[j] = temp;
             }
         }
+
+        // Swap replica labels.
+        int temp_label = replica_id;
+        replica_id = other_chain.replica_id;
+        other_chain.replica_id = temp_label;
 
         // New state means new likelihoods, so recompute them.
         refresh_log_likelihood(data);

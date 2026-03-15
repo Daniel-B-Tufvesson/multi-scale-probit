@@ -344,6 +344,8 @@ gewekeGammas.mspm <- function(object, ...) {
 #' @param completeSwapping A boolean indicating whether complete swapping was used in parallel
 #' tempering.
 #' @param nlikelihood_calls The total number of likelihood calls made during MCMC sampling.
+#' @param round_trip_times A numeric vector containing the round trip times for each completed 
+#' round trip.
 #' @param call The original function call used to create the model.
 new_mspm_pt <- function(
     data_spec,
@@ -363,6 +365,7 @@ new_mspm_pt <- function(
     burninTime,
     completeSwapping,
     nlikelihood_calls,
+    round_trip_times,
     call
 ) {
     structure(
@@ -386,7 +389,8 @@ new_mspm_pt <- function(
             samplingTime = samplingTime,
             burninTime = burninTime,
             diagnostics = diagnostics,
-            nlikelihood_calls = nlikelihood_calls
+            nlikelihood_calls = nlikelihood_calls,
+            round_trip_times = round_trip_times
         ),
         class = c("mspm_pt", "mspm")
     )

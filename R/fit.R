@@ -650,6 +650,7 @@ fit_mspm_pt <- function(
         samplingTime = sim$sampling_time,
         burninTime = sim$burnin_time,
         nlikelihood_calls = sim$nlikelihood_calls,
+        round_trip_times = sim$round_trip_times,
         call = match.call()
     )  
 }
