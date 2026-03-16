@@ -183,6 +183,7 @@ public:
         }
         step_gamma(data, rng);
         step_beta(data, rng);
+        refresh_log_likelihood(data);
         nsteps++;
     }
 
@@ -484,27 +485,27 @@ public:
         const Data& data,
         gsl_rng* rng
     ) {
-        // double log_swap_accept_ratio = arma::sum(other_chain.log_likelihood) 
-        //     - arma::sum(log_likelihood);
+        double log_swap_accept_ratio = arma::sum(other_chain.log_likelihood) 
+             - arma::sum(log_likelihood);
 
         ////////////////////////////////////////////////
 
-        auto cdf = gsl_cdf_ugaussian_P;
-        double log_swap_accept_ratio = 0;
-        for (unsigned int target = 0; target < ntargets; target++) {
-            const colvec ystar1 = data.X[target] * beta;
-            const colvec ystar2 = data.X[target] * other_chain.beta;
+        // auto cdf = gsl_cdf_ugaussian_P;
+        // double log_swap_accept_ratio = 0;
+        // for (unsigned int target = 0; target < ntargets; target++) {
+        //     const colvec ystar1 = data.X[target] * beta;
+        //     const colvec ystar2 = data.X[target] * other_chain.beta;
 
-            // Loop over all data points for target.
-            for (unsigned int i = 0; i < data.X[target].n_rows; i++) {
-                log_swap_accept_ratio = log_swap_accept_ratio
-                    + log(cdf(gammas[target](data.Y[target](i)) - ystar2[i]) - 
-                          cdf(gammas[target](data.Y[target](i)-1) - ystar2[i]))
-                    - log(cdf(gammas[target](data.Y[target](i)) - ystar1[i]) - 
-                          cdf(gammas[target](data.Y[target](i)-1) - ystar1[i]));
-            }
+        //     // Loop over all data points for target.
+        //     for (unsigned int i = 0; i < data.X[target].n_rows; i++) {
+        //         log_swap_accept_ratio = log_swap_accept_ratio
+        //             + log(cdf(gammas[target](data.Y[target](i)) - ystar2[i]) - 
+        //                   cdf(gammas[target](data.Y[target](i)-1) - ystar2[i]))
+        //             - log(cdf(gammas[target](data.Y[target](i)) - ystar1[i]) - 
+        //                   cdf(gammas[target](data.Y[target](i)-1) - ystar1[i]));
+        //     }
 
-        }
+        // }
 
         ///////////////////////////////////////////////
 

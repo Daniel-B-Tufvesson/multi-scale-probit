@@ -758,3 +758,7 @@ new_mspm_tune_results_pt <- function(
 get_proposal_variance.mspm_tune_results_pt <- function(object, ...) {
     object$proposal_variance
 }
+
+get_inv_temperatures.mspm_tune_results_pt <- function(object, ...) {
+    object$inv_temperature_ladder
+}
