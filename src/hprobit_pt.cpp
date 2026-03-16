@@ -207,6 +207,14 @@ public:
         }
         cumulative_swap_probabilities(swap_index) += swap_probability;
         nswap_proposals(swap_index) += 1;
+
+        if (chain1.nsteps < 300) {
+            arma::ivec replicas(chains.size());
+            for (int i = 0; i < chains.size(); i++) {
+                replicas(i) = chains[i].replica_id;
+            }
+            std::cout << "replicas: " << replicas.t() << std::flush;
+        }
     }
 
     /**
@@ -413,6 +421,7 @@ private:
      * inverse temperatures (betas) in these chains will be updated based on the new ladder.
      */
     void adjust_ladder(PTChains& chains) {
+        std::cout << "Adjusting temperature ladder at step " << step << " with window size " << window_size << "." << std::endl;
         std::vector<double> ladder_gaps(ntemperatures - 1);
 
         // Compute old gaps.

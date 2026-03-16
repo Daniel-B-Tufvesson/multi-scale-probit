@@ -348,7 +348,7 @@ tune_mspm_pt <- function(
     inv_temperature_ladder <- .prepare_temperature_ladder(inv_temperature_ladder, ntemperatures)
 
     # Call backend tuner.
-    cpp_hprobit_tune_pt(
+    tune_results <- cpp_hprobit_tune_pt(
         data$Xlist,
         data$ylist,
         mean_prior,
