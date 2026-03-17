@@ -333,6 +333,7 @@ gewekeGammas.mspm <- function(object, ...) {
 #' @param ndraws The number of posterior draws collected after thinning.
 #' @param ndrawsNoThin The number of posterior draws collected before thinning.
 #' @param thin The thinning interval used in MCMC sampling.
+#' @param inv_temperatures The inverse temperature ladder used in parallel tempering.
 #' @param burnin The number of burn-in iterations used in MCMC sampling.
 #' @param burninBeta An MCMC object containing the burn-in samples for the beta parameters.
 #' @param burninGammas A list of MCMC objects containing the burn-in samples for the gamma 
@@ -344,6 +345,8 @@ gewekeGammas.mspm <- function(object, ...) {
 #' @param completeSwapping A boolean indicating whether complete swapping was used in parallel
 #' tempering.
 #' @param nlikelihood_calls The total number of likelihood calls made during MCMC sampling.
+#' @param round_trip_times A numeric vector containing the round trip times for each completed 
+#' round trip.
 #' @param call The original function call used to create the model.
 new_mspm_pt <- function(
     data_spec,
@@ -356,13 +359,14 @@ new_mspm_pt <- function(
     ndraws,
     ndrawsNoThin,
     thin,
-    ntemperatures,
+    inv_temperatures,
     burnin,
     diagnostics,
     samplingTime,
     burninTime,
     completeSwapping,
     nlikelihood_calls,
+    round_trip_times,
     call
 ) {
     structure(
@@ -380,13 +384,15 @@ new_mspm_pt <- function(
             thin = thin,
             burnin = burnin,
 
-            ntemperatures = ntemperatures,
+            inv_temperatures = inv_temperatures,
+            ntemperatures = length(inv_temperatures),
             completeSwapping = completeSwapping,
 
             samplingTime = samplingTime,
             burninTime = burninTime,
             diagnostics = diagnostics,
-            nlikelihood_calls = nlikelihood_calls
+            nlikelihood_calls = nlikelihood_calls,
+            round_trip_times = round_trip_times
         ),
         class = c("mspm_pt", "mspm")
     )
@@ -398,6 +404,10 @@ ntemperatures.mspm_pt <- function(object, ...) {
 
 get_proposal_variance.mspm_pt <- function(object, ...) {
     object$proposal_variance
+}
+
+get_inv_temperatures.mspm_pt <- function(object, ...) {
+    object$inv_temperatures
 }
 
 
@@ -753,4 +763,8 @@ new_mspm_tune_results_pt <- function(
 
 get_proposal_variance.mspm_tune_results_pt <- function(object, ...) {
     object$proposal_variance
+}
+
+get_inv_temperatures.mspm_tune_results_pt <- function(object, ...) {
+    object$inv_temperature_ladder
 }

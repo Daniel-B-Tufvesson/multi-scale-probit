@@ -11,6 +11,104 @@
 
 #include "sampling.hpp"
 
+class RoundTripTag {
+public:
+
+    /** Where the tag came from: +1 (came from cold), -1 (came from hot), 0 (unknown). */
+    // int started_from = 0;
+
+    bool is_started = false;
+
+    /** 
+     * The direction the chain should currently be heading: +1 heading toward hot (last touched 
+     * cold), -1 heading toward cold (last touched hot).
+     */
+    int direction = 0;
+
+    int last_start_time = -1;
+
+};
+
+class RoundTripCounter {
+public:
+    const int ntemperatures;
+
+    std::vector<RoundTripTag> tags;
+
+    /** Completed round trip times. Measured in steps. */
+    std::vector<int> round_trip_times;
+
+    RoundTripCounter(
+        int ntemperatures
+    ) : ntemperatures(ntemperatures) {
+
+        tags = std::vector<RoundTripTag>(ntemperatures);
+        for (int i = 0; i < ntemperatures; i++) {
+            tags[i] = RoundTripTag();
+        }
+
+        tags[0].is_started = true;
+        tags[0].direction = 1;
+        tags[0].last_start_time = 0;
+        
+        round_trip_times = std::vector<int>();
+    }
+
+    /**
+     * Reset the round trip counter to the initial state, where no round trips have been completed 
+     * and all tags are reset to the initial state (not started, direction toward hot, last start 
+     * time 0).
+     */
+    void reset() {
+        for (int i = 0; i < ntemperatures; i++) {
+            tags[i] = RoundTripTag();
+        }
+
+        tags[0].is_started = true;
+        tags[0].direction = 1;
+        tags[0].last_start_time = 0;
+
+        round_trip_times.clear();
+    }
+
+    void on_swap(MspmChain& colder_chain, MspmChain& hotter_chain, 
+        bool is_coldest_chain, bool is_hottest_chain) {
+
+        // Update hot tag.
+        if (is_hottest_chain) {
+            RoundTripTag& hot_tag = tags[hotter_chain.replica_id];
+            hot_tag.direction = -1; // Should move toward cold now.
+        }
+
+        // Update cold tag.
+        if (is_coldest_chain) {
+            RoundTripTag& cold_tag = tags[colder_chain.replica_id];
+
+            // Start off new replica.
+            if (!cold_tag.is_started) {
+                cold_tag.is_started = true;
+                cold_tag.last_start_time = colder_chain.nsteps;
+            }
+            // Complete round trip?
+            else if (cold_tag.direction == -1) {
+                int round_trip_time = colder_chain.nsteps - cold_tag.last_start_time;
+                round_trip_times.push_back(round_trip_time);
+                cold_tag.last_start_time = colder_chain.nsteps;
+            }
+
+            cold_tag.direction = 1; // Should move toward hot now.
+        }
+    }
+
+    arma::ivec get_round_trip_times() {
+        arma::ivec times(round_trip_times.size());
+        for (int i = 0; i < round_trip_times.size(); i++) {
+            times(i) = round_trip_times[i];
+        }
+        return times;
+    }
+};
+
 /**
  * A class managing several chains at different temperatures and performing parallel tempering 
  * state swaps between them.
@@ -31,6 +129,9 @@ public:
     /** Counter of number of swap proposals for each chain pair. */
     arma::ivec nswap_proposals;
 
+    /** Counts the round trip times. */
+    RoundTripCounter round_trips;
+
     PTChains(
         const arma::vec& inv_temperature_ladder,
         const arma::colvec& beta_start,
@@ -41,7 +142,8 @@ public:
         const arma::ivec& ncategories,
         const int total_nobs,
         bool complete_swapping
-    ) : ntemperatures(inv_temperature_ladder.n_elem), complete_swapping(complete_swapping) {
+    ) : ntemperatures(inv_temperature_ladder.n_elem), complete_swapping(complete_swapping), 
+        round_trips(inv_temperature_ladder.n_elem) {
 
         // Create the chains for each temperature in the ladder.
         for (int i = 0; i < ntemperatures; i++) {
@@ -53,7 +155,8 @@ public:
                 beta_mean_prior,
                 beta_prec_prior,
                 ncategories,
-                total_nobs
+                total_nobs,
+                i
             );
         }
 
@@ -81,6 +184,7 @@ public:
         }
         cumulative_swap_probabilities.zeros();
         nswap_proposals.zeros();
+        round_trips.reset();
     }
 
     void simulate_step(const Data& data, gsl_rng* rng) {
@@ -97,9 +201,17 @@ public:
         double swap_probability = chain1.compute_swap_probability(chain2, data, rng);
         if (gsl_ran_flat(rng, 0.0, 1.0) <= swap_probability) {
             chain1.swap(chain2, data, complete_swapping);
+            round_trips.on_swap(chain1, chain2, swap_index == 0, swap_index == ntemperatures - 2);
         }
         cumulative_swap_probabilities(swap_index) += swap_probability;
         nswap_proposals(swap_index) += 1;
+
+        if (chain1.nsteps < 300) {
+            arma::ivec replicas(chains.size());
+            for (int i = 0; i < chains.size(); i++) {
+                replicas(i) = chains[i].replica_id;
+            }
+        }
     }
 
     /**
@@ -348,6 +460,8 @@ private:
 };
 
 
+
+
 /**
  * Perform the burn-in phase of the sampler. This is similar to the do_sampling function, but does 
  * not store any samples.
@@ -524,7 +638,8 @@ Rcpp::List cpp_hprobit_pt(
         _["storegamma"] = sampling_storage.gamma_to_r_list(),
         _["sampling_time"] = sampling_time,
         _["burnin_time"] = burnin_time,
-        _["nlikelihood_calls"] = chains.get_nlikelihood_calls()
+        _["nlikelihood_calls"] = chains.get_nlikelihood_calls(),
+        _["round_trip_times"] = chains.round_trips.get_round_trip_times()
     );
 }
 
@@ -675,7 +790,7 @@ Rcpp::List cpp_hprobit_tune_pt(
 
         // Print progress.
         if (verbose > 0 && iter % verbose == 0) {
-            Rcpp::Rcout << "Tuning iteration " << (iter+1) << " of " << iterations << " ";
+            Rcpp::Rcout << "Tuning iteration " << (iter+1) << " of " << iterations << std::endl;
         }
 
         // Check for early stopping.

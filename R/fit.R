@@ -348,7 +348,7 @@ tune_mspm_pt <- function(
     inv_temperature_ladder <- .prepare_temperature_ladder(inv_temperature_ladder, ntemperatures)
 
     # Call backend tuner.
-    cpp_hprobit_tune_pt(
+    tune_results <- cpp_hprobit_tune_pt(
         data$Xlist,
         data$ylist,
         mean_prior,
@@ -643,13 +643,14 @@ fit_mspm_pt <- function(
         ndraws = ndraws / thin,
         ndrawsNoThin = ndraws,
         thin = thin,
-        ntemperatures = ntemperatures,
+        inv_temperatures = inv_temperature_ladder,
         burnin = burnin,
         diagnostics = diagnostics,
         completeSwapping = complete_param_swapping,
         samplingTime = sim$sampling_time,
         burninTime = sim$burnin_time,
         nlikelihood_calls = sim$nlikelihood_calls,
+        round_trip_times = sim$round_trip_times,
         call = match.call()
     )  
 }

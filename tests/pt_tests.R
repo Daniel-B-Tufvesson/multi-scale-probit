@@ -22,7 +22,7 @@ run_all_pt_tests <- function() {
         ndraws = 100,
         burnin = 100,
         thin = 2,
-        tune = 0.1,
+        proposal_variance = 0.1,
         seed = 1234,
         ntemperatures = 10,
         verbose = 0
@@ -124,6 +124,35 @@ run_all_pt_tests <- function() {
     }
     if (nlikelihood_calls == 0) {
         stop("Test failed: nlikelihood_calls is zero, indicating likelihood was not evaluated.")
+    }
+
+    # Check get_inv_temperatures
+    inv_temps <- get_inv_temperatures(fit)
+    if (is.null(inv_temps)) {
+        stop("Test failed: get_inv_temperatures returned NULL.")
+    }
+    if (length(inv_temps) != expected_ntemperatures) {
+        stop(paste("Test failed: get_inv_temperatures returned vector of length ", 
+            length(inv_temps), " but expected ", expected_ntemperatures))
+    }
+
+    # Check get_proposal_variance
+    prop_var <- get_proposal_variance(fit)
+    if (is.null(prop_var)) {
+        stop("Test failed: get_proposal_variance returned NULL.")
+    }
+    # Make sure it is a list of ntemperature vectors, where each vector has one element for each
+    # gamma group.
+    expected_gamma_groups <- 3
+    if (length(prop_var) != expected_ntemperatures) {
+        stop(paste("Test failed: get_proposal_variance returned list of length ", 
+            length(prop_var), " but expected ", expected_ntemperatures))
+    }
+    for (i in 1:length(prop_var)) {
+        if (length(prop_var[[i]]) != expected_gamma_groups) {
+            stop(paste("Test failed: get_proposal_variance for temperature ", i, " returned vector of length ", 
+                length(prop_var[[i]]), " but expected ", expected_gamma_groups))
+        }
     }
 
     # Make prediction.

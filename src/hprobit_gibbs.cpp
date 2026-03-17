@@ -189,7 +189,8 @@ Rcpp::List cpp_hprobit(
         mean_prior,
         prec_prior,
         ncategories,
-        data.nobs
+        data.nobs,
+        0
     );
 
     if (verbose > 0 && burnin > 0) {
@@ -296,7 +297,8 @@ Rcpp::List cpp_hprobit_tune(
         mean_prior,
         prec_prior,
         ncategories,
-        data.nobs
+        data.nobs,
+        0
     );
 
     // Create tuner.

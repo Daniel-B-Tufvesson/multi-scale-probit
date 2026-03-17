@@ -185,6 +185,8 @@ get_proposal_variance <- function(object, ...) {
     UseMethod("get_proposal_variance")
 }
 
+
+
 get_nlikelihood_calls <- function(object, ...) {
     UseMethod("get_nlikelihood_calls")
 }
@@ -433,4 +435,8 @@ gelmanRhatGammas <- function(object, ...) {
 
 ntemperatures <- function(object, ...) {
     UseMethod("ntemperatures")
+}
+
+get_inv_temperatures <- function(object, ...) {
+    UseMethod("get_inv_temperatures")
 }

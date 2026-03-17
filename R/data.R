@@ -175,8 +175,8 @@ split_data <- function(
 # Generate synthetic experiment data.
 #
 # Arguments:
-#   nobs    : Number of observations to generate for the dataset. Note, there needs to be 
-#             at least one observation per level in each target.
+#   nobs    : Number of observations per target to generate for the dataset. Note, there needs to 
+#             be at least one observation per level in each target.
 #   ncov    : Number of covariates (features) in the dataset.
 #   data_sd : Standard deviation for generated covariate values (default: 1).
 #   beta    : Numeric vector of regression coefficients (optional; generated if NULL).

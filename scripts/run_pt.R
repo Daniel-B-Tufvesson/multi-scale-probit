@@ -19,8 +19,17 @@ fit_pt <- fit_mspm_pt(
     burnin = 10000,
     thin = 10,
     proposal_variance = 0.1,
-    #seed = 1234,
+    seed = 1234,
     ntemperatures = 10,
-    complete_param_swapping = TRUE,
+    complete_param_swapping = FALSE,
     verbose = 1000
 )
+
+# Plot fit.
+plot_posteriors_beta(fit)
+plot_posterior_gammas(fit)
+
+# Plot chains.
+plot_beta_chains(fit)
+plot_gamma_chains(fit, seperateGraphs = TRUE)
+plot_gamma_chains(fit)

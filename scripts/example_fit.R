@@ -20,7 +20,8 @@ data <- generate_synthetic_data(
 tuning_results <- tune_mspm(
     data = data,
     iterations = 20000,
-    stop_early = TRUE
+    stop_early = TRUE,
+    verbose = 500
 )
 
 # Fit using all the data.
@@ -29,15 +30,15 @@ fit <- fit_mspm(
     ndraws = 5000,
     burnin = 5000,
     thin = 10,
-    proposal_variance = tuning_results$final_proposal_variance,
+    proposal_variance = get_proposal_variance(tuning_results),
     seed = 1234,
     verbose = 1000
 )
 #fit
 
 # Plot fit.
-#plot_posteriors_beta(fit)
-#plot_posterior_gammas(fit)
+plot_posteriors_beta(fit)
+plot_posterior_gammas(fit)
 
 # Plot chains.
 plot_beta_chains(fit)
