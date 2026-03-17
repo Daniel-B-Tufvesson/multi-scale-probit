@@ -643,7 +643,7 @@ fit_mspm_pt <- function(
         ndraws = ndraws / thin,
         ndrawsNoThin = ndraws,
         thin = thin,
-        ntemperatures = ntemperatures,
+        inv_temperatures = inv_temperature_ladder,
         burnin = burnin,
         diagnostics = diagnostics,
         completeSwapping = complete_param_swapping,

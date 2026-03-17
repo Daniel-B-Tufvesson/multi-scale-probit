@@ -333,6 +333,7 @@ gewekeGammas.mspm <- function(object, ...) {
 #' @param ndraws The number of posterior draws collected after thinning.
 #' @param ndrawsNoThin The number of posterior draws collected before thinning.
 #' @param thin The thinning interval used in MCMC sampling.
+#' @param inv_temperatures The inverse temperature ladder used in parallel tempering.
 #' @param burnin The number of burn-in iterations used in MCMC sampling.
 #' @param burninBeta An MCMC object containing the burn-in samples for the beta parameters.
 #' @param burninGammas A list of MCMC objects containing the burn-in samples for the gamma 
@@ -358,7 +359,7 @@ new_mspm_pt <- function(
     ndraws,
     ndrawsNoThin,
     thin,
-    ntemperatures,
+    inv_temperatures,
     burnin,
     diagnostics,
     samplingTime,
@@ -383,7 +384,8 @@ new_mspm_pt <- function(
             thin = thin,
             burnin = burnin,
 
-            ntemperatures = ntemperatures,
+            inv_temperatures = inv_temperatures,
+            ntemperatures = length(inv_temperatures),
             completeSwapping = completeSwapping,
 
             samplingTime = samplingTime,
@@ -402,6 +404,10 @@ ntemperatures.mspm_pt <- function(object, ...) {
 
 get_proposal_variance.mspm_pt <- function(object, ...) {
     object$proposal_variance
+}
+
+get_inv_temperatures.mspm_pt <- function(object, ...) {
+    object$inv_temperatures
 }
 
 

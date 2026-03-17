@@ -94,8 +94,6 @@ public:
                 int round_trip_time = colder_chain.nsteps - cold_tag.last_start_time;
                 round_trip_times.push_back(round_trip_time);
                 cold_tag.last_start_time = colder_chain.nsteps;
-
-                std::cout << "Completed round trip for replica " << colder_chain.replica_id << " in " << round_trip_time << " steps." << std::endl;
             }
 
             cold_tag.direction = 1; // Should move toward hot now.
@@ -213,7 +211,6 @@ public:
             for (int i = 0; i < chains.size(); i++) {
                 replicas(i) = chains[i].replica_id;
             }
-            std::cout << "replicas: " << replicas.t() << std::flush;
         }
     }
 
@@ -421,7 +418,6 @@ private:
      * inverse temperatures (betas) in these chains will be updated based on the new ladder.
      */
     void adjust_ladder(PTChains& chains) {
-        std::cout << "Adjusting temperature ladder at step " << step << " with window size " << window_size << "." << std::endl;
         std::vector<double> ladder_gaps(ntemperatures - 1);
 
         // Compute old gaps.

@@ -37,8 +37,8 @@ fit <- fit_mspm(
 #fit
 
 # Plot fit.
-#plot_posteriors_beta(fit)
-#plot_posterior_gammas(fit)
+plot_posteriors_beta(fit)
+plot_posterior_gammas(fit)
 
 # Plot chains.
 plot_beta_chains(fit)
