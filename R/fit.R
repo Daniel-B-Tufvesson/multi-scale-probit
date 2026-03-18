@@ -182,6 +182,16 @@ fit_mspm <- function(
     if (is.null(gamma_start)) {
         gamma_start <- .create_inital_gammas(ntargets, nlevels)
     }
+    else if (length(gamma_start) == ntargets) {
+        # Append edge gammas if only inner gammas are provided.
+        gamma_start <- .add_edge_gammas(gamma_start)
+    }
+    else if (length(gamma_start) != ntargets + 2) {
+        # No edge gammas provided, but length does not match number of targets.
+        stop("Length of gamma_start must match number of targets.")
+    }
+
+    # Set starting values for beta if not provided.
     if (is.null(beta_start)) {
         beta_start <- rep(0, npredictors)
     }
@@ -702,6 +712,20 @@ fit_mspm_pt <- function(
         gamma.initial[[i]][nlevels[i] + 1] <- 300
     }
     gamma.initial
+}
+
+.add_edge_gammas <- function(gammas) {
+    # Add edge gammas for the backend function. This should really not be necessary, 
+    # but it is what it is for now. :/
+
+    gammas_with_edges <- list()
+    for (i in seq_along(gammas)) {
+        gamma <- gammas[[i]]
+        nlevels <- length(gamma) + 1
+        gamma_with_edges <- c(-300, gamma, 300)
+        gammas_with_edges[[i]] <- gamma_with_edges
+    }
+    return (gammas_with_edges)
 }
 
 .create_prec_prior <- function(npredictors) {
