@@ -1,13 +1,15 @@
 source("R/data.R")
 source("R/fit.R")
 source("R/plot.R")
+source("R/predict.R")
+source("R/eval.R")
 
 library(doParallel)
 library(foreach)
 library(coda)
 
 # Generate samples for the experiment.
-generate_experiment_samples <- function(data) {
+run_gibbs <- function(data) {
 
     # Set up parallelization workers.
     cl<-makeForkCluster(5) # 5 workers.
@@ -17,7 +19,7 @@ generate_experiment_samples <- function(data) {
 
     # Generate samples for 500 trials.
     res <- foreach(i = 1:500) %dopar% {
-        trial_res <- generate_trial_samples(
+        trial_res <- run_gibbs_trial(
             data = data,
             train_split_prop = 0.666, # 2/3
             burnin = 50000,
@@ -32,7 +34,7 @@ generate_experiment_samples <- function(data) {
 }
 
 # Generate samples for a single trial of the experiment.
-generate_trial_samples <- function(
+run_gibbs_trial <- function(
     data,
     train_split_prop,
     burnin,
@@ -79,17 +81,18 @@ generate_trial_samples <- function(
         compute_diagnostics = FALSE
     )
 
+    # Predict labels for test data.
+    predicted_labels <- predict_mspm(sampled_fit, newdata = test_data)
+
+    # Evaluate the predictions.
+    evaluation <- eval_mspm_prediction_draws(predictions = predicted_labels, 
+        test_data = test_data)
+
     return(list(
         burnin_fit = burnin_fit,
         sampled_fit = sampled_fit,
         estimated_proposal_variance = get_proposal_variance(tune_results),
-
-        burnin_time = burnin_fit$samplingTime,
-        sampled_time = sampled_fit$samplingTime,
-
-        burnin_nlikelihood_calls = burnin_fit$nlikelihood_calls,
-        sampled_nlikelihood_calls = sampled_fit$nlikelihood_calls
-
+        evaluation = evaluation
     ))
 }
 
@@ -106,7 +109,9 @@ data <- generate_synthetic_data(
 )
 
 # Generate samples.
-experiment_samples <- generate_experiment_samples(data)
-saveRDS(experiment_samples, "experiments/results/gibbs_samples.rds")
+gibbs_runs <- run_gibbs(data)
+saveRDS(gibbs_runs, "experiments/results/gibbs_runs2.rds")
+
+loaded_runs = readRDS("experiments/results/gibbs_runs2.rds")
 
 print("Done")
