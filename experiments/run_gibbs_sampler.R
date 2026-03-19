@@ -18,7 +18,7 @@ run_gibbs <- function(data) {
     clusterSetRNGStream(cl, 42)
 
     # Generate samples for 500 trials.
-    res <- foreach(i = 1:500) %dopar% {
+    res <- foreach(i = 1:5) %dopar% {
         trial_res <- run_gibbs_trial(
             data = data,
             train_split_prop = 0.666, # 2/3
@@ -110,8 +110,8 @@ data <- generate_synthetic_data(
 
 # Generate samples.
 gibbs_runs <- run_gibbs(data)
-saveRDS(gibbs_runs, "experiments/results/gibbs_runs2.rds")
+saveRDS(gibbs_runs, "experiments/results/gibbs-runs-small.rds")
 
-loaded_runs = readRDS("experiments/results/gibbs_runs2.rds")
+loaded_runs = readRDS("experiments/results/gibbs-runs-small.rds")
 
 print("Done")
