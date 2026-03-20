@@ -41,3 +41,11 @@ cpp_rmse_dist <- function(predictions, reference, ndraws) {
     .Call(`_masteruppsatsr_cpp_rmse_dist`, predictions, reference, ndraws)
 }
 
+cpp_moving_window_rhat <- function(chains, for_every, window_size) {
+    .Call(`_masteruppsatsr_cpp_moving_window_rhat`, chains, for_every, window_size)
+}
+
+cpp_cumulative_rhat <- function(chains, for_every) {
+    .Call(`_masteruppsatsr_cpp_cumulative_rhat`, chains, for_every)
+}
+

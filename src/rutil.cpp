@@ -318,3 +318,63 @@ print(cpp_rmse_dist(testmat, matrix(c(c(3,4,2), c(2, 3, 3)), byrow = TRUE, ncol 
 # }
 # print(ordres$Jaccard)
 */
+
+
+
+// [[Rcpp::depends(RcppArmadillo)]]
+
+// Helper: Compute univariate Gelman-Rubin R-hat for a set of chains (arma::mat, rows=chains, cols=samples)
+double arma_gelman_rubin_rhat(const arma::mat& chains) {
+    int m = chains.n_rows; // number of chains
+    int n = chains.n_cols; // samples per chain
+
+    // Chain means and variances
+    arma::colvec chain_means = arma::mean(chains, 1);
+    arma::colvec chain_vars = arma::var(chains, 0, 1); // unbiased, along columns
+
+    double mean_of_means = arma::mean(chain_means);
+
+    // Between-chain variance B
+    double B = n * arma::accu(arma::square(chain_means - mean_of_means)) / (m - 1);
+
+    // Within-chain variance W
+    double W = arma::mean(chain_vars);
+
+    // Estimate of marginal posterior variance
+    double var_hat = ((n - 1.0) / n) * W + (1.0 / n) * B;
+
+    // Potential scale reduction factor (R-hat)
+    return std::sqrt(var_hat / W);
+}
+
+// [[Rcpp::export]]
+arma::vec cpp_moving_window_rhat(const arma::mat& chains, int for_every, int window_size) {
+    // int n_chains = chains.n_rows;
+    int n_samples = chains.n_cols;
+    int n_rhats = (n_samples - window_size) / for_every + 1;
+    arma::vec rhat_values(n_rhats, arma::fill::none);
+
+    for (int t = 0; t < n_rhats; ++t) {
+        int start_idx = t * for_every;
+        int end_idx = start_idx + window_size - 1;
+        if (end_idx >= n_samples) break;
+        arma::mat window_chains = chains.cols(start_idx, end_idx);
+        rhat_values(t) = arma_gelman_rubin_rhat(window_chains);
+    }
+    return rhat_values;
+}
+
+// [[Rcpp::export]]
+arma::vec cpp_cumulative_rhat(const arma::mat& chains, int for_every) {
+    // int n_chains = chains.n_rows;
+    int n_samples = chains.n_cols;
+    int n_rhats = n_samples / for_every;
+    arma::vec rhat_values(n_rhats, arma::fill::none);
+
+    for (int t = 1; t <= n_rhats; ++t) {
+        int up_to = t * for_every - 1;
+        arma::mat cum_chains = chains.cols(0, up_to);
+        rhat_values(t - 1) = arma_gelman_rubin_rhat(cum_chains);
+    }
+    return rhat_values;
+}

@@ -13,7 +13,7 @@ generate_experiment_samples <- function(data) {
     registerDoParallel(cl)
     clusterSetRNGStream(cl, 42)
 
-    proposal_variance <- tune_gibbs(data, 10000)
+    proposal_variance <- tune_gibbs(data, 1)
 
     # Generate samples for 500 trials.
     res <- foreach(i = 1:500) %dopar% {
@@ -27,7 +27,7 @@ generate_experiment_samples <- function(data) {
     }
 
     return(res)
-}moblire
+}
 
 tune_gibbs <- function(data, iterations) {
     tune_results <- tune_mspm(
@@ -43,13 +43,22 @@ generate_gibbs_samples <- function(
     thin,
     proposal_variance
 ) {
+    # Start params at random state.
+    beta_start <- rnorm(48, sd = 3)
+    gamma_start <- list()
+    for (i in 1:ntargets(data)) {
+        gamma_start[[i]] <- sort(rnorm(nlevels(data)[i], sd = 3))
+    } 
+
     sampled_fit <- fit_mspm(
         data = data,
         ndraws = ndraws,
         burnin = 0,
         thin = thin,
         proposal_variance = proposal_variance,
-        compute_diagnostics = FALSE
+        compute_diagnostics = FALSE,
+        beta_start = beta_start,
+        gamma_start = gamma_start
     )
     return(sampled_fit)
 }

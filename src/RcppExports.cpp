@@ -193,6 +193,31 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_moving_window_rhat
+arma::vec cpp_moving_window_rhat(const arma::mat& chains, int for_every, int window_size);
+RcppExport SEXP _masteruppsatsr_cpp_moving_window_rhat(SEXP chainsSEXP, SEXP for_everySEXP, SEXP window_sizeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type chains(chainsSEXP);
+    Rcpp::traits::input_parameter< int >::type for_every(for_everySEXP);
+    Rcpp::traits::input_parameter< int >::type window_size(window_sizeSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_moving_window_rhat(chains, for_every, window_size));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_cumulative_rhat
+arma::vec cpp_cumulative_rhat(const arma::mat& chains, int for_every);
+RcppExport SEXP _masteruppsatsr_cpp_cumulative_rhat(SEXP chainsSEXP, SEXP for_everySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type chains(chainsSEXP);
+    Rcpp::traits::input_parameter< int >::type for_every(for_everySEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_cumulative_rhat(chains, for_every));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_masteruppsatsr_cpp_hprobit", (DL_FUNC) &_masteruppsatsr_cpp_hprobit, 13},
@@ -205,6 +230,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_masteruppsatsr_cpp_compare_distributions", (DL_FUNC) &_masteruppsatsr_cpp_compare_distributions, 2},
     {"_masteruppsatsr_cpp_diff_distributions", (DL_FUNC) &_masteruppsatsr_cpp_diff_distributions, 2},
     {"_masteruppsatsr_cpp_rmse_dist", (DL_FUNC) &_masteruppsatsr_cpp_rmse_dist, 3},
+    {"_masteruppsatsr_cpp_moving_window_rhat", (DL_FUNC) &_masteruppsatsr_cpp_moving_window_rhat, 3},
+    {"_masteruppsatsr_cpp_cumulative_rhat", (DL_FUNC) &_masteruppsatsr_cpp_cumulative_rhat, 2},
     {NULL, NULL, 0}
 };
 
