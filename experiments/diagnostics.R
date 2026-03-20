@@ -2,6 +2,38 @@ library(coda)
 
 source("experiments/plotting.R")
 
+moving_window_gelman_rubin_rhat_gelman_diag <- function(chains, for_every = 10, window_size = 1000) {
+    # Convert input to a matrix: rows = chains, cols = samples
+    if (inherits(chains, "mcmc.list")) {
+        chains_mat <- as.matrix(chains)
+    } else if (is.list(chains)) {
+        chains_mat <- do.call(rbind, lapply(chains, as.numeric))
+    } else {
+        chains_mat <- as.matrix(chains)
+    }
+    storage.mode(chains_mat) <- "numeric"
+    if (is.null(nrow(chains_mat)) || nrow(chains_mat) == 1) {
+        chains_mat <- t(chains_mat)
+    }
+    n_chains <- nrow(chains_mat)
+    n_samples <- ncol(chains_mat)
+    n_rhats <- floor((n_samples - window_size) / for_every) + 1
+    rhat_values <- rep(NA_real_, n_rhats)
+    for (t in seq_len(n_rhats)) {
+        start_idx <- (t - 1) * for_every + 1
+        end_idx <- start_idx + window_size - 1
+        if (end_idx > n_samples) break
+        # Create mcmc.list for this window
+        mcmc_chains <- lapply(1:n_chains, function(i) {
+            coda::mcmc(chains_mat[i, start_idx:end_idx])
+        })
+        mcmc_list <- coda::mcmc.list(mcmc_chains)
+        rhat_values[t] <- coda::gelman.diag(mcmc_list, autoburnin = FALSE)$psrf[1]
+    }
+    return(rhat_values)
+}
+
+
 #' Compute Cumulative Gelman-Rubin R-hat Statistic
 #'
 #' Computes the cumulative Gelman-Rubin R-hat convergence diagnostic for multiple MCMC chains.
@@ -13,111 +45,38 @@ source("experiments/plotting.R")
 #'
 #' @return A numeric vector of cumulative R-hat values, with length equal to n_samples.
 #'   Elements 1 to (min_samples - 1) are NA. Elements min_samples onward contain R-hat values.
-#'
-#' @details
-#' The Gelman-Rubin R-hat statistic (also called PSRF, potential scale reduction factor) 
-#' compares within-chain and between-chain variance to assess MCMC convergence.
-#' R-hat < 1.05 is typically considered good convergence.
-#'
-#' @examples
-#' \dontrun{
-#' library(coda)
-#' 
-#' # Example with synthetic data and list of mcmc objects
-#' set.seed(42)
-#' chain1 <- mcmc(rnorm(1000))
-#' chain2 <- mcmc(rnorm(1000))
-#' chain3 <- mcmc(rnorm(1000))
-#' chain4 <- mcmc(rnorm(1000))
-#' chains_list <- list(chain1, chain2, chain3, chain4)
-#' 
-#' rhat_cumulative <- cumulative_gelman_rubin_rhat(chains_list, min_samples = 20)
-#' plot(rhat_cumulative, type = "l", ylim = c(1, 1.2))
-#' }
-#'
-cumulative_gelman_rubin_rhat <- function(chains, for_every = 100) {
+cumulative_gelman_rubin_rhat_gelman_diag <- function(chains, for_every = 100) {
   # Convert to matrix depending on input type
   if (inherits(chains, "mcmc.list")) {
-    chains <- as.matrix(chains)
+    chains_mat <- as.matrix(chains)
   } else if (is.list(chains)) {
-    # Handle list of mcmc objects
-    chains <- do.call(rbind, lapply(chains, function(x) {
-      if (inherits(x, "mcmc")) {
-        as.numeric(x)
-      } else {
-        as.numeric(x)
-      }
-    }))
+    chains_mat <- do.call(rbind, lapply(chains, as.numeric))
   } else {
-    chains <- as.matrix(chains)
+    chains_mat <- as.matrix(chains)
   }
 
-#   chains = t(chains)
-  
-  # Ensure numeric type
-  storage.mode(chains) <- "numeric"
-  
-  # Handle 1D case by reshaping
-  if (is.null(nrow(chains)) || nrow(chains) == 1) {
-    chains <- t(chains)
+  storage.mode(chains_mat) <- "numeric"
+
+  if (is.null(nrow(chains_mat)) || nrow(chains_mat) == 1) {
+    chains_mat <- t(chains_mat)
   }
-  
-  n_chains <- nrow(chains)
-  n_samples <- ncol(chains)
-  
-  # Initialize output vector with NAs
-  n_rhats = n_samples / for_every
+
+  n_chains <- nrow(chains_mat)
+  n_samples <- ncol(chains_mat)
+
+  n_rhats <- floor(n_samples / for_every)
   rhat_values <- rep(NA_real_, n_rhats)
-  
-  # Compute R-hat for each cumulative sample size
-  for (t in 1:n_rhats) {
-    up_to = t * for_every
-    chains_subset <- chains[, 1:up_to, drop = FALSE]
-    rhat_values[t] <- gelman_rubin_rhat_single_param(chains_subset)
+
+  for (t in seq_len(n_rhats)) {
+    up_to <- t * for_every
+    mcmc_chains <- lapply(1:n_chains, function(i) {
+      coda::mcmc(chains_mat[i, 1:up_to])
+    })
+    mcmc_list <- coda::mcmc.list(mcmc_chains)
+    rhat_values[t] <- coda::gelman.diag(mcmc_list, autoburnin = FALSE)$psrf[1]
   }
-  
+
   return(rhat_values)
-}
-
-
-#' Gelman-Rubin R-hat for a Single Parameter
-#'
-#' Internal helper function to compute R-hat for a single parameter
-#' across multiple chains.
-#'
-#' @param chains Numeric matrix of shape (n_chains, n_samples)
-#'
-#' @return Numeric scalar representing the R-hat value
-#'
-#' @keywords internal
-gelman_rubin_rhat_single_param <- function(chains) {
-  n_chains <- nrow(chains)
-  n_samples <- ncol(chains)
-  
-  # Compute mean of each chain
-  chain_means <- rowMeans(chains)
-  
-  # Compute overall mean
-  overall_mean <- mean(chain_means)
-  
-  # Between-chain variance: B
-  # B = n / (m - 1) * sum((chain_i_mean - overall_mean)^2)
-  B <- (n_samples / (n_chains - 1)) * sum((chain_means - overall_mean)^2)
-  
-  # Within-chain variance: W
-  # W = 1/m * sum(var_i) where var_i is variance within chain i
-  chain_vars <- apply(chains, 1, var)
-  W <- mean(chain_vars)
-  
-  # Estimated variance of the stationary distribution
-  # var_hat = ((n - 1) / n) * W + (1 / n) * B
-  var_hat <- ((n_samples - 1) / n_samples) * W + (1 / n_samples) * B
-  
-  # R-hat (Potential Scale Reduction Factor)
-  # R-hat = sqrt(var_hat / W)
-  rhat <- sqrt(var_hat / W)
-  
-  return(rhat)
 }
 
 #' Compute First Index of Convergence
@@ -410,77 +369,55 @@ run_full_diagnostic <- function(all_runs) {
 
 
     ###################################################################################################
-    # Compute the cumulative R-hat for full samples samples.
+    # Compute the cumulative R-hat for all samples.
     rhat_for_every <- 100
-    cum_rhat_burnin_beta <- list()
+    cum_rhat_beta <- list()
     for (j in 1:n_beta_params) {
-        cum_rhat_burnin_beta[[j]] <- cumulative_gelman_rubin_rhat(all_betas[[j]], for_every = rhat_for_every)
+        #cum_rhat_beta[[j]] <- cumulative_gelman_rubin_rhat(all_betas[[j]], for_every = rhat_for_every)
+        cum_rhat_beta[[j]] <- cumulative_gelman_rubin_rhat_gelman_diag(all_betas[[j]], for_every = rhat_for_every)
     }
 
-    cum_rhat_burnin_gammas <- list()
+    cum_rhat_gammas <- list()
     for (j in 1:n_targets) {
         cum_rhat <- list()
         for (i in 1:n_gammas[[j]]) {
-            cum_rhat[[i]] <- cumulative_gelman_rubin_rhat(all_gammas[[j]][[i]], for_every = rhat_for_every)
+            cum_rhat[[i]] <- cumulative_gelman_rubin_rhat_gelman_diag(all_gammas[[j]][[i]], for_every = rhat_for_every)
         }
-        cum_rhat_burnin_gammas[[j]] <- cum_rhat
+        cum_rhat_gammas[[j]] <- cum_rhat
     }
 
     # Compute convergence time for burn-in beta samples.
-    burnin_convergence_time_beta <- list()
-    n_burnin_beta_convergences <- 0 # Number of betas that converged.
+    convergence_time_beta <- list()
+    n_beta_convergences <- 0 # Number of betas that converged.
     for (j in 1:n_beta_params) {
-        convergence_time <- first_convergence_index(cum_rhat_burnin_beta[[j]], step_size = rhat_for_every)
-        burnin_convergence_time_beta[[j]] <- convergence_time
+        convergence_time <- first_convergence_index(cum_rhat_beta[[j]], step_size = rhat_for_every)
+        convergence_time_beta[[j]] <- convergence_time
 
         if (!is.na(convergence_time)) {
-            n_burnin_beta_convergences <- n_burnin_beta_convergences + 1
+            n_beta_convergences <- n_beta_convergences + 1
         }
     }
     # Compute convergence time for burn-in beta samples.
-    burnin_convergence_time_gammas <- list()
-    n_burnin_gamma_convergences = 0 # Number of gammas that converged.
+    convergence_time_gammas <- list()
+    n_gamma_convergences = 0 # Number of gammas that converged.
     for (j in 1:n_targets) {
         convergence_times <- list()
         for (i in 1:n_gammas[[j]]) {
-            convergence_time <- first_convergence_index(cum_rhat_burnin_gammas[[j]][[i]], step_size = rhat_for_every)
+            convergence_time <- first_convergence_index(cum_rhat_gammas[[j]][[i]], step_size = rhat_for_every)
             convergence_times[[i]] <- convergence_time
 
             if (!is.na(convergence_time)) {
-                n_burnin_gamma_convergences <- n_burnin_gamma_convergences + 1
+                n_gamma_convergences <- n_gamma_convergences + 1
             }
         }
-        burnin_convergence_time_gammas[[j]] <- convergence_times
+        convergence_time_gammas[[j]] <- convergence_times
     }
 
     # Compute median convergence time for burn-in betas and gammas.
-    median_convergence_time_beta <- median(unlist(burnin_convergence_time_beta), na.rm = TRUE)
-    median_convergence_time_gammas <- median(unlist(burnin_convergence_time_gammas), na.rm = TRUE)
-
-    ###################################################################################################
-    # Compute regular R-hat for sampled values.
-    rhat_sampled_betas <- list()
-    n_sampled_betas_convergences = 0 # Number of sampled betas that converged.
-    for (j in 1:n_beta_params) {
-        rhat_sampled_betas[[j]] <- gelman_rubin_rhat_single_param(all_sampled_betas[[j]])
-
-        if (rhat_sampled_betas[[j]] <= 1.01) {
-            n_sampled_betas_convergences <- n_sampled_betas_convergences + 1
-        }
-    }
-    rhat_sampled_gammas <- list()
-    n_sampled_gammas_convergences = 0 # Number of sampled gammas that converged.
-    for (j in 1:n_targets) {
-        rhat_gammas <- list()
-        for (i in 1:n_gammas[[j]]) {
-            rhat_gammas[[i]] <- gelman_rubin_rhat_single_param(all_sampled_gammas[[j]][[i]])
-
-            if (rhat_gammas[[i]] <= 1.01) {
-                n_sampled_gammas_convergences <- n_sampled_gammas_convergences + 1
-            }
-        }
-        rhat_sampled_gammas[[j]] <- rhat_gammas
-    }
+    median_convergence_time_beta <- median(unlist(convergence_time_beta), na.rm = TRUE)
+    median_convergence_time_gammas <- median(unlist(convergence_time_gammas), na.rm = TRUE)
+    # Compute join median convergence time.
+    median_convergence_time <- median(c(unlist(convergence_time_beta), unlist(convergence_time_gammas)), na.rm = TRUE)
 
     ##################################################################################################
     # Compute min ESS
@@ -527,12 +464,11 @@ run_full_diagnostic <- function(all_runs) {
         n_gamma_params = n_gamma_params,
         n_gammas = n_gammas,
 
-        n_burnin_beta_convergences = n_burnin_beta_convergences,
-        n_burnin_gamma_convergences = n_burnin_gamma_convergences,
-        n_sampled_betas_convergences = n_sampled_betas_convergences,
-        n_sampled_gammas_convergences = n_sampled_gammas_convergences,
+        n_beta_convergences = n_beta_convergences,
+        n_gamma_convergences = n_gamma_convergences,
         median_convergence_time_beta = median_convergence_time_beta,
         median_convergence_time_gammas = median_convergence_time_gammas,
+        median_convergence_time = median_convergence_time,
 
         median_min_ess_beta = median_min_ess_beta,
         median_min_ess_gamma = median_min_ess_gamma,
@@ -541,12 +477,10 @@ run_full_diagnostic <- function(all_runs) {
         median_min_ess_per_iteration_beta = median_min_ess_per_iteration_beta,
         median_min_ess_per_iteration_gamma = median_min_ess_per_iteration_gamma,
 
-        cum_rhat_burnin_beta = cum_rhat_burnin_beta,
-        cum_rhat_burnin_gammas = cum_rhat_burnin_gammas,
-        burnin_convergence_time_beta = burnin_convergence_time_beta,
-        burnin_convergence_time_gammas = burnin_convergence_time_gammas,
-        rhat_sampled_betas = rhat_sampled_betas,
-        rhat_sampled_gammas = rhat_sampled_gammas,
+        cum_rhat_beta = cum_rhat_beta,
+        cum_rhat_gammas = cum_rhat_gammas,
+        convergence_time_beta = convergence_time_beta,
+        convergence_time_gammas = convergence_time_gammas,
         beta_min_ess = beta_min_ess,
         gamma_min_ess = gamma_min_ess,
         beta_min_ess_per_second = beta_min_ess_per_second,
@@ -574,46 +508,30 @@ to_percent <- function(value) {
 print_diagnostic_report <- function(diagnostic_results) {
     dr <- diagnostic_results
     cat("Diagnostic Report for Gibbs Sampling:\n")
-    cat("1. Cumulative R-hat Analysis for Burn-in Beta:\n")
-    cat("   - ", dr$n_burnin_beta_convergences, "/", dr$n_beta_params, "(",
-        to_percent(dr$n_burnin_beta_convergences / dr$n_beta_params), ") burn-in betas converged.\n")
+    cat("1. Cumulative R-hat Analysis for Beta:\n")
+    cat("   - ", dr$n_beta_convergences, "/", dr$n_beta_params, "(",
+        to_percent(dr$n_beta_convergences / dr$n_beta_params), ") betas converged.\n")
     for (j in 1:dr$n_beta_params) {
-        final_rhat <- tail(dr$cum_rhat_burnin_beta[[j]], n = 1)
-        converged_at <- dr$burnin_convergence_time_beta[[j]]
+        final_rhat <- tail(dr$cum_rhat_beta[[j]], n = 1)
+        converged_at <- dr$convergence_time_beta[[j]]
         rhat_ok <- is_rhat_ok(final_rhat)
         cat(paste0("   - ", rhat_ok, " Beta ", j, " converged at ", converged_at, " r-hat = ", final_rhat, "\n"))
     }
 
-    cat("2. Cumulative R-hat Analysis for Burn-in Gammas:\n")
-    cat(paste0("      - ", dr$n_burnin_gamma_convergences, "/", dr$n_gamma_params, " (",
-            to_percent(dr$n_burnin_gamma_convergences / dr$n_gamma_params), ") burn-in gammas converged.\n"))
+    cat("2. Cumulative R-hat Analysis for Gammas:\n")
+    cat(paste0("      - ", dr$n_gamma_convergences, "/", dr$n_gamma_params, " (",
+            to_percent(dr$n_gamma_convergences / dr$n_gamma_params), ") gammas converged.\n"))
     for (j in 1:dr$n_targets) {
         cat(paste0("   - Gammas for target ", j, ":\n"))
         for (i in 1:dr$n_gammas[[j]]) {
-            final_rhat <- tail(dr$cum_rhat_burnin_gammas[[j]][[i]], n = 1)
-            converged_at <- dr$burnin_convergence_time_gammas[[j]][[i]]
+            final_rhat <- tail(dr$cum_rhat_gammas[[j]][[i]], n = 1)
+            converged_at <- dr$convergence_time_gammas[[j]][[i]]
             rhat_ok <- is_rhat_ok(final_rhat)
             cat(paste0("      - ", rhat_ok, " Gamma ", i, " converged at ", converged_at, " r-hat = ", final_rhat, "\n"))
         }
     }
-    cat("3. R-hat Analysis for Sampled Betas\n")
-    for (j in 1:dr$n_beta_params) {
-        final_rhat <- dr$rhat_sampled_betas[[j]]
-        rhat_ok <- is_rhat_ok(final_rhat)
-        cat(paste0("   - ", rhat_ok, " Beta ", j, ": R-hat = ", round(final_rhat, 4), "\n"))
-    }
 
-    cat("4. R-hat Analysis for Sampled Gammas\n")
-    for (j in 1:dr$n_targets) {
-        cat(paste0("   - Gammas for target ", j, ":\n"))
-        for (i in 1:dr$n_gammas[[j]]) {
-            final_rhat <- dr$rhat_sampled_gammas[[j]][[i]]
-            rhat_ok <- is_rhat_ok(final_rhat)
-            cat(paste0("      - ", rhat_ok, " Gamma ", i, ": R-hat = ", round(final_rhat, 4), "\n"))
-        }
-    }
-
-    cat("5. ESS Analysis for joint Betas and Gammas\n")
+    cat("3. ESS Analysis for joint Betas and Gammas\n")
     cat("   - Median minimum ESS for sampled betas: ", round(dr$median_min_ess_beta, 4), " ESS\n")
     cat("   - Median minimum ESS for sampled gammas: ", round(dr$median_min_ess_gamma, 4), " ESS\n")
     cat("   - Median minimum ESS/s for sampled betas: ", round(dr$median_min_ess_per_second_beta, 4), " ESS/s\n")
@@ -621,28 +539,25 @@ print_diagnostic_report <- function(diagnostic_results) {
     cat("   - Median minimum ESS/iteration for sampled betas: ", round(dr$median_min_ess_per_iteration_beta, 4), " ESS/iteration\n")
     cat("   - Median minimum ESS/iteration for sampled gammas: ", round(dr$median_min_ess_per_iteration_gamma, 4), " ESS/iteration\n")
 
-    cat("6. Summary\n")
-    cat("   - ", dr$n_burnin_beta_convergences, "/", dr$n_beta_params, "(",
-        to_percent(dr$n_burnin_beta_convergences / dr$n_beta_params), ") burn-in betas converged.\n")
-    cat("   - ", dr$n_burnin_gamma_convergences, "/", dr$n_gamma_params, "(",
-        to_percent(dr$n_burnin_gamma_convergences / dr$n_gamma_params), ") burn-in gammas converged.\n")
-    cat("   - ", dr$n_sampled_betas_convergences, "/", dr$n_beta_params, "(",
-        to_percent(dr$n_sampled_betas_convergences / dr$n_beta_params), ") sampled betas converged.\n")
-    cat("   - ", dr$n_sampled_gammas_convergences, "/", dr$n_gamma_params, "(",
-        to_percent(dr$n_sampled_gammas_convergences / dr$n_gamma_params), ") sampled gammas converged.\n")
-    cat("   - Median convergence time for burn-in betas: ", dr$median_convergence_time_beta, " samples\n")
-    cat("   - Median convergence time for burn-in gammas: ", dr$median_convergence_time_gammas, " samples\n")
+    cat("4. Summary\n")
+    cat("   - ", dr$n_beta_convergences, "/", dr$n_beta_params, "(",
+        to_percent(dr$n_beta_convergences / dr$n_beta_params), ") betas converged.\n")
+    cat("   - ", dr$n_gamma_convergences, "/", dr$n_gamma_params, "(",
+        to_percent(dr$n_gamma_convergences / dr$n_gamma_params), ") gammas converged.\n")
+    cat("   - Median convergence time for betas: ", dr$median_convergence_time_beta, " samples\n")
+    cat("   - Median convergence time for gammas: ", dr$median_convergence_time_gammas, " samples\n")
+    cat("   - Median convergence time for betas and gammas: ", dr$median_convergence_time, " samples\n")
 }
 
 plot_diagnostic_plots <- function(diagnostic_results) {
     dr <- diagnostic_results
     # Plot convergence time distribution for burn-in betas and gammas.
-    # print(density_plot(unlist(dr$burnin_convergence_time_beta),
-    #             title = "Density of Convergence Times for Burn-in Betas", 
-    #             xlabel = "Convergence Time (samples)"))
-    # print(density_plot(unlist(dr$burnin_convergence_time_gammas),
-    #             title = "Density of Convergence Times for Burn-in Gammas", 
-    #             xlabel = "Convergence Time (samples)"))
+    print(density_plot(unlist(dr$convergence_time_beta),
+                title = "Density of Convergence Times for Betas", 
+                xlabel = "Convergence Time (samples)"))
+    print(density_plot(unlist(dr$convergence_time_gammas),
+                title = "Density of Convergence Times for Gammas", 
+                xlabel = "Convergence Time (samples)"))
     
     # Plot distributions of ESS/per second.
     print(density_plot(unlist(dia_res$beta_min_ess_per_second),

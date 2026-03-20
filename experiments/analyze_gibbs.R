@@ -19,8 +19,8 @@ dia_res <- run_full_diagnostic(all_runs)
 plot_diagnostic_plots(dia_res)
 print_diagnostic_report(dia_res)
 
-plot_cum_rhat(dia_res$cum_rhat_burnin_beta[[1]], 100)
-plot_cum_rhat(dia_res$cum_rhat_burnin_beta[[2]], 100)
-plot_cum_rhat(dia_res$cum_rhat_burnin_beta[[3]], 100)
+plot_cum_rhat(dia_res$cum_rhat_beta[[1]], 100)
+plot_cum_rhat(dia_res$cum_rhat_beta[[2]], 100)
+plot_cum_rhat(dia_res$cum_rhat_beta[[3]], 100)
 
 
