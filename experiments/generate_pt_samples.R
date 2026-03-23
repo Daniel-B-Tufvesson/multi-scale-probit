@@ -13,17 +13,17 @@ generate_experiment_samples <- function(data) {
     registerDoParallel(cl)
     clusterSetRNGStream(cl, 42)
 
-    ntemperatures <- 10
+    ntemperatures <- 3
 
     print("Tune sampler.")
-    tune_results <- tune_pt(data, 10000, ntemperatures)
+    tune_results <- tune_pt(data, 10, ntemperatures)
 
     # Generate samples for 500 trials.
     print("Start parallel samplers")
-    res <- foreach(i = 1:500) %dopar% {
+    res <- foreach(i = 1:3) %dopar% {
         samples <- generate_pt_samples(
             data = data,
-            ndraws = 100000,
+            ndraws = 1000,
             thin = 10,
             ntemperatures = ntemperatures,
             inv_temperature_ladder = get_inv_temperatures(tune_results),
