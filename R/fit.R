@@ -529,6 +529,16 @@ fit_mspm_pt <- function(
     if (is.null(gamma_start)) {
         gamma_start <- .create_inital_gammas(ntargets, nlevels)
     }
+    else if (length(gamma_start) == ntargets) {
+        # Append edge gammas if only inner gammas are provided.
+        gamma_start <- .add_edge_gammas(gamma_start)
+    }
+    else if (length(gamma_start) != ntargets + 2) {
+        # No edge gammas provided, but length does not match number of targets.
+        stop("Length of gamma_start must match number of targets.")
+    }
+
+    
     if (is.null(beta_start)) {
         beta_start <- rep(0, npredictors)
     }
