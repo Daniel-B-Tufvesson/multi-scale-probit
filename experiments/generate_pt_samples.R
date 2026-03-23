@@ -1,8 +1,12 @@
-source("R/data.R")
-source("R/fit.R")
 
-library(doParallel)
+devtools::load_all()
+
+# library(doParallel)
 library(foreach)
+library(doRNG)
+
+library(progressr)
+handlers(global = TRUE) # enables progress bar in console
 
 # Generate samples for the experiment.
 generate_experiment_samples <- function(
@@ -18,31 +22,35 @@ generate_experiment_samples <- function(
     ncores <- parallel::detectCores() - 1
     cat("Setting up parallelization with ", ncores, " cores.\n", sep = "")
 
-    cl<-makeForkCluster(ncores) # 7 workers.
-    on.exit(stopCluster(cl))
-    registerDoParallel(cl)
-    clusterSetRNGStream(cl, 42)
-
-    ntemperatures <- 3
+    library(doFuture)
+    plan(multisession, workers = ncores)
+    registerDoFuture()
 
     print("Tune sampler.")
     tune_results <- tune_pt(data, tune_iterations, ntemperatures)
 
-    # Generate samples for 500 trials.
+    # Generate samples for n trials.
     print("Start parallel samplers")
-    res <- foreach(i = 1:nsplits) %dopar% {
-        samples <- generate_pt_samples(
-            data = data,
-            ndraws = ndraws,
-            thin = 10,
-            ntemperatures = ntemperatures,
-            inv_temperature_ladder = get_inv_temperatures(tune_results),
-            proposal_variance = get_proposal_variance(tune_results),
-            complete_param_swapping = complete_param_swapping
-        )
-        return(samples)
-    }
+    with_progress({
+        p <- progressor(along = 1:nsplits)
+        
+        res <- foreach(i = 1:nsplits) %dorng% {
+            suppressMessages(suppressWarnings(devtools::load_all()))
+            samples <- generate_pt_samples(
+                data = data,
+                ndraws = ndraws,
+                thin = 10,
+                ntemperatures = ntemperatures,
+                inv_temperature_ladder = get_inv_temperatures(tune_results),
+                proposal_variance = get_proposal_variance(tune_results),
+                complete_param_swapping = complete_param_swapping
+            )
+            p() # update progress
+            return(samples)
+        }
+    })
 
+    print("Finished parallel samplers")
     return(res)
 }
 
@@ -64,11 +72,12 @@ generate_pt_samples <- function(
     proposal_variance,
     complete_param_swapping
 ) {
+
     # Start params at random state.
     beta_start <- rnorm(48, sd = 4)
     gamma_start <- list()
-    for (i in 1:ntargets(data)) {
-        gamma_start[[i]] <- sort(rnorm(nlevels(data)[i], sd = 4))
+    for (i in 1:get_n_targets(data)) {
+        gamma_start[[i]] <- sort(rnorm(get_n_levels(data)[i], sd = 4))
     } 
 
     sampled_fit <- fit_mspm_pt(
@@ -122,10 +131,10 @@ execute_experiment <- function(
 
 
 # Run dummy experiment.
-# execute_experiment(
-#     ntemperatures = 3,
-#     output_directory = "experiments/results",
-#     nsplits = 3,
-#     ndraws = 1000,
-#     tune_iterations = 100
-# )
+execute_experiment(
+    ntemperatures = 3,
+    output_directory = "experiments/results",
+    nsplits = 10,
+    ndraws = 2000,
+    tune_iterations = 100
+)

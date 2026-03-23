@@ -11,8 +11,8 @@
 #' }
 #' @param ... Additional arguments (not used).
 #' @return An mspm_data_spec object containing the data specification for the data.
-data_spec <- function(object, ...) {
-    UseMethod("data_spec")
+get_data_spec <- function(object, ...) {
+    UseMethod("get_data_spec")
 }
 
 #' The number of targets (datasets) in a multi-scale probit model object.
@@ -27,8 +27,12 @@ data_spec <- function(object, ...) {
 #' }
 #' @param ... Additional arguments (not used).
 #' @return An integer indicating the number of target datasets.
-ntargets <- function(object, ...) {
-    UseMethod("ntargets")
+# ntargets <- function(object, ...) {
+#     UseMethod("ntargets")
+# }
+
+get_n_targets <- function(object, ...) {
+    UseMethod("get_n_targets")
 }
 
 #' The number of levels for each target dataset in a multi-scale probit model object.
@@ -43,8 +47,12 @@ ntargets <- function(object, ...) {
 #' }
 #' @param ... Additional arguments (not used).
 #' @return A vector of integers indicating the number of levels for each target dataset.
-nlevels <- function(object, ...) {
-    UseMethod("nlevels")
+# nlevels <- function(object, ...) {
+#     UseMethod("nlevels")
+# }
+
+get_n_levels <- function(object, ...) {
+    UseMethod("get_n_levels")
 }
 
 #' The names of predictor variables in a multi-scale probit model object.
@@ -59,8 +67,12 @@ nlevels <- function(object, ...) {
 #' }
 #' @param ... Additional arguments (not used).
 #' @return A character vector of predictor variable names.
-predictorNames <- function(object, ...) {
-    UseMethod("predictorNames")
+get_predictor_names <- function(object, ...) {
+    UseMethod("get_predictor_names")
+}
+
+get_n_predictors <- function(object, ...) {
+    UseMethod("get_n_predictors")
 }
 
 #' The names of response variables in a multi-scale probit model object.
@@ -75,8 +87,8 @@ predictorNames <- function(object, ...) {
 #' }
 #' @param ... Additional arguments (not used).
 #' @return A character vector of response variable names.
-responseNames <- function(object, ...) {
-    UseMethod("responseNames")
+get_response_names <- function(object, ...) {
+    UseMethod("get_response_names")
 }
 
 #' The names of levels for each target dataset in a multi-scale probit model object.
@@ -91,47 +103,25 @@ responseNames <- function(object, ...) {
 #' }
 #' @param ... Additional arguments (not used).
 #' @return A list of character vectors containing level names for each target dataset.
-levelNames <- function(object, ...) {
-    UseMethod("levelNames")
+get_level_names <- function(object, ...) {
+    UseMethod("get_level_names")
 }
 
-beta <- function(object, ...) {
-    UseMethod("beta")
+get_beta <- function(object, ...) {
+    UseMethod("get_beta")
 }
 
-gammas <- function(object, ...) {
-    UseMethod("gammas")
+get_gammas <- function(object, ...) {
+    UseMethod("get_gammas")
 }
 
-#' An MCMC object containing the burn-in samples for the beta parameters.
-#'
-#' @param object An mspm object.
-#' @param ... Additional arguments (not used).
-#' @return An MCMC object containing the burn-in samples for the beta parameters. Returns NULL if
-#' the object does not contain burn-in samples for beta.
-burninBeta <- function(object, ...) {
-    UseMethod("burninBeta")
+
+get_mean_prior <- function(object, ...) {
+    UseMethod("get_mean_prior")
 }
 
-#' A list of MCMC objects containing the burn-in samples for the gamma parameters for each target 
-#' dataset. 
-#'
-#' @param object An mspm object.
-#' @param ... Additional arguments (not used).
-#' @return A list of MCMC objects containing the burn-in samples for the gamma parameters for each
-#' target dataset. Each element of the list corresponds to a target dataset and contains an MCMC
-#' object with the burn-in samples for the gamma parameters of that target. Returns NULL if the
-#' object does not contain burn-in samples for gamma.
-burninGammas <- function(object, ...) {
-    UseMethod("burninGammas")
-}
-
-meanPrior <- function(object, ...) {
-    UseMethod("meanPrior")
-}
-
-precPrior <- function(object, ...) {
-    UseMethod("precPrior")
+get_prec_prior <- function(object, ...) {
+    UseMethod("get_prec_prior")
 }
 
 #' The number of posterior draws in a multi-scale probit model object.
@@ -144,8 +134,8 @@ precPrior <- function(object, ...) {
 #' }
 #' @param ... Additional arguments (not used).
 #' @return An integer indicating the number of posterior draws.
-ndraws <- function(object, ...) {
-    UseMethod("ndraws")
+get_n_draws <- function(object, ...) {
+    UseMethod("get_n_draws")
 }
 
 #' The number of posterior draws before thinning in a multi-scale probit model object.
@@ -153,16 +143,16 @@ ndraws <- function(object, ...) {
 #' @param object An mspm object.
 #' @param ... Additional arguments (not used).
 #' @return An integer indicating the number of posterior draws before thinning.
-ndrawsNoThin <- function(object, ...) {
-    UseMethod("ndrawsNoThin")
+get_n_draws_no_thin <- function(object, ...) {
+    UseMethod("get_n_draws_no_thin")
 }
 
-burnin <- function(object, ...) {
-    UseMethod("burnin")
+get_burnin <- function(object, ...) {
+    UseMethod("get_burnin")
 }
 
-thin <- function(object, ...) {
-    UseMethod("thin")
+get_thin <- function(object, ...) {
+    UseMethod("get_thin")
 }
 
 #' The proposal variance used in the MCMC sampling for a multi-scale probit model object.
@@ -198,8 +188,8 @@ get_nlikelihood_calls <- function(object, ...) {
 #' @param object An mspm object.
 #' @param ... Additional arguments (not used).
 #' @return A numeric value indicating the total time taken for the MCMC sampling process in seconds. 
-samplingTime <- function(object, ...) {
-    UseMethod("samplingTime")
+get_sampling_time <- function(object, ...) {
+    UseMethod("get_sampling_time")
 }
 
 #' The time taken for the burn-in phase of MCMC sampling. This only encompasses the time taken for
@@ -210,8 +200,8 @@ samplingTime <- function(object, ...) {
 #' @param ... Additional arguments (not used).
 #' @return A numeric value indicating the total time taken for the burn-in phase of MCMC sampling in
 #' seconds.
-burninTime <- function(object, ...) {
-    UseMethod("burninTime")
+get_burnin_time <- function(object, ...) {
+    UseMethod("get_burnin_time")
 }
 
 #' The predicted values of latent variable. This is also known as y* (y-star).
@@ -219,8 +209,8 @@ burninTime <- function(object, ...) {
 #' @param object An mspm_labeled_prediction object.
 #' @param ... Additional arguments (not used).
 #' @return A list of matrices containing predicted latent variable values for each target dataset.
-latent <- function(object, ...) {
-    UseMethod("latent")
+get_latent_prediction <- function(object, ...) {
+    UseMethod("get_latent_prediction")
 }
 
 #' The predicted labels for each target dataset. 
@@ -231,8 +221,8 @@ latent <- function(object, ...) {
 #' }
 #' @param ... Additional arguments (not used).
 #' @return A list of matrices containing predicted labels for each target dataset.
-predictedLabels <- function(object, ...) {
-    UseMethod("predictedLabels")
+get_predicted_labels <- function(object, ...) {
+    UseMethod("get_predicted_labels")
 }
 
 #' The indexes of predicted labels for each target dataset.
@@ -243,8 +233,8 @@ predictedLabels <- function(object, ...) {
 #' }
 #' @param ... Additional arguments (not used).
 #' @return A list of matrices containing indexes of predicted labels for each target dataset.
-predictedLabelIndexes <- function(object, ...) {
-    UseMethod("predictedLabelIndexes")
+get_predicted_label_indexes <- function(object, ...) {
+    UseMethod("get_predicted_label_indexes")
 }
 
 #' The evaluation metrics for predictions.
@@ -256,8 +246,8 @@ predictedLabelIndexes <- function(object, ...) {
 #' }
 #' @param ... Additional arguments (not used).
 #' @return A character vector of evaluation metric names.
-evalMetrics <- function(object, ...) {
-    UseMethod("evalMetrics")
+get_eval_metrics <- function() {
+    UseMethod("get_eval_metrics")
 }
 
 #' The results of evaluation for each posterior draw.
@@ -433,8 +423,8 @@ gelmanRhatGammas <- function(object, ...) {
     UseMethod("gelmanRhatGammas")
 }
 
-ntemperatures <- function(object, ...) {
-    UseMethod("ntemperatures")
+get_n_temperatures <- function(object, ...) {
+    UseMethod("get_n_temperatures")
 }
 
 get_inv_temperatures <- function(object, ...) {

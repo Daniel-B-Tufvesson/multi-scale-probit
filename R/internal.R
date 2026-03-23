@@ -22,25 +22,30 @@ new_msmp_data_spec <- function(
     )
 }
 
-predictorNames.mspm_data_spec <- function(object, ...) {
+get_predictor_names.mspm_data_spec <- function(object, ...) {
     object$predictorNames
 }
 
-responseNames.mspm_data_spec <- function(object, ...) {
+get_n_predictors.mspm_data_spec <- function(object, ...) {
+    length(get_predictor_names(object))
+}
+
+get_response_names.mspm_data_spec <- function(object, ...) {
     object$responseNames
 }
 
-levelNames.mspm_data_spec <- function(object, ...) {
+get_level_names.mspm_data_spec <- function(object, ...) {
     object$levelNames
 }
 
-nlevels.mspm_data_spec <- function(object, ...) {
+get_n_levels.mspm_data_spec <- function(object, ...) {
     object$nlevels
 }
 
-ntargets.mspm_data_spec <- function(object, ...) {
+get_n_targets.mspm_data_spec <- function(object, ...) {
     object$ntargets
 }
+
 
 # Constructor for creating a new multi-scale probit model data structure.
 #
@@ -84,28 +89,32 @@ new_mspm_data <- function(
     )
 }
 
-data_spec.mspm_data <- function(object, ...) {
+get_data_spec.mspm_data <- function(object, ...) {
     object$data_spec
 }
 
-ntargets.mspm_data <- function(object, ...) {
-    ntargets(object$data_spec)
+get_n_targets.mspm_data <- function(object, ...) {
+    get_n_targets(object$data_spec)
 }
 
-nlevels.mspm_data <- function(object, ...) {
-    nlevels(object$data_spec)
+get_n_levels.mspm_data <- function(object, ...) {
+    get_n_levels(object$data_spec)
 }
 
-predictorNames.mspm_data <- function(object, ...) {
-    predictorNames(object$data_spec)
+get_predictor_names.mspm_data <- function(object, ...) {
+    get_predictor_names(object$data_spec)
 }
 
-responseNames.mspm_data <- function(object, ...) {
-    responseNames(object$data_spec)
+get_n_predictors.mspm_data <- function(object, ...) {
+    length(get_predictor_names(object))
 }
 
-levelNames.mspm_data <- function(object, ...) {
-    levelNames(object$data_spec)
+get_response_names.mspm_data <- function(object, ...) {
+    get_response_names(object$data_spec)
+}
+
+get_level_names.mspm_data <- function(object, ...) {
+    get_level_names(object$data_spec)
 }
 
 #' Constructor for creating a new multi-scale probit model single chain diagnostics object.
@@ -220,43 +229,47 @@ new_mspm <- function(
     )
 }
 
-data_spec.mspm <- function(object, ...) {
+get_data_spec.mspm <- function(object, ...) {
     object$data_spec
 }
 
-ntargets.mspm <- function(object, ...) {
-    ntargets(object$data_spec)
+get_n_targets.mspm <- function(object, ...) {
+    get_n_targets(object$data_spec)
 }
 
-nlevels.mspm <- function(object, ...) {
-    nlevels(object$data_spec)
+get_n_levels.mspm <- function(object, ...) {
+    get_n_levels(object$data_spec)
 }
 
-levelNames.mspm <- function(object, ...) {
-    levelNames(object$data_spec)
+get_level_names.mspm <- function(object, ...) {
+    get_level_names(object$data_spec)
 }
 
-predictorNames.mspm <- function(object, ...) {
-    predictorNames(object$data_spec)
+get_predictor_names.mspm <- function(object, ...) {
+    get_predictor_names(object$data_spec)
 }
 
-responseNames.mspm <- function(object, ...) {
-    responseNames(object$data_spec)
+get_n_predictors.mspm <- function(object, ...) {
+    length(get_predictor_names(object))
 }
 
-beta.mspm <- function(object, ...) {
+get_response_names.mspm <- function(object, ...) {
+    get_response_names(object$data_spec)
+}
+
+get_beta.mspm <- function(object, ...) {
     object$beta
 }
 
-gammas.mspm <- function(object, ...) {
+get_gammas.mspm <- function(object, ...) {
     object$gammas
 }
 
-meanPrior.mspm <- function(object, ...) {
+get_mean_prior.mspm <- function(object, ...) {
     object$meanPrior
 }
 
-precPrior.mspm <- function(object, ...) {
+get_prec_prior.mspm <- function(object, ...) {
     object$precPrior
 }
 
@@ -268,35 +281,27 @@ get_nlikelihood_calls.mspm <- function(object, ...) {
     object$nlikelihood_calls
 }
 
-ndraws.mspm <- function(object, ...) {
+get_n_draws.mspm <- function(object, ...) {
     object$ndraws
 }
 
-ndrawsNoThin.mspm <- function(object, ...) {
+get_n_draws_no_thin.mspm <- function(object, ...) {
     object$ndrawsNoThin
 }
 
-burnin.mspm <- function(object, ...) {
+get_burnin.mspm <- function(object, ...) {
     object$burnin
 }
 
-burninBeta.mspm <- function(object, ...) {
-    object$burninBeta
-}
-
-burninGammas.mspm <- function(object, ...) {
-    object$burninGammas
-}
-
-thin.mspm <- function(object, ...) {
+get_thin.mspm <- function(object, ...) {
     object$thin
 }
 
-samplingTime.mspm <- function(object, ...) {
+get_sampling_time.mspm <- function(object, ...) {
     object$samplingTime
 }
 
-burninTime.mspm <- function(object, ...) {
+get_burnin_time.mspm <- function(object, ...) {
     object$burninTime
 }
 
@@ -398,7 +403,7 @@ new_mspm_pt <- function(
     )
 }
 
-ntemperatures.mspm_pt <- function(object, ...) {
+get_n_temperatures.mspm_pt <- function(object, ...) {
     object$ntemperatures
 }
 

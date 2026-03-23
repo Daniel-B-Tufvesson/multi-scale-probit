@@ -21,9 +21,9 @@ tune_mspm <- function(
 ) {
     .validate_data(data)
 
-    nlevels = nlevels(data)
-    ntargets = ntargets(data)
-    npredictors = length(predictorNames(data))
+    nlevels <- get_n_levels(data)
+    ntargets <- get_n_targets(data)
+    npredictors <- get_n_predictors(data)
 
     # Set the seed.
     if (is.na(seed)) {
@@ -111,7 +111,7 @@ tune_mspm <- function(
 
     # Return tuning results.
     return(new_mspm_tune_results(
-        data_spec = data_spec(data),
+        data_spec = get_data_spec(data),
         proposal_variance = tune_results$proposal_variance,
         target_acceptance_rate = target_acceptance_rate,
         acceptance_rates = tune_results$acceptance_rates,
@@ -160,9 +160,9 @@ fit_mspm <- function(
 ) {
     .validate_data(data)
 
-    nlevels = nlevels(data)
-    ntargets = ntargets(data)
-    npredictors = length(predictorNames(data))
+    nlevels <- get_n_levels(data)
+    ntargets <- get_n_targets(data)
+    npredictors <- get_npredictors(data)
 
     # Set the seed.
     if (is.na(seed)) {
@@ -275,7 +275,7 @@ fit_mspm <- function(
 
     # Return fitted model.
     new_mspm(
-        data_spec = data_spec(data),
+        data_spec = get_data_spec(data),
         beta = beta,
         gammas = gammas,
         meanPrior = mean_prior,
@@ -325,9 +325,9 @@ tune_mspm_pt <- function(
 ) {
     .validate_data(data)
 
-    nlevels = nlevels(data)
-    ntargets = ntargets(data)
-    npredictors = length(predictorNames(data))
+    nlevels <- get_n_levels(data)
+    ntargets <- get_n_targets(data)
+    npredictors <- get_n_predictors(data)
 
     # Set the seed.
     if (is.na(seed)) {
@@ -443,7 +443,7 @@ tune_mspm_pt <- function(
 
     # Return tuning results.
     return(new_mspm_tune_results_pt(
-        data_spec = data_spec(data),
+        data_spec = get_data_spec(data),
         proposal_variance = tune_results$proposal_variance,
         proposal_acceptance_rates = tune_results$proposal_acceptance_rates,
         target_acceptance_rate = target_acceptance_rate,
@@ -507,9 +507,13 @@ fit_mspm_pt <- function(
 ) {
     .validate_data(data)
 
-    nlevels = nlevels(data)
-    ntargets = ntargets(data)
-    npredictors = length(predictorNames(data))
+    nlevels <- get_n_levels(data)
+    ntargets <- get_n_targets(data)
+    npredictors <- get_n_predictors(data)
+
+    if (!is.numeric(ntemperatures) || ntemperatures < 2) {
+        stop("ntemperatures must be a numeric value greater than or equal to 2.")
+    }
 
     # Set the seed.
     if (is.na(seed)) {
@@ -548,6 +552,7 @@ fit_mspm_pt <- function(
 
     # Set default temperature ladder if not provided.
     inv_temperature_ladder <- .prepare_temperature_ladder(inv_temperature_ladder, ntemperatures)
+
 
     # Call the backend parallel tempering sampler.
     sim <- cpp_hprobit_pt(
@@ -653,7 +658,7 @@ fit_mspm_pt <- function(
 
     # Return fitted model.
     new_mspm_pt(
-        data_spec = data_spec(data),
+        data_spec = get_data_spec(data),
         beta = beta,
         gammas = gammas,
         mean_prior = mean_prior,
@@ -681,9 +686,9 @@ fit_mspm_pt <- function(
 
 
 .validate_data <- function(data) {
-    nlevels = nlevels(data)
-    ntargets = ntargets(data)
-    npredictors = length(predictorNames(data))
+    nlevels <- get_n_levels(data)
+    ntargets <- get_n_targets(data)
+    npredictors <- get_n_predictors(data)
 
     # Check for empty matrices or vectors in data
     if (is.null(data$Xlist) || length(data$Xlist) == 0) {
