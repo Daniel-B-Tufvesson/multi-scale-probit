@@ -5,7 +5,14 @@ library(doParallel)
 library(foreach)
 
 # Generate samples for the experiment.
-generate_experiment_samples <- function(data) {
+generate_experiment_samples <- function(
+    data, 
+    ntemperatures, 
+    ndraws, 
+    nsplits, 
+    tune_iterations,
+    complete_param_swapping
+) {
 
     # Set up parallelization workers.
     ncores <- parallel::detectCores() - 1
@@ -19,19 +26,19 @@ generate_experiment_samples <- function(data) {
     ntemperatures <- 3
 
     print("Tune sampler.")
-    tune_results <- tune_pt(data, 10, ntemperatures)
+    tune_results <- tune_pt(data, tune_iterations, ntemperatures)
 
     # Generate samples for 500 trials.
     print("Start parallel samplers")
-    res <- foreach(i = 1:3) %dopar% {
+    res <- foreach(i = 1:nsplits) %dopar% {
         samples <- generate_pt_samples(
             data = data,
-            ndraws = 1000,
+            ndraws = ndraws,
             thin = 10,
             ntemperatures = ntemperatures,
             inv_temperature_ladder = get_inv_temperatures(tune_results),
             proposal_variance = get_proposal_variance(tune_results),
-            complete_param_swapping = TRUE
+            complete_param_swapping = complete_param_swapping
         )
         return(samples)
     }
@@ -82,15 +89,43 @@ generate_pt_samples <- function(
 
 # Execute script --------------------------------------------------------------------------
 
-# Generate the data.
-data <- generate_synthetic_data(
-    nobs = 400,
-    ncov = 48,
-    ngamma = c(1, 3, 3),
-    seed = 42
-)
+execute_experiment <- function(
+    ntemperatures,
+    output_directory = "experiments/results",
+    nsplits = 500,
+    ndraws = 100000,
+    tune_iterations = 10000,
+    complete_param_swapping = TRUE
+) {
+    # Generate the data.
+    data <- generate_synthetic_data(
+        nobs = 400,
+        ncov = 48,
+        ngamma = c(1, 3, 3),
+        seed = 42
+    )
 
-# Generate samples.
-pt_runs <- generate_experiment_samples(data)
-saveRDS(pt_runs, "experiments/results/pt-samples-10-chains-complete-big.rds")
-print("Done")
+    # Generate samples.
+    pt_runs <- generate_experiment_samples(
+        data,
+        ntemperatures = ntemperatures,
+        ndraws = ndraws,
+        nsplits = nsplits,
+        tune_iterations = tune_iterations,
+        complete_param_swapping = complete_param_swapping
+    )
+    complete_swapping <- ifelse(complete_param_swapping, "complete", "partial")
+    path <- file.path(output_directory, paste0("pt-samples-", ntemperatures, "-temperatures-", nsplits, "-splits-", complete_swapping, "-", ndraws,"-draws.rds"))
+    saveRDS(pt_runs, path)
+    print("Done")
+}
+
+
+# Run dummy experiment.
+# execute_experiment(
+#     ntemperatures = 3,
+#     output_directory = "experiments/results",
+#     nsplits = 3,
+#     ndraws = 1000,
+#     tune_iterations = 100
+# )
