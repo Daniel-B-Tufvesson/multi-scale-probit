@@ -8,7 +8,7 @@ library(foreach)
 generate_experiment_samples <- function(data) {
 
     # Set up parallelization workers.
-    cl<-makeForkCluster(7) # 7 workers.
+    cl<-makeForkCluster(parallel::detectCores() - 1) # 7 workers.
     on.exit(stopCluster(cl))
     registerDoParallel(cl)
     clusterSetRNGStream(cl, 42)
