@@ -139,7 +139,6 @@ tune_mspm <- function(
 # beta.initial: Initial values for regression coefficients.
 # gamma.initial: Initial values for threshold parameters.
 # verbose: Verbosity level for output.
-# computeDiagnostics: Whether to compute diagnostics for the fitted model.
 # 
 # Returns:
 # An object of class 'mspm' containing the fitted model.
@@ -155,8 +154,7 @@ fit_mspm <- function(
     seed = NA,
     beta_start = NULL,
     gamma_start = NULL,
-    verbose = 0,
-    compute_diagnostics = TRUE
+    verbose = 0
 ) {
     .validate_data(data)
 
@@ -267,12 +265,6 @@ fit_mspm <- function(
         gammas[[i]] <- mcmc(sim$storegamma[[i]], start = burnin + 1, thin = thin)
     }
 
-    # Compute diagnostics.
-    diagnostics <- NULL
-    if (compute_diagnostics) {
-        diagnostics <- .run_diagnostics(beta, gammas)
-    }
-
     # Return fitted model.
     new_mspm(
         data_spec = get_data_spec(data),
@@ -287,7 +279,6 @@ fit_mspm <- function(
         ndrawsNoThin = ndraws,
         thin = thin,
         burnin = burnin,
-        diagnostics = diagnostics,
         samplingTime = sim$sampling_time,
         burninTime = sim$burnin_time,
         nlikelihood_calls = sim$nlikelihood_calls,
@@ -484,7 +475,6 @@ tune_mspm_pt <- function(
 #' @param beta.initial Initial values for regression coefficients.
 #' @param gamma.initial Initial values for threshold parameters.
 #' @param verbose Verbosity level for output.
-#' @param computeDiagnostics Whether to compute diagnostics for the fitted model.
 #' @param saveBurninSamples Whether to save the burn-in samples in the returned model object.
 #' @return An object of class 'mspm' containing the fitted model.
 fit_mspm_pt <- function(
@@ -502,8 +492,7 @@ fit_mspm_pt <- function(
     seed = NA,
     beta_start = NULL,
     gamma_start = NULL,
-    verbose = 0,
-    compute_diagnostics = TRUE
+    verbose = 0
 ) {
     .validate_data(data)
 
@@ -650,12 +639,6 @@ fit_mspm_pt <- function(
         gammas[[i]] <- mcmc(sim$storegamma[[i]], start = burnin + 1, thin = thin)
     }
 
-    # Compute diagnostics.
-    diagnostics <- NULL
-    if (compute_diagnostics) {
-        diagnostics <- .run_diagnostics(beta, gammas)
-    }
-
     # Return fitted model.
     new_mspm_pt(
         data_spec = get_data_spec(data),
@@ -670,7 +653,6 @@ fit_mspm_pt <- function(
         thin = thin,
         inv_temperatures = inv_temperature_ladder,
         burnin = burnin,
-        diagnostics = diagnostics,
         completeSwapping = complete_param_swapping,
         samplingTime = sim$sampling_time,
         burninTime = sim$burnin_time,
@@ -786,21 +768,4 @@ fit_mspm_pt <- function(
         stop("Length of inv_temperature_ladder must match ntemperatures.")
     }
     return(inv_temperature_ladder)
-}
-
-.run_diagnostics <- function(beta, gammas) {
-    # Compute Geweke diagnostic.
-    gewekeBeta <- geweke.diag(beta)
-    gewekeGammas <- lapply(gammas, geweke.diag)
-
-    # Compute ESS.
-    essBeta <- effectiveSize(beta)
-    essGammas <- lapply(gammas, effectiveSize)
-
-    new_mspm_single_chain_diag(
-        gewekeBeta = gewekeBeta,
-        gewekeGammas = gewekeGammas,
-        essBeta = essBeta,
-        essGammas = essGammas
-    )
 }

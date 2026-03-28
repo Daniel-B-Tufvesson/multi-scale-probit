@@ -72,7 +72,7 @@ run_all_probit_tests <-function() {
         stop("Test failed: nlikelihood_calls is zero, indicating likelihood was not evaluated.")
     }
 
-    cat("Test passed: Fitted model estimates parameters accurately and returns valid diagnostics.\n")
+    cat("Test passed: Fitted model estimates parameters accurately.\n")
 }
 
 

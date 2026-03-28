@@ -155,49 +155,6 @@ get_data_spec.mspm_data_split <- function(object, ...) {
     get_data_spec(get_train_split(object))
 }
 
-#' Constructor for creating a new multi-scale probit model single chain diagnostics object.
-#'
-#' @param essBeta A numeric vector containing the effective sample size (ESS) for each beta 
-#' coefficient.
-#' @param essGammas A list of numeric vectors containing the effective sample size (ESS) for each 
-#' gamma threshold in each target dataset.
-#' @param gewekeBeta A numeric vector containing the Geweke diagnostic z-scores for each beta 
-#' coefficient.
-#' @param gewekeGammas A list of numeric vectors containing the Geweke diagnostic z-scores for 
-#' each gamma threshold in each target dataset.
-new_mspm_single_chain_diag <- function (
-    essBeta,
-    essGammas,
-    gewekeBeta,
-    gewekeGammas
-) {
-    structure(
-        list(
-            essBeta = essBeta,
-            essGammas = essGammas,
-            gewekeBeta = gewekeBeta,
-            gewekeGammas = gewekeGammas
-        ),
-        class = "mspm_single_chain_diag"
-    )
-}
-
-essBeta.mspm_single_chain_diag <- function(object, ...) {
-    object$essBeta
-}
-
-essGammas.mspm_single_chain_diag <- function(object, ...) {
-    object$essGammas
-}
-
-gewekeBeta.mspm_single_chain_diag <- function(object, ...) {
-    object$gewekeBeta
-}
-
-gewekeGammas.mspm_single_chain_diag <- function(object, ...) {
-    object$gewekeGammas
-}
-
 
 # Constructor for creating a new multi-scale probit model (MSPM).
 # 
@@ -219,8 +176,6 @@ gewekeGammas.mspm_single_chain_diag <- function(object, ...) {
 # burninBeta: An MCMC object containing the burn-in samples for the beta parameters.
 # burninGammas: A list of MCMC objects containing the burn-in samples for the gamma parameters of 
 # each target dataset.
-# diagnostics: An mspm_single_chain_diag object containing diagnostic information about the 
-# MCMC sampling, such as effective sample size (ess) and Geweke diagnostics for each parameter.
 # samplingTime: The time taken for the sampling phase of MCMC sampling.
 # burninTime: The time taken for the burn-in phase of MCMC sampling.
 # call: The original function call used to create the model.
@@ -237,7 +192,6 @@ new_mspm <- function(
     ndrawsNoThin,
     thin,
     burnin,
-    diagnostics,
     samplingTime,
     burninTime,
     nlikelihood_calls,
@@ -258,7 +212,6 @@ new_mspm <- function(
             ndrawsNoThin = ndrawsNoThin,
             thin = thin,
             burnin = burnin,
-            diagnostics = diagnostics, # May be null.
             samplingTime = samplingTime,
             burninTime = burninTime,
             nlikelihood_calls = nlikelihood_calls
@@ -343,26 +296,6 @@ get_burnin_time.mspm <- function(object, ...) {
     object$burninTime
 }
 
-diagnostics.mspm <- function(object, ...) {
-    object$diagnostics
-}
-
-essBeta.mspm <- function(object, ...) {
-    essBeta(diagnostics(object))
-}
-
-essGammas.mspm <- function(object, ...) {
-    essGammas(diagnostics(object))
-}
-
-gewekeBeta.mspm <- function(object, ...) {
-    gewekeBeta(diagnostics(object))
-}
-
-gewekeGammas.mspm <- function(object, ...) {
-    gewekeGammas(diagnostics(object))
-}
-
 #' Constructor for creating a new multi-scale probit model fitted object for parallel tempering.
 #' This inherits from the mspm class and includes additional information specific to parallel 
 #' tempering.
@@ -381,8 +314,6 @@ gewekeGammas.mspm <- function(object, ...) {
 #' @param burninBeta An MCMC object containing the burn-in samples for the beta parameters.
 #' @param burninGammas A list of MCMC objects containing the burn-in samples for the gamma 
 #' parameters of each target dataset.
-#' @param diagnostics An mspm_single_chain_diag object containing diagnostic information about the 
-#' MCMC sampling, such as effective sample size (ess) and Geweke diagnostics for each parameter.
 #' @param samplingTime The time taken for the sampling phase of MCMC sampling.
 #' @param burninTime The time taken for the burn-in phase of MCMC sampling
 #' @param completeSwapping A boolean indicating whether complete swapping was used in parallel
@@ -404,7 +335,6 @@ new_mspm_pt <- function(
     thin,
     inv_temperatures,
     burnin,
-    diagnostics,
     samplingTime,
     burninTime,
     completeSwapping,
@@ -433,7 +363,6 @@ new_mspm_pt <- function(
 
             samplingTime = samplingTime,
             burninTime = burninTime,
-            diagnostics = diagnostics,
             nlikelihood_calls = nlikelihood_calls,
             round_trip_times = round_trip_times
         ),
