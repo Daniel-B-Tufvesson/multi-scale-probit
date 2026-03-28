@@ -328,30 +328,6 @@ get_eval_metric_means <- function(object, ...) {
     UseMethod("get_eval_metric_means")
 }
 
-nsplits <- function(object, ...) {
-    UseMethod("nsplits")
-}
-
-cvAllEvaluations <- function(object, ...) {
-    UseMethod("cvAllEvaluations")
-}
-
-cvMeans <- function(object, ...) {
-    UseMethod("cvMeans")
-}
-
-#' All the evaluation draws aggregated across all cross-validation splits.
-#'
-#' @param object An mspm_cv_result object.
-#' @param ... Additional arguments (not used).
-#' @return A list containing all the evaluation draws aggregated across all cross-validation splits.
-#' Each element corresponds to a metric and contains a matrix of results with rows for draws and 
-#' columns for targets (and possibly harmonic mean as the last column). Returns NULL if the cv result 
-#' does not contain evaluation draws.
-cvAllDraws <- function(object, ...) {
-    UseMethod("cvAllDraws")
-}
-
 #' The tuning results for all cross-validation splits.
 #'
 #' @param object An mspm_cv_result object.
