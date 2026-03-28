@@ -162,7 +162,7 @@ fit_mspm <- function(
 
     nlevels <- get_n_levels(data)
     ntargets <- get_n_targets(data)
-    npredictors <- get_npredictors(data)
+    npredictors <- get_n_predictors(data)
 
     # Set the seed.
     if (is.na(seed)) {

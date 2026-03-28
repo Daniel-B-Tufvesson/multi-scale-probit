@@ -39,12 +39,12 @@ run_all_prediction_tests <- function() {
     )
 
     # Check that number of ystar elements match number of targets.
-    if (length(latent) != ntargets(data)) {
+    if (length(latent) != get_n_targets(data)) {
         stop("Test failed: Number of predicted latent variable sets does not match number of targets.")
     }
 
     # Check that the dimensions of the predicted latent values match the data.
-    for (i in 1:ntargets(data)) {
+    for (i in 1:get_n_targets(data)) {
 
         # Check number of predictions match number of observations
         if (nrow(latent[[i]]) != nrow(data$Xlist[[i]])) {
@@ -52,7 +52,7 @@ run_all_prediction_tests <- function() {
         }
 
         # Check number of predictions match number of draws
-        if (ncol(latent[[i]]) != ndraws(fit)) {
+        if (ncol(latent[[i]]) != get_n_draws(fit)) {
             stop(paste("Test failed: Number of predicted latent value draws does not match number of posterior draws for target", i))
         }
     }
@@ -86,18 +86,18 @@ run_all_prediction_tests <- function() {
         fit = fit,
         newdata = data
     )
-    labels <- predictedLabels(predictions)
-    labelIndexes <- predictedLabelIndexes(predictions)
-    levelNames <- levelNames(data)
-    nlevels <- nlevels(data)
+    labels <- get_predicted_labels(predictions)
+    labelIndexes <- get_predicted_label_indexes(predictions)
+    levelNames <- get_level_names(data)
+    nlevels <- get_n_levels(data)
 
     # Check that number of ylabels elements match number of targets.
-    if (length(labels) != ntargets(data)) {
+    if (length(labels) != get_n_targets(data)) {
         stop("Test failed: Number of predicted label sets does not match number of targets.")
     }
 
     # Check that the predicted labels are factors and have correct lengths.
-    for (i in 1:ntargets(data)) {
+    for (i in 1:get_n_targets(data)) {
 
         # Check that all predicted label strings are in the allowed level names
         if (!all(labels[[i]] %in% levelNames[[i]])) {
@@ -110,7 +110,7 @@ run_all_prediction_tests <- function() {
         }
 
         # Check number of labels match number of draws.
-        if (ncol(labels[[i]]) != ndraws(fit)) {
+        if (ncol(labels[[i]]) != get_n_draws(fit)) {
             stop(paste("Test failed: Number of predicted label draws does not match number of posterior draws for target", i))
         }
 
@@ -130,7 +130,7 @@ run_all_prediction_tests <- function() {
         }
 
         # Check number of label indexes match number of draws.
-        if (ncol(labelIndexes[[i]]) != ndraws(fit)) {
+        if (ncol(labelIndexes[[i]]) != get_n_draws(fit)) {
             stop(paste("Test failed: Number of predicted label index draws does not match number of posterior draws for target", i))
         }
     }
@@ -166,15 +166,15 @@ run_all_prediction_tests <- function() {
         ngamma = c(1, 3, 3),
         seed = 5678
     )
-    ntargets <- ntargets(test.data)
-    levelNames <- levelNames(test.data)
+    ntargets <- get_n_targets(test.data)
+    levelNames <- get_level_names(test.data)
 
     # Predict on new data.
     pred <- predict_mspm(
         fit = fit,
         newdata = test.data
     )
-    labels <- predictedLabels(pred)
+    labels <- get_predicted_labels(pred)
 
     # Check that number of ylabels elements match number of targets.
     if (length(labels) != ntargets) {
@@ -192,7 +192,7 @@ run_all_prediction_tests <- function() {
             stop(paste("Test failed: Number of predicted labels does not match number of observations for target", i, "(new data)"))
         }
         # Check number of labels match number of draws.
-        if (ncol(labels[[i]]) != ndraws(fit)) {
+        if (ncol(labels[[i]]) != get_n_draws(fit)) {
             stop(paste("Test failed: Number of predicted label draws does not match number of posterior draws for target", i, "(new data)"))
         }
     }
@@ -228,12 +228,12 @@ run_all_prediction_tests <- function() {
     pred2 <- predict_mspm(fit = fit, newdata = data)
 
     # Compare labels.
-    if (!identical(predictedLabels(pred1), predictedLabels(pred2))) {
+    if (!identical(get_predicted_labels(pred1), get_predicted_labels(pred2))) {
         stop("Test failed: Predictions are not reproducible with same seed and data.")
     }
 
     # Compare label indexes.
-    if (!identical(predictedLabelIndexes(pred1), predictedLabelIndexes(pred2))) {
+    if (!identical(get_predicted_label_indexes(pred1), get_predicted_label_indexes(pred2))) {
         stop("Test failed: Predicted label indexes are not reproducible with same seed and data.")
     }
 
@@ -263,19 +263,19 @@ run_all_prediction_tests <- function() {
 
     # Predict
     pred <- predict_mspm(fit = fit, newdata = data)
-    labels <- predictedLabels(pred)
+    labels <- get_predicted_labels(pred)
 
     # Check that number of ylabels elements match number of targets
-    if (length(labels) != ntargets(data)) {
+    if (length(labels) != get_n_targets(data)) {
         stop("Test failed: Number of predicted label sets does not match number of targets (minimal data).")
     }
 
     # Check that the predicted labels have correct shape
-    for (i in 1:ntargets(data)) {
+    for (i in 1:get_n_targets(data)) {
         if (nrow(labels[[i]]) != 6) {
             stop(paste("Test failed: Number of predicted labels does not match 6 observation for target", i, "(minimal data)"))
         }
-        if (ncol(labels[[i]]) != ndraws(fit)) {
+        if (ncol(labels[[i]]) != get_n_draws(fit)) {
             stop(paste("Test failed: Number of predicted label draws does not match number of posterior draws for target", i, "(minimal data)"))
         }
     }
@@ -314,44 +314,44 @@ run_all_prediction_tests <- function() {
     labelIndexes = prediction$ylabelIndexes
 
     # Test ntargets accessor
-    if (ntargets(prediction) != ntargets(data)) {
-        stop("Test failed: ntargets accessor does not return correct value. Got ", 
-             ntargets(prediction), " expected ", ntargets(data), ".")
+    if (get_n_targets(prediction) != get_n_targets(data)) {
+        stop("Test failed: get_n_targets accessor does not return correct value. Got ", 
+             get_n_targets(prediction), " expected ", get_n_targets(data), ".")
     }
 
     # Test nlevels accessor
-    if (!all(nlevels(prediction) == nlevels(data))) {
-        stop("Test failed: nlevels accessor does not return correct value.")
+    if (!all(get_n_levels(prediction) == get_n_levels(data))) {
+        stop("Test failed: get_n_levels accessor does not return correct value.")
     }
 
     # Test predictorNames accessor.
-    if (!all.equal(predictorNames(prediction), predictorNames(data))) {
-        stop("Test failed: predictorNames accessor returned incorrect value.")
+    if (!all.equal(get_predictor_names(prediction), get_predictor_names(data))) {
+        stop("Test failed: get_predictor_names accessor returned incorrect value.")
     }
 
     # Test responseNames accessor.
-    if (!all.equal(responseNames(prediction), responseNames(data))) {
-        stop("Test failed: responseNames accessor returned incorrect value.")
+    if (!all.equal(get_response_names(prediction), get_response_names(data))) {
+        stop("Test failed: get_response_names accessor returned incorrect value.")
     }
 
     # Test levelNames accessor.
-    if (!all.equal(levelNames(prediction), levelNames(data))) {
-        stop("Test failed: levelNames accessor returned incorrect value.")
+    if (!all.equal(get_level_names(prediction), get_level_names(data))) {
+        stop("Test failed: get_level_names accessor returned incorrect value.")
     }
 
     # Test ndraws accessor.
-    if (ndraws(prediction) != ndraws(fit)) {
-        stop("Test failed: ndraws accessor does not return correct value.")
+    if (get_n_draws(prediction) != get_n_draws(fit)) {
+        stop("Test failed: get_n_draws accessor does not return correct value.")
     }
 
     # Test predictedLabels accessor.
-    if (!identical(predictedLabels(prediction), labels)) {
-        stop("Test failed: predictedLabels accessor does not return correct labels.")
+    if (!identical(get_predicted_labels(prediction), labels)) {
+        stop("Test failed: get_predicted_labels accessor does not return correct labels.")
     }
 
     # Test predictedLabelIndexes accessor.
-    if (!identical(predictedLabelIndexes(prediction), labelIndexes)) {
-        stop("Test failed: predictedLabelIndexes accessor does not return correct label indexes.")
+    if (!identical(get_predicted_label_indexes(prediction), labelIndexes)) {
+        stop("Test failed: get_predicted_label_indexes accessor does not return correct label indexes.")
     }
 
     cat("Test passed: Accessor functions for mspm_labeled_prediction work correctly.\n")

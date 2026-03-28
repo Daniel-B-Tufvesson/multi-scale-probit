@@ -5,7 +5,7 @@ run_all_data_tests <- function() {
     .test_split_data()
     .test_level_names()
     .test_minimal_data()
-    .test_accessors()
+    .test_data_accessors()
     .test_split_replication()
 }
 
@@ -56,7 +56,7 @@ run_all_data_tests <- function() {
     train <- split$train
     test <- split$test
 
-    for (i in 1:ntargets(data)) {
+    for (i in 1:get_n_targets(data)) {
         # Check size of train and test sets.
         expected_train_size <- floor(0.7 * nrow(data$Xlist[[i]]))
         expected_test_size <- nrow(data$Xlist[[i]]) - expected_train_size
@@ -99,8 +99,8 @@ run_all_data_tests <- function() {
     )
 
     # Check level names for each dataset.
-    levelNames <- levelNames(data)
-    for (i in 1:ntargets(data)) {
+    levelNames <- get_level_names(data)
+    for (i in 1:get_n_targets(data)) {
         expected_level_names <- paste0("D", i, "_", 0:ngamma[i])
         if (!isTRUE(all.equal(levelNames[[i]], expected_level_names))) {
             stop(paste("Test failed: Level names for dataset", i, "are incorrect. Expected:", 
@@ -130,13 +130,13 @@ run_all_data_tests <- function() {
     }
 
     # Check number of levels.
-    if (nlevels(data)[1] != 2) {
+    if (get_n_levels(data)[1] != 2) {
         stop("Test failed: Number of levels is incorrect for minimal data.")
     }
 
     # Check levels.
     expected_level_names <- c("D1_0", "D1_1")
-    if (!isTRUE(all.equal(levelNames(data)[[1]], expected_level_names))) {
+    if (!isTRUE(all.equal(get_level_names(data)[[1]], expected_level_names))) {
         stop("Test failed: Level names are incorrect for minimal data.")
     }
 
@@ -145,7 +145,7 @@ run_all_data_tests <- function() {
 
 
 # Test case 5: Test if the accessor functions work.
-.test_accessors <- function() {
+.test_data_accessors <- function() {
     # Create a mock mspm_data object.
     data <- new_mspm_data(
         predictorNames = c("X1", "X2"),
@@ -164,23 +164,23 @@ run_all_data_tests <- function() {
     )
 
     # Test ntargets accessor.
-    if (ntargets(data) != 3) {
+    if (get_n_targets(data) != 3) {
         stop("Test failed: ntargets accessor returned incorrect value. Got: ", 
-             ntargets(data), ", expected: 3")
+             get_n_targets(data), ", expected: 3")
     }
 
     # Test nlevels accessor.
-    if (!isTRUE(all.equal(nlevels(data), c(3, 4, 2)))) {
+    if (!isTRUE(all.equal(get_n_levels(data), c(3, 4, 2)))) {
         stop("Test failed: nlevels accessor returned incorrect value.")
     }
 
     # Test predictorNames accessor.
-    if (!isTRUE(all.equal(predictorNames(data), c("X1", "X2")))) {
+    if (!isTRUE(all.equal(get_predictor_names(data), c("X1", "X2")))) {
         stop("Test failed: predictorNames accessor returned incorrect value.")
     }
 
     # Test responseNames accessor.
-    if (!isTRUE(all.equal(responseNames(data), c("Y1", "Y2", "Y3")))) {
+    if (!isTRUE(all.equal(get_response_names(data), c("Y1", "Y2", "Y3")))) {
         stop("Test failed: responseNames accessor returned incorrect value.")
     }
 
@@ -188,7 +188,7 @@ run_all_data_tests <- function() {
     expected_level_names <- list(c("A", "B", "C"),
                                  c("D", "E", "F", "G"),
                                  c("H", "I"))
-    if (!isTRUE(all.equal(levelNames(data), expected_level_names))) {
+    if (!isTRUE(all.equal(get_level_names(data), expected_level_names))) {
         stop("Test failed: levelNames accessor returned incorrect value.")
     }
 
@@ -218,7 +218,7 @@ run_all_data_tests <- function() {
     )
 
     # Check that the two splits are identical.
-    for (i in 1:ntargets(data)) {
+    for (i in 1:get_n_targets(data)) {
         if (!isTRUE(all.equal(split1$train$Xlist[[i]], split2$train$Xlist[[i]]))) {
             stop(paste("Test failed: Training predictor matrices for dataset", i, "are not identical across splits."))
         }

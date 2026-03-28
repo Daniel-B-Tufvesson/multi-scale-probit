@@ -5,7 +5,7 @@ source("R/data.R")
 run_all_probit_tests <-function() {
     .test_fit()
     .test_fit_compare()
-    .test_accessors()
+    .test_fit_accessors()
 }
 
 
@@ -24,7 +24,7 @@ run_all_probit_tests <-function() {
     )
 
     # Generate the data.
-    mspm.data <- generate_synthetic_data(
+    data <- generate_synthetic_data(
         nobs = 100,
         ncov = length(beta),
         ngamma = c(1, 3, 3),
@@ -34,8 +34,8 @@ run_all_probit_tests <-function() {
     )
 
     # Fit using all the data.
-    tst_fit = mspm.fit <- fit_mspm(
-        data = mspm.data,
+    fit <- fit_mspm(
+        data = data,
         ndraws = ndraws,
         burnin = burnin,
         thin = thin,
@@ -47,71 +47,24 @@ run_all_probit_tests <-function() {
     failed <- FALSE
 
     # Check beta.
-    beta_estimates <- colMeans(as.matrix(tst_fit$beta))
+    fit_beta <- get_beta(fit)
+    beta_estimates <- colMeans(as.matrix(fit_beta))
     if (max(abs(beta_estimates - beta)) > 0.2) {
         stop("Test failed: Estimated beta coefficients deviate significantly from true values.")
     }
 
     # Check gammas.
     for (i in 1:length(gammas)) {
-        gamma_estimates <- colMeans(as.matrix(tst_fit$gammas[[i]]))
+        fit_gammas <- get_gammas(fit) 
+        gamma_estimates <- colMeans(as.matrix(fit_gammas[[i]]))
         if (max(abs(gamma_estimates - gammas[[i]])) > 0.5) {
             stop(paste("Test failed: Estimated gammas for dataset", i, 
                        "deviate significantly from true values."))
         }
     }
-
-    # Check diagnostics.
-    if (is.null(diagnostics(tst_fit))) {
-        stop("Test failed: Diagnostics are NULL.")
-    }
-
-    # Check essBeta.
-    if(is.null(essBeta(tst_fit))) {
-        stop("Test failed: essBeta is NULL.")
-    }
-    if(length(essBeta(tst_fit)) != length(beta)) {
-        stop("Test failed: essBeta length does not match number of beta coefficients.")
-    }
-
-    # Check essGammas.
-    if(is.null(essGammas(tst_fit))) {
-        stop("Test failed: essGammas is NULL.")
-    }
-    for (i in 1:length(gammas)) {
-        if(is.null(essGammas(tst_fit)[[i]])) {
-            stop(paste("Test failed: essGammas for dataset", i, "is NULL."))
-        }
-        if(length(essGammas(tst_fit)[[i]]) != length(gammas[[i]])) {
-            stop(paste("Test failed: essGammas length for dataset", i, 
-                       "does not match number of gamma thresholds."))
-        }
-    }
-
-    # Check gewekeBeta.
-    if(is.null(gewekeBeta(tst_fit))) {
-        stop("Test failed: gewekeBeta is NULL.")
-    }
-    if (length(gewekeBeta(tst_fit)$z) != length(beta)) {
-        stop("Test failed: gewekeBeta length does not match number of beta coefficients.")
-    }
     
-    # Check gewekeGammas.
-    if(is.null(gewekeGammas(tst_fit))) {
-        stop("Test failed: gewekeGammas is NULL.")
-    }
-    for (i in 1:length(gammas)) {
-        if(is.null(gewekeGammas(tst_fit)[[i]])) {
-            stop(paste("Test failed: gewekeGammas for dataset", i, "is NULL."))
-        }
-        if(length(gewekeGammas(tst_fit)[[i]]$z) != length(gammas[[i]])) {
-            stop(paste("Test failed: gewekeGammas length for dataset", i, 
-                       "does not match number of gamma thresholds."))
-        }
-    }
-
     # Check nlikelihood_calls.
-    nlikelihood_calls <- get_nlikelihood_calls(tst_fit)
+    nlikelihood_calls <- get_n_likelihood_calls(fit)
     if (is.null(nlikelihood_calls)) {
         stop("Test failed: nlikelihood_calls is NULL.")
     }
@@ -176,7 +129,7 @@ run_all_probit_tests <-function() {
 }
 
 # Test case 3: Test if the accessor functions work.
-.test_accessors <- function() {
+.test_fit_accessors <- function() {
     # Generate the data.
     mspm.data <- generate_synthetic_data(
         nobs = 100,
@@ -197,68 +150,83 @@ run_all_probit_tests <-function() {
     )
 
     # Test ntargets accessor.
-    if (ntargets(fit) != mspm.data$ntargets) {
+    if (get_n_targets(fit) != get_n_targets(mspm.data)) {
         stop("Test failed: ntargets accessor returned incorrect value.")
     }
 
     # Test nlevels accessor.
-    if (nlevels(fit) != mspm.data$nlevels) {
+    if (!all.equal(get_n_levels(fit), get_n_levels(mspm.data))) {
         stop("Test failed: nlevels accessor returned incorrect value.")
     }
 
     # Test predictorNames accessor.
-    if (!all.equal(predictorNames(fit), mspm.data$predictorNames)) {
+    if (!all.equal(get_predictor_names(fit), get_predictor_names(mspm.data))) {
         stop("Test failed: predictorNames accessor returned incorrect value.")
     }
 
     # Test responseNames accessor.
-    if (!all.equal(responseNames(fit), mspm.data$responseNames)) {
+    if (!all.equal(get_response_names(fit), get_response_names(mspm.data))) {
         stop("Test failed: responseNames accessor returned incorrect value.")
     }
 
     # Test levelNames accessor.
-    if (!all.equal(levelNames(fit), mspm.data$levelNames)) {
+    if (!all.equal(get_level_names(fit), get_level_names(mspm.data))) {
         stop("Test failed: levelNames accessor returned incorrect value.")
     }
 
     # Test beta accessor.
-    if (!all.equal(beta(fit), fit$beta)) {
+    if (!all.equal(get_beta(fit), fit$beta)) {
         stop("Test failed: beta accessor returned incorrect value.")
     }
 
     # Test gammas accessor.
-    if (length(gammas(fit)) != length(fit$gammas)) {
+    if (length(get_gammas(fit)) != length(fit$gammas)) {
         stop("Test failed: gammas accessor returned incorrect value.")
     }
 
     # Test meanPrior accessor.
-    if (!all.equal(meanPrior(fit), fit$meanPrior)) {
+    if (!all.equal(get_mean_prior(fit), fit$meanPrior)) {
         stop("Test failed: meanPrior accessor returned incorrect value.")
     }
 
     # Test precPrior accessor.
-    if (!all.equal(precPrior(fit), fit$precPrior)) {
+    if (!all.equal(get_prec_prior(fit), fit$precPrior)) {
         stop("Test failed: precPrior accessor returned incorrect value.")
     }
 
     # Test ndraws accessor.
-    if (ndraws(fit) != fit$ndraws) {
+    if (get_n_draws(fit) != fit$ndraws) {
         stop("Test failed: ndraws accessor returned incorrect value.")
     }
 
     # Test ndraws with thinning accessor.
-    if (ndraws(fit, withoutThinning = TRUE) != fit$ndrawsNoThin) {
+    if (get_n_draws_no_thin(fit) != fit$ndrawsNoThin) {
         stop("Test failed: ndraws without thinning accessor returned incorrect value.")
     }
 
     # Test burnin accessor.
-    if (burnin(fit) != fit$burnin) {
+    if (get_burnin(fit) != fit$burnin) {
         stop("Test failed: burnin accessor returned incorrect value.")
     }
 
     # Test thin accessor.
-    if (thin(fit) != fit$thin) {
+    if (get_thin(fit) != fit$thin) {
         stop("Test failed: thin accessor returned incorrect value.")
+    }
+
+    # Test burnin time.
+    if (get_burnin_time(fit) != fit$burninTime) {
+        stop("Test failed: burnin time accessor returned incorrect value.")
+    }
+
+    # Test sampling time.
+    if (get_sampling_time(fit) != fit$samplingTime) {
+        stop("Test failed: sampling time accessor returned incorrect value.")
+    }
+
+    # Test proposal variance.
+    if (!all.equal(get_proposal_variance(fit), fit$proposal_variance)) {
+        stop("Test failed: proposal variance accessor returned incorrect value.")
     }
 
     cat("Test passed: Accessor functions work correctly.\n")

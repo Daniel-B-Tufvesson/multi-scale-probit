@@ -32,8 +32,8 @@ predict_mspm <- function(
         # Predict labels as well.
         labels <- .predict_mspm_labels_draws(fit, newdata, ystars)
         return (new_mspm_labeled_prediction(
-            data_spec = data_spec(fit),
-            ndraws = ndraws(fit),
+            data_spec = get_data_spec(fit),
+            ndraws = get_n_draws(fit),
             ystars = ystars,
             ylabels = labels$ylabels,
             ylabelIndexes = labels$ylabelIndexes,
@@ -60,7 +60,7 @@ predict_mspm <- function(
     newdata
 ) {
     ystars = list()
-    for (i in 1:ntargets(newdata)) {
+    for (i in 1:get_n_targets(newdata)) {
         Xnew <- newdata$Xlist[[i]]
 
         # Compute the linear predictor for all draws
@@ -88,8 +88,8 @@ predict_mspm <- function(
     newdata,
     ystars
 ) {
-    ntargets <- ntargets(fit)
-    ndraws <- ndraws(fit)
+    ntargets <- get_n_targets(fit)
+    ndraws <- get_n_draws(fit)
 
     # Label each dataset
     ylabels = list()
@@ -106,7 +106,7 @@ predict_mspm <- function(
         ylabelIndexes[[i]] <- y + 1
         
         # Convert to factor labels using level names.
-        levelNames <- levelNames(fit)[[i]]
+        levelNames <- get_level_names(fit)[[i]]
         labels <- apply(y, c(1,2), function(idx) {
             return(levelNames[idx+1])
         })

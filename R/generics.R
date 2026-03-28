@@ -15,6 +15,29 @@ get_data_spec <- function(object, ...) {
     UseMethod("get_data_spec")
 }
 
+#' The values for the predictor variables in the data.
+#'
+#' @param object An mspm_data object.
+#' @param ... Additional arguments (not used).
+#' @return A list of matrices containing the predictor variable values for each target 
+#' dataset. Each matrix has rows corresponding to observations and columns 
+#' corresponding to predictor variables.
+get_x_values <- function(object, ...) {
+    UseMethod("get_x_values")
+}
+
+#' The values for the response variables in the data.
+#'
+#' @param object An mspm_data object.
+#' @param ... Additional arguments (not used).
+#' @return A list of vectors containing the response variable values for each target
+#' dataset. Each vector has a length corresponding to the number of observations in 
+#' the dataset and contains the response variable values as factors with levels 
+#' corresponding to the ordinal levels of the response variable.
+get_y_values <- function(object, ...) {
+    UseMethod("get_y_values")
+}
+
 #' The number of targets (datasets) in a multi-scale probit model object.
 #'
 #' @param object One of:
@@ -27,10 +50,6 @@ get_data_spec <- function(object, ...) {
 #' }
 #' @param ... Additional arguments (not used).
 #' @return An integer indicating the number of target datasets.
-# ntargets <- function(object, ...) {
-#     UseMethod("ntargets")
-# }
-
 get_n_targets <- function(object, ...) {
     UseMethod("get_n_targets")
 }
@@ -47,10 +66,6 @@ get_n_targets <- function(object, ...) {
 #' }
 #' @param ... Additional arguments (not used).
 #' @return A vector of integers indicating the number of levels for each target dataset.
-# nlevels <- function(object, ...) {
-#     UseMethod("nlevels")
-# }
-
 get_n_levels <- function(object, ...) {
     UseMethod("get_n_levels")
 }
@@ -105,6 +120,14 @@ get_response_names <- function(object, ...) {
 #' @return A list of character vectors containing level names for each target dataset.
 get_level_names <- function(object, ...) {
     UseMethod("get_level_names")
+}
+
+get_train_split <- function(object, ...) {
+    UseMethod("get_train_split")
+}
+
+get_test_split <- function(object, ...) {
+    UseMethod("get_test_split")
 }
 
 get_beta <- function(object, ...) {
@@ -177,8 +200,8 @@ get_proposal_variance <- function(object, ...) {
 
 
 
-get_nlikelihood_calls <- function(object, ...) {
-    UseMethod("get_nlikelihood_calls")
+get_n_likelihood_calls <- function(object, ...) {
+    UseMethod("get_n_likelihood_calls")
 }
 
 #' The time taken for the sampling phase of MCMC sampling. This only encompasses the time taken for 
@@ -242,11 +265,10 @@ get_predicted_label_indexes <- function(object, ...) {
 #' @param object One of:
 #' \itemize{
 #'   \item An mspm_labeled_evaluation object.
-#'   \item An mspm_cv_result object.
 #' }
 #' @param ... Additional arguments (not used).
 #' @return A character vector of evaluation metric names.
-get_eval_metrics <- function() {
+get_eval_metrics <- function(object, ...) {
     UseMethod("get_eval_metrics")
 }
 
@@ -260,8 +282,8 @@ get_eval_metrics <- function() {
 #' @return A list containing the computed evaluation results. Each element corresponds 
 #' to a metric and contains a matrix of results with rows for draws and columns 
 #' for targets (and possibly harmonic mean as the last column).
-evalDrawResults <- function(object, ...) {
-    UseMethod("evalDrawResults")
+get_eval_draw_results <- function(object, ...) {
+    UseMethod("get_eval_draw_results")
 }
 
 #' The mean evaluation results for each target across all draws.
@@ -273,8 +295,8 @@ evalDrawResults <- function(object, ...) {
 #' @param ... Additional arguments (not used).
 #' @return A list containing the mean evaluation results for each target (and possibly 
 #' harmonic mean) across all draws.
-evalTargetMeans <- function(object, ...) {
-    UseMethod("evalTargetMeans")
+get_eval_target_means <- function(object, ...) {
+    UseMethod("get_eval_target_means")
 }
 
 #' The mean evaluation results for each draw across all targets.
@@ -285,8 +307,8 @@ evalTargetMeans <- function(object, ...) {
 #' }
 #' @param ... Additional arguments (not used).
 #' @return A list containing the mean evaluation results for each draw across all targets.
-evalDrawMeans <- function(object, ...) {
-    UseMethod("evalDrawMeans")
+get_eval_draw_means <- function(object, ...) {
+    UseMethod("get_eval_draw_means")
 }
 
 #' The mean evaluation results for each metric for each draw and target.
@@ -300,6 +322,10 @@ evalDrawMeans <- function(object, ...) {
 #' possibly harmonic mean).
 evalMetricMeans <- function(object, ...) {
     UseMethod("evalMetricMeans")
+}
+
+get_eval_metric_means <- function(object, ...) {
+    UseMethod("get_eval_metric_means")
 }
 
 nsplits <- function(object, ...) {

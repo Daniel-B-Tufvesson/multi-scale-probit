@@ -124,7 +124,6 @@ split_data <- function(
         set.seed(seed)
     }
 
-
     # Create train/test splits for each dataset.
     Xtrain = list()
     ytrain = list()
@@ -144,31 +143,35 @@ split_data <- function(
     }
 
     train <- new_mspm_data(
-        predictorNames = predictorNames(data),
-        responseNames = responseNames(data),
+        predictorNames = get_predictor_names(data),
+        responseNames = get_response_names(data),
         Xlist = Xtrain,
         ylist = ytrain,
-        levelNames = levelNames(data),
-        nlevels = nlevels(data),
-        ntargets = ntargets(data),
+        levelNames = get_level_names(data),
+        nlevels = get_n_levels(data),
+        ntargets = get_n_targets(data),
         seed = data$seed,
         call = match.call()
     )
 
     test <- new_mspm_data(
-        predictorNames = predictorNames(data),
-        responseNames = responseNames(data),
+        predictorNames = get_predictor_names(data),
+        responseNames = get_response_names(data),
         Xlist = Xtest,
         ylist = ytest,
-        levelNames = levelNames(data),
-        nlevels = nlevels(data),
-        ntargets = ntargets(data),
+        levelNames = get_level_names(data),
+        nlevels = get_n_levels(data),
+        ntargets = get_n_targets(data),
         seed = data$seed,
         call = match.call()
     )
 
     # Return as mspm_data objects.
-    list(train = train, test = test)
+    return(new_mspm_data_split(
+        train = train,
+        test = test,
+        call = match.call()
+    ))
 }
 
 

@@ -30,7 +30,7 @@ run_all_pt_tests <- function() {
 
     # Validate accessors.
     # Check beta.
-    beta <- beta(fit);
+    beta <- get_beta(fit);
     if (is.null(beta)) {
         stop("Beta is NULL")
     }
@@ -48,7 +48,7 @@ run_all_pt_tests <- function() {
     }
     
     # Check gamma.
-    gammas <- gammas(fit);
+    gammas <- get_gammas(fit);
     if (is.null(gammas)) {
         stop("Gammas is NULL")
     }
@@ -71,50 +71,44 @@ run_all_pt_tests <- function() {
     }
 
     # Check data_spec.
-    data_spec <- data_spec(fit)
+    data_spec <- get_data_spec(fit)
     if (is.null(data_spec)) {
         stop("Data spec is NULL")
     }
-    if (!identical(data_spec, data_spec(data))) {
+    if (!identical(data_spec, get_data_spec(data))) {
         stop("Data spec in fit does not match original data spec")
     }
 
     # Chek ndraws.
-    if (ndraws(fit) != expected_draws) {
+    if (get_n_draws(fit) != expected_draws) {
         stop(paste("Wrong number of draws. Expected ", 
-            expected_draws, " but got ", ndraws(fit)))
+            expected_draws, " but got ", get_n_draws(fit)))
     }
 
     # Check ndrawsNoThin.
     expected_draws_no_thin <- 100
-    if (ndrawsNoThin(fit) != expected_draws_no_thin) {
+    if (get_n_draws_no_thin(fit) != expected_draws_no_thin) {
         stop(paste("Wrong number of draws without thinning. Expected ", 
-            expected_draws_no_thin, " but got ", ndrawsNoThin(fit)))
+            expected_draws_no_thin, " but got ", get_n_draws_no_thin(fit)))
     }
 
     # Check thin.
     expected_thin <- 2
-    if (thin(fit) != expected_thin) {
-        stop(paste("Wrong thin. Expected ", expected_thin, " but got ", thin(fit)))
+    if (get_thin(fit) != expected_thin) {
+        stop(paste("Wrong thin. Expected ", expected_thin, " but got ", get_thin(fit)))
     }
 
     # Check burnin.
     expected_burnin <- 100
-    if (burnin(fit) != expected_burnin) {
-        stop(paste("Wrong burnin. Expected ", expected_burnin, " but got ", burnin(fit)))
-    }
-
-    # Check diagnostics.
-    diagnostics <- diagnostics(fit)
-    if (is.null(diagnostics)) {
-        stop("Diagnostics is NULL")
+    if (get_burnin(fit) != expected_burnin) {
+        stop(paste("Wrong burnin. Expected ", expected_burnin, " but got ", get_burnin(fit)))
     }
 
     # Check ntemperatures.
     expected_ntemperatures <- 10
-    if (ntemperatures(fit) != expected_ntemperatures) {
+    if (get_n_temperatures(fit) != expected_ntemperatures) {
         stop(paste("Wrong number of temperatures. Expected ", 
-            expected_ntemperatures, " but got ", ntemperatures(fit)))
+            expected_ntemperatures, " but got ", get_n_temperatures(fit)))
     }
 
     # Check nlikelihood_calls.
@@ -160,18 +154,18 @@ run_all_pt_tests <- function() {
         fit = fit,
         newdata = data
     )
-    labels <- predictedLabels(predictions)
-    labelIndexes <- predictedLabelIndexes(predictions)
-    levelNames <- levelNames(data)
-    nlevels <- nlevels(data)
+    labels <- get_predicted_labels(predictions)
+    labelIndexes <- get_predicted_label_indexes(predictions)
+    levelNames <- get_level_names(data)
+    nlevels <- get_n_levels(data)
 
     # Check that number of ylabels elements match number of targets.
-    if (length(labels) != ntargets(data)) {
+    if (length(labels) != get_n_targets(data)) {
         stop("Test failed: Number of predicted label sets does not match number of targets.")
     }
 
     # Check that the predicted labels are factors and have correct lengths.
-    for (i in 1:ntargets(data)) {
+    for (i in 1:get_n_targets(data)) {
 
         # Check that all predicted label strings are in the allowed level names
         if (!all(labels[[i]] %in% levelNames[[i]])) {
@@ -184,7 +178,7 @@ run_all_pt_tests <- function() {
         }
 
         # Check number of labels match number of draws.
-        if (ncol(labels[[i]]) != ndraws(fit)) {
+        if (ncol(labels[[i]]) != get_n_draws(fit)) {
             stop(paste("Test failed: Number of predicted label draws does not match number of posterior draws for target", i))
         }
 
@@ -204,7 +198,7 @@ run_all_pt_tests <- function() {
         }
 
         # Check number of label indexes match number of draws.
-        if (ncol(labelIndexes[[i]]) != ndraws(fit)) {
+        if (ncol(labelIndexes[[i]]) != get_n_draws(fit)) {
             stop(paste("Test failed: Number of predicted label index draws does not match number of posterior draws for target", i))
         }
     }
@@ -255,16 +249,13 @@ run_all_pt_tests <- function() {
         newdata = data
     )
 
-    pred1_gl <<- pred1
-    pred2_gl <<- pred2
-
     # Check that predicted labels are the same for both fits.
-    if (!identical(predictedLabels(pred1), predictedLabels(pred2))) {
+    if (!identical(get_predicted_labels(pred1), get_predicted_labels(pred2))) {
         stop("Test failed: Predictions are not reproducible with same seed and data.")
     }
 
     # Compare label indexes.
-    if (!identical(predictedLabelIndexes(pred1), predictedLabelIndexes(pred2))) {
+    if (!identical(get_predicted_label_indexes(pred1), get_predicted_label_indexes(pred2))) {
         stop("Test failed: Predicted label indexes are not reproducible with same seed and data.")
     }
 

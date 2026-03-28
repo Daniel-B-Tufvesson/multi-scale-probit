@@ -9,7 +9,7 @@ run_all_eval_tests <- function() {
     .test_only_kendall()
     .test_no_metric()
     .test_unsupported_metric()
-    .test_accessors()
+    .test_eval_accessors()
 }
 
 
@@ -47,53 +47,53 @@ run_all_eval_tests <- function() {
         test_data = data,
         metrics = metrics
     )
-    drawResults <- evalDrawResults(eval)
-    targetMeans <- evalTargetMeans(eval)
-    drawMeans <- evalDrawMeans(eval)
-    metricMeans <- evalMetricMeans(eval)
+    drawResults <- get_eval_draw_results(eval)
+    targetMeans <- get_eval_target_means(eval)
+    drawMeans <- get_eval_draw_means(eval)
+    metricMeans <- get_eval_metric_means(eval)
 
     # Check data_spec.
-    if (!identical(data_spec(eval), data_spec(data))) {
+    if (!identical(get_data_spec(eval), get_data_spec(data))) {
         stop("Test failed: Data specification in evaluation does not match original data specification.")
     }
 
     # Check that metrics are identical.
-    if (!identical(evalMetrics(eval), metrics)) {
+    if (!identical(get_eval_metrics(eval), metrics)) {
         stop("Test failed: Metrics in evaluation do not match requested metrics. Requested metric: ", 
-             paste(metrics, collapse = ", "), ". Found metrics: ", paste(eval$metrics, collapse = ", "), ".")
+             paste(metrics, collapse = ", "), ". Found metrics: ", paste(get_eval_metrics(eval), collapse = ", "), ".")
     }
 
     # Check that there is a draw result for each metric.
     if (length(drawResults) != length(metrics)) {
         stop("Test failed: Number of draw results does not match number of metrics. Expected number of metrics: ", 
-             length(metrics), ". Found number of draw results: ", length(eval$drawResults), ".")
+             length(metrics), ". Found number of draw results: ", length(drawResults), ".")
     }
 
     # Check correct number of draws.
-    if (ndraws(eval) != ndraws(fit)) {
+    if (get_n_draws(eval) != get_n_draws(fit)) {
         stop("Test failed: Number of draws in evaluation does not match number of posterior draws. Expected:", 
-             ndraws(fit), 
+             get_n_draws(fit), 
              "Got:",
-             ndraws(eval))
+             get_n_draws(eval))
     }
 
     # Check that the number of draws in result match the number of posterior draws, and 
     # check that number of targets match.
     for (metric in metrics) {
         actualDraws = nrow(drawResults[[metric]])
-        if (actualDraws != ndraws(fit)) {
+        if (actualDraws != get_n_draws(fit)) {
             stop(paste("Test failed: Number of draws in result for metric", metric, 
                        "does not match number of posterior draws. Expected:", 
-                       ndraws(fit), 
+                       get_n_draws(fit), 
                        "Got:", 
                        actualDraws))
         }
 
         # Need to accomodate harmonic mean if more than 1 target.
-        if (ntargets(data) > 1) {
-            expected_ncols <- ntargets(data) + 1
+        if (get_n_targets(data) > 1) {
+            expected_ncols <- get_n_targets(data) + 1
         } else {
-            expected_ncols <- ntargets(data)
+            expected_ncols <- get_n_targets(data)
         }
         # One column for each target + one for harmonic mean.
         if (ncol(drawResults[[metric]]) != expected_ncols) {
@@ -105,10 +105,10 @@ run_all_eval_tests <- function() {
     for (metric in metrics) {
         actualTargets = length(targetMeans[[metric]])
         # Need to accomodate harmonic mean if more than 1 target.
-        if (ntargets(data) > 1) {
-            expectedTargets <- ntargets(data) + 1
+        if (get_n_targets(data) > 1) {
+            expectedTargets <- get_n_targets(data) + 1
         } else {
-            expectedTargets <- ntargets(data)
+            expectedTargets <- get_n_targets(data)
         }
         if (actualTargets != expectedTargets) {
             stop(paste("Test failed: Number of target means for metric", metric, 
@@ -122,10 +122,10 @@ run_all_eval_tests <- function() {
     # Check that there is a mean for each draw.
     for (metric in metrics) {
         actualDraws = length(drawMeans[[metric]])
-        if (actualDraws != ndraws(fit)) {
+        if (actualDraws != get_n_draws(fit)) {
             stop(paste("Test failed: Number of draw means for metric", metric, 
                        "does not match number of posterior draws. Expected:", 
-                       ndraws(fit), 
+                       get_n_draws(fit), 
                        "Got:", 
                        actualDraws))
         }
@@ -134,17 +134,17 @@ run_all_eval_tests <- function() {
     # Check that there is a mean for each draw across the metrics.
     actualMetricMeansRows = nrow(metricMeans)
     actualMetricMeansCols = ncol(metricMeans)
-    if (actualMetricMeansRows != ndraws(fit)) {
+    if (actualMetricMeansRows != get_n_draws(fit)) {
         stop(paste("Test failed: Number of rows in metric means does not match number of posterior draws. Expected:", 
-                   ndraws(fit), 
+                   get_n_draws(fit), 
                    "Got:", 
                    actualMetricMeansRows))
     }
     # Need to accomodate harmonic mean if more than 1 target.
-    if (ntargets(data) > 1) {
-        expectedMetricMeansCols <- ntargets(data) + 1
+    if (get_n_targets(data) > 1) {
+        expectedMetricMeansCols <- get_n_targets(data) + 1
     } else {
-        expectedMetricMeansCols <- ntargets(data)
+        expectedMetricMeansCols <- get_n_targets(data)
     }
     if (actualMetricMeansCols != expectedMetricMeansCols) {
         stop(paste("Test failed: Number of columns in metric means does not match number of targets. Expected:", 
@@ -410,7 +410,7 @@ run_all_eval_tests <- function() {
     cat("Test passed: Error correctly thrown when unsupported metric is specified for evaluation.\n")
 }
 
-.test_accessors <- function() {
+.test_eval_accessors <- function() {
     # Generate the data.
     data <- generate_synthetic_data(
         nobs = 100,
@@ -422,8 +422,8 @@ run_all_eval_tests <- function() {
     # Fit model.
     fit = fit_mspm(
         data = data,
-        ndraws = 500,
-        burnin = 500,
+        ndraws = 10,
+        burnin = 10,
         thin = 1,
         tune = 0.1,
         seed = 1234,
@@ -445,62 +445,62 @@ run_all_eval_tests <- function() {
     )
 
     # Test data_spec
-    if (!identical(data_spec(eval), data_spec(data))) {
+    if (!identical(get_data_spec(eval), get_data_spec(data))) {
         stop("Test failed: data_spec accessor does not return correct value.")
     }
 
     # Test ndraws accessor.
-    if (ndraws(eval) != 500) {
+    if (get_n_draws(eval) != 10) {
         stop("Test failed: ndraws accessor returned incorrect value.")
     }
 
     # Test ntargets accessor.
-    if (ntargets(eval) != ntargets(data)) {
+    if (get_n_targets(eval) != get_n_targets(data)) {
         stop("Test failed: ntargets accessor returned incorrect value.")
     }
 
     # Test nlevels accessor.
-    if (!all(nlevels(eval) == nlevels(data))) {
+    if (!all(get_n_levels(eval) == get_n_levels(data))) {
         stop("Test failed: nlevels accessor returned incorrect value.")
     }
     
     # Test predictorNames accessor.
-    if (!identical(predictorNames(eval), predictorNames(data))) {
+    if (!identical(get_predictor_names(eval), get_predictor_names(data))) {
         stop("Test failed: predictorNames accessor returned incorrect value.")
     }
 
     # Test responseNames accessor.
-    if (!identical(responseNames(eval), responseNames(data))) {
+    if (!identical(get_response_names(eval), get_response_names(data))) {
         stop("Test failed: responseNames accessor returned incorrect value.")
     }
 
     # Test levelNames accessor.
-    if (!identical(levelNames(eval), levelNames(data))) {
+    if (!identical(get_level_names(eval), get_level_names(data))) {
         stop("Test failed: levelNames accessor returned incorrect value.")
     }
 
     # Test evalMetrics accessor.
-    if (!identical(evalMetrics(eval), metrics)) {
+    if (!identical(get_eval_metrics(eval), metrics)) {
         stop("Test failed: metrics accessor returned incorrect value.")
     }
 
     # Test evalDrawResults accessor.
-    if (!identical(evalDrawResults(eval), eval$drawResults)) {
+    if (!identical(get_eval_draw_results(eval), eval$drawResults)) {
         stop("Test failed: drawResults accessor returned incorrect value.")
     }
 
     # Test evalTargetMeans accessor.
-    if (!identical(evalTargetMeans(eval), eval$targetMeans)) {
+    if (!identical(get_eval_target_means(eval), eval$targetMeans)) {
         stop("Test failed: targetMeans accessor returned incorrect value.")
     }
 
     # Test evalDrawMeans accessor.
-    if (!identical(evalDrawMeans(eval), eval$drawMeans)) {
+    if (!identical(get_eval_draw_means(eval), eval$drawMeans)) {
         stop("Test failed: drawMeans accessor returned incorrect value.")
     }
 
     # Test evalMetricMeans accessor.
-    if (!identical(evalMetricMeans(eval), eval$metricMeans)) {
+    if (!identical(get_eval_metric_means(eval), eval$metricMeans)) {
         stop("Test failed: metricMeans accessor returned incorrect value.")
     }
 

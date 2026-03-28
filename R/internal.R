@@ -93,6 +93,14 @@ get_data_spec.mspm_data <- function(object, ...) {
     object$data_spec
 }
 
+get_x_values.mspm_data <- function(object, ...) {
+    object$Xlist
+}
+
+get_y_values.mspm_data <- function(object, ...) {
+    object$ylist
+}
+
 get_n_targets.mspm_data <- function(object, ...) {
     get_n_targets(object$data_spec)
 }
@@ -115,6 +123,36 @@ get_response_names.mspm_data <- function(object, ...) {
 
 get_level_names.mspm_data <- function(object, ...) {
     get_level_names(object$data_spec)
+}
+
+
+#' Constructor for creating a new multi-scale probit model data split object for 
+#' train/test splits.
+new_mspm_data_split <- function(
+    train_data,
+    test_data,
+    call
+) {
+    structure(
+        list(
+            train_data = train_data,
+            test_data = test_data,
+            call = call
+        ),
+        class = "mspm_data_split"
+    )
+}
+
+get_train_split.mspm_data_split <- function(object, ...) {
+    object$train_data
+}
+
+get_test_split.mspm_data_split <- function(object, ...) {
+    object$test_data
+}
+
+get_data_spec.mspm_data_split <- function(object, ...) {
+    get_data_spec(get_train_split(object))
 }
 
 #' Constructor for creating a new multi-scale probit model single chain diagnostics object.
@@ -277,7 +315,7 @@ get_proposal_variance.mspm <- function(object, ...) {
     object$proposal_variance
 }
 
-get_nlikelihood_calls.mspm <- function(object, ...) {
+get_n_likelihood_calls.mspm <- function(object, ...) {
     object$nlikelihood_calls
 }
 
@@ -449,43 +487,43 @@ new_mspm_labeled_prediction <- function(
     )
 }
 
-data_spec.mspm_labeled_prediction <- function(object, ...) {
+get_data_spec.mspm_labeled_prediction <- function(object, ...) {
     object$data_spec
 }
 
-ntargets.mspm_labeled_prediction <- function(object, ...) {
-    ntargets(object$data_spec)
+get_n_targets.mspm_labeled_prediction <- function(object, ...) {
+    get_n_targets(object$data_spec)
 }
 
-nlevels.mspm_labeled_prediction <- function(object, ...) {
-    nlevels((object$data_spec))
+get_n_levels.mspm_labeled_prediction <- function(object, ...) {
+    get_n_levels((object$data_spec))
 }
 
-predictorNames.mspm_labeled_prediction <- function(object, ...) {
-    predictorNames(object$data_spec)
+get_predictor_names.mspm_labeled_prediction <- function(object, ...) {
+    get_predictor_names(object$data_spec)
 }
 
-responseNames.mspm_labeled_prediction <- function(object, ...) {
-    responseNames(object$data_spec)
+get_response_names.mspm_labeled_prediction <- function(object, ...) {
+    get_response_names(object$data_spec)
 }
 
-levelNames.mspm_labeled_prediction <- function(object, ...) {
-    levelNames(object$data_spec)
+get_level_names.mspm_labeled_prediction <- function(object, ...) {
+    get_level_names(object$data_spec)
 }
 
-ndraws.mspm_labeled_prediction <- function(object, ...) {
+get_n_draws.mspm_labeled_prediction <- function(object, ...) {
     object$ndraws
 }
 
-predictedLabels.mspm_labeled_prediction <- function(object, ...) {
+get_predicted_labels.mspm_labeled_prediction <- function(object, ...) {
     object$ylabels
 }
 
-predictedLabelIndexes.mspm_labeled_prediction <- function(object, ...) {
+get_predicted_label_indexes.mspm_labeled_prediction <- function(object, ...) {
     object$ylabelIndexes
 }
 
-latent.mspm_labeled_prediction <- function(object, ...) {
+get_latent_prediction.mspm_labeled_prediction <- function(object, ...) {
     object$ystars
 }
 
@@ -529,51 +567,51 @@ new_mspm_labeled_evaluation <- function(
     )
 }
 
-data_spec.mspm_labeled_evaluation <- function(object, ...) {
+get_data_spec.mspm_labeled_evaluation <- function(object, ...) {
     object$data_spec
 }
 
-ntargets.mspm_labeled_evaluation <- function(object, ...) {
-    ntargets(object$data_spec)
+get_n_targets.mspm_labeled_evaluation <- function(object, ...) {
+    get_n_targets(object$data_spec)
 }
 
-nlevels.mspm_labeled_evaluation <- function(object, ...) {
-    nlevels(object$data_spec)
+get_n_levels.mspm_labeled_evaluation <- function(object, ...) {
+    get_n_levels(object$data_spec)
 }
 
-predictorNames.mspm_labeled_evaluation <- function(object, ...) {
-    predictorNames(object$data_spec)
+get_predictor_names.mspm_labeled_evaluation <- function(object, ...) {
+    get_predictor_names(object$data_spec)
 }
 
-responseNames.mspm_labeled_evaluation <- function(object, ...) {
-    responseNames(object$data_spec)
+get_response_names.mspm_labeled_evaluation <- function(object, ...) {
+    get_response_names(object$data_spec)
 }
 
-levelNames.mspm_labeled_evaluation <- function(object, ...) {
-    levelNames(object$data_spec)
+get_level_names.mspm_labeled_evaluation <- function(object, ...) {
+    get_level_names(object$data_spec)
 }
 
-ndraws.mspm_labeled_evaluation <- function(object, ...) {
+get_n_draws.mspm_labeled_evaluation <- function(object, ...) {
     object$ndraws
 }
 
-evalMetrics.mspm_labeled_evaluation <- function(object, ...) {
+get_eval_metrics.mspm_labeled_evaluation <- function(object, ...) {
     object$metrics
 }
 
-evalDrawResults.mspm_labeled_evaluation <- function(object, ...) {
+get_eval_draw_results.mspm_labeled_evaluation <- function(object, ...) {
     object$drawResults
 }
 
-evalTargetMeans.mspm_labeled_evaluation <- function(object, ...) {
+get_eval_target_means.mspm_labeled_evaluation <- function(object, ...) {
     object$targetMeans
 }
 
-evalDrawMeans.mspm_labeled_evaluation <- function(object, ...) {
+get_eval_draw_means.mspm_labeled_evaluation <- function(object, ...) {
     object$drawMeans
 }
 
-evalMetricMeans.mspm_labeled_evaluation <- function(object, ...) {
+get_eval_metric_means.mspm_labeled_evaluation <- function(object, ...) {
     object$metricMeans
 }
 

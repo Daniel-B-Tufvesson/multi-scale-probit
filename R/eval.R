@@ -1,7 +1,5 @@
 source("R/util.R")
 
-library(callr)
-
 
 # Evaluate the predictions from an mspm model. 
 #
@@ -26,11 +24,11 @@ eval_mspm_prediction_draws <- function(
     .validate_metrics(metrics)
 
     # Extract necessary components from the labeled predictions.
-    ylabels_pred <- predictedLabelIndexes(predictions)
-    ylist_true <- test_data$ylist
-    ntargets <- ntargets(test_data)
-    ndraws <- ndraws(predictions)
-    nlevels <- nlevels(test_data)
+    ylabels_pred <- get_predicted_label_indexes(predictions)
+    ylist_true <- get_y_values(test_data)
+    ntargets <- get_n_targets(test_data)
+    ndraws <- get_n_draws(predictions)
+    nlevels <- get_n_levels(test_data)
 
     # Determine the number of result columns (for multi-scale, add one)
     # Last column is used for harmonic mean accross datasets.
@@ -109,8 +107,8 @@ eval_mspm_prediction_draws <- function(
     }
 
     return(new_mspm_labeled_evaluation(
-        data_spec = data_spec(predictions),
-        ndraws = ndraws(predictions),
+        data_spec = get_data_spec(predictions),
+        ndraws = get_n_draws(predictions),
         metrics = metrics,
         drawResults = results,
         targetMeans = targetMeans,
@@ -147,28 +145,6 @@ compute_f1_score_draws <- function(y_true, y_pred, nlabels) {
 
     # Call the cpp backend as a subprocess.
     f1 <- cpp_fmeasure_distribution(y_pred-1, y_true-1, nlabels) # Labels are 0-based for cpp
-    # f1 <- tryCatch({callr::r(
-    #     function(y_pred, y_true, nlabels) {
-    #         devtools::load_all()
-    #         cpp_fmeasure_distribution(y_pred, y_true, nlabels)
-    #     },
-    #     args = list(
-    #         y_pred = y_pred-1, # 0-based for cpp
-    #         y_true = y_true-1, # 0-based for cpp
-    #         nlabels = nlabels
-    #     )
-    # )}, error = function(e) {
-    #     message("Error in cpp_hprobit: ", e$message)
-    #     if (!is.null(e$stdout)) {
-    #         cat("---- STDOUT ----\n")
-    #         cat(e$stdout, sep = "\n")
-    #     }
-    #     if (!is.null(e$stderr)) {
-    #         cat("---- STDERR ----\n")
-    #         cat(e$stderr, sep = "\n")
-    #     }
-    #     stop(e)
-    # })
     return(f1)
 }
 
