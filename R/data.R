@@ -1,5 +1,3 @@
-source("R/internal.R")
-source("R/util.R")
 
 # Create a data structure for fitting the multi-scale probit model. This data structure
 # defines the predictors (X) and the responses (Y). It contains several datasets which 

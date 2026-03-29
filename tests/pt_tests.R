@@ -1,6 +1,4 @@
 
-source("R/predict.R")
-
 run_all_pt_tests <- function() {
     .test_pt_predict()
     .test_predict_reproducibility()
@@ -112,7 +110,7 @@ run_all_pt_tests <- function() {
     }
 
     # Check nlikelihood_calls.
-    nlikelihood_calls <- get_nlikelihood_calls(fit)
+    nlikelihood_calls <- get_n_likelihood_calls(fit)
     if (is.null(nlikelihood_calls)) {
         stop("Test failed: nlikelihood_calls is NULL.")
     }

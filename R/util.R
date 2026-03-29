@@ -1,4 +1,3 @@
-source("R/internal.R")
 
 #' Compute the harmonic mean of a numeric vector, handling zeros and NAs appropriately. If any
 #' value is zero, the harmonic mean is defined to be zero. If any value is NA, the harmonic mean 

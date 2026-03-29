@@ -1,4 +1,3 @@
-source("R/generics.R")
 
 #' Constructor for creating a data specification object for model data.
 new_msmp_data_spec <- function(

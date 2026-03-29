@@ -1,9 +1,6 @@
 
 library(ggplot2)
 
-source("R/util.R")
-source("R/internal.R")
-
 # Plot all posterior beta distributions. This creates a separate plot for each beta 
 # parameter.
 # 

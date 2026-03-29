@@ -1,4 +1,6 @@
 
+# Accessor Functions -----------------------------------------------------------------
+
 #' The data specification for a multi-scale probit data object.
 #'
 #' @param object One of:
@@ -356,3 +358,7 @@ get_n_temperatures <- function(object, ...) {
 get_inv_temperatures <- function(object, ...) {
     UseMethod("get_inv_temperatures")
 }
+
+
+# Sampler Functions -------------------------------------------------------------------
+

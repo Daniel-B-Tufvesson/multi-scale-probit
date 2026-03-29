@@ -1,5 +1,6 @@
 # Script that runs all test cases.
 
+rm(list = ls())
 devtools::load_all()
 
 source("tests/probit_tests.R")

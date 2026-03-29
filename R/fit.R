@@ -1,7 +1,5 @@
 library(coda)
-library(callr)
-
-source("R/internal.R")
+# library(callr)
 
 tune_mspm <- function(
     data,

@@ -1,5 +1,3 @@
-source("R/util.R")
-
 
 # Evaluate the predictions from an mspm model. 
 #

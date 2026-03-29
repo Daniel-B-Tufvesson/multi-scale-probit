@@ -1,6 +1,3 @@
-source("R/fit.R")
-source("R/util.R")
-source("R/data.R")
 
 run_all_probit_tests <-function() {
     .test_fit()

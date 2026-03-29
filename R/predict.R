@@ -1,4 +1,3 @@
-source("R/internal.R")
 
 #' The main predict method for mspm objects.
 #'

@@ -1,7 +1,4 @@
 
-source("R/predict.R")
-source("R/eval.R")
-
 run_all_eval_tests <- function() {
     .test_predict_and_eval_draws()
     .test_eval_reproducibility()
@@ -238,7 +235,7 @@ run_all_eval_tests <- function() {
         test_data = data,
         metrics = metrics
     )
-    drawResults <- evalDrawResults(eval)
+    drawResults <- get_eval_draw_results(eval)
 
     # Check that only F1 metric is present in results.
     if (!identical(names(drawResults), metrics)) {
@@ -287,7 +284,7 @@ run_all_eval_tests <- function() {
         test_data = data,
         metrics = metrics
     )
-    drawResults <- evalDrawResults(eval)
+    drawResults <- get_eval_draw_results(eval)
 
     # Check that only Kendall metric is present in results.
     if (!identical(names(drawResults), metrics)) {
